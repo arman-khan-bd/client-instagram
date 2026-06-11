@@ -235,7 +235,7 @@ class ApiClient {
     };
   }
 
-  async likePost(postId: string) {
+  async likePost(postId: string | number) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
@@ -248,6 +248,8 @@ class ApiClient {
 
     if (existing) {
       await supabase.from('Like').delete().eq('id', existing.id);
+      // Also remove any reaction
+      await supabase.from('Reaction').delete().eq('userId', authUser.id).eq('postId', postId);
       return { liked: false };
     } else {
       await supabase.from('Like').insert({ userId: authUser.id, postId });
@@ -255,18 +257,72 @@ class ApiClient {
     }
   }
 
-  async getComments(postId: string) {
+  // React to a post with Facebook-style reactions
+  async reactToPost(postId: string | number, reactionType: string) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: existing } = await supabase
+      .from('Reaction')
+      .select('id, type')
+      .eq('userId', authUser.id)
+      .eq('postId', postId)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.type === reactionType) {
+        // Remove reaction + remove like
+        await supabase.from('Reaction').delete().eq('id', existing.id);
+        await supabase.from('Like').delete().eq('userId', authUser.id).eq('postId', postId);
+        return { reaction: null };
+      } else {
+        // Change reaction type
+        await supabase.from('Reaction').update({ type: reactionType }).eq('id', existing.id);
+        return { reaction: reactionType };
+      }
+    } else {
+      // New reaction — also add a Like entry
+      await supabase.from('Reaction').insert({ userId: authUser.id, postId, type: reactionType });
+      await supabase.from('Like').upsert({ userId: authUser.id, postId }, { onConflict: 'userId,postId' });
+      return { reaction: reactionType };
+    }
+  }
+
+  async getPostReaction(postId: string | number) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return null;
+    const { data } = await supabase.from('Reaction').select('type')
+      .eq('userId', authUser.id).eq('postId', postId).maybeSingle();
+    return data?.type || null;
+  }
+
+  async getComments(postId: string | number) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
     const { data: comments, error } = await supabase
       .from('Comment')
       .select(`
         *,
-        user:User!Comment_userId_fkey(id, username, avatarUrl)
+        user:User!Comment_userId_fkey(id, username, fullName, avatarUrl)
       `)
       .eq('postId', postId)
+      .is('parentId', null)
       .order('createdAt', { ascending: true });
 
     if (error) throw error;
-    return comments || [];
+
+    const enriched = await Promise.all((comments || []).map(async (c: any) => {
+      const { count: likeCount } = await supabase
+        .from('CommentLike').select('id', { count: 'exact', head: true }).eq('commentId', c.id);
+      let isLiked = false;
+      if (authUser) {
+        const { data: likeRec } = await supabase.from('CommentLike').select('id')
+          .eq('userId', authUser.id).eq('commentId', c.id).maybeSingle();
+        isLiked = !!likeRec;
+      }
+      return { ...c, likeCount: likeCount || 0, isLiked };
+    }));
+
+    return enriched;
   }
 
   async addComment(postId: string | number, text: string, options?: { parentId?: number; imageUrl?: string; emoji?: string }) {
