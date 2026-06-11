@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useApp } from "../AppContext";
-import { Upload, X, MapPin, Tag, Smile, Music, Globe, Share2 } from "lucide-react";
+import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight } from "lucide-react";
 
 const EMOJIS = ["😊", "😂", "❤️", "🔥", "👍", "😭", "😍", "✨", "🎉", "🚀", "💀", "👀"];
 const SUGGESTED_LOCATIONS = ["New York, USA", "Tokyo, Japan", "Paris, France", "London, UK", "Aura Space 🌌", "Silicon Valley, CA"];
@@ -28,9 +28,18 @@ const FILTERS = [
   { name: "Cool Aura", filter: "hue-rotate(45deg) saturate(1.5) contrast(1.1)" },
 ];
 
+const BG_GRADIENTS = [
+  { name: "Sunset", value: "linear-gradient(45deg, #FF8A00, #FF2E93, #9E00FF)" },
+  { name: "Ocean Breeze", value: "linear-gradient(135deg, #02AAB0 0%, #00CDAC 100%)" },
+  { name: "Neon Glow", value: "linear-gradient(135deg, #F107A3 0%, #7B2FF7 100%)" },
+  { name: "Dark Nebula", value: "linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)" },
+  { name: "Lime Energy", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)" },
+];
+
 export default function CreatePostModal() {
-  const { showCreatePostModal, setShowCreatePostModal, createPost } = useApp();
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const { showCreatePostModal, setShowCreatePostModal, createPost, showToast } = useApp();
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [activePreviewIdx, setActivePreviewIdx] = useState(0);
   const [caption, setCaption] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,33 +53,38 @@ export default function CreatePostModal() {
   const [music, setMusic] = useState("");
   const [postType, setPostType] = useState<"post" | "reel">("post");
 
-  // Cross posting
-  const [shareFacebook, setShareFacebook] = useState(false);
-  const [shareTikTok, setShareTikTok] = useState(false);
-  const [shareOK, setShareOK] = useState(false);
+  // Text gradient background posting
+  const [selectedBgIdx, setSelectedBgIdx] = useState<number | null>(null);
+
+  // Facebook-style toolbar panel visibility
+  const [activePanel, setActivePanel] = useState<"location" | "tag" | "feeling" | "music" | "audience" | "color" | null>(null);
 
   if (!showCreatePostModal) return null;
 
   const handleClose = () => {
     setShowCreatePostModal(false);
-    setImagePreview(null);
+    setImagePreviews([]);
+    setActivePreviewIdx(0);
     setCaption("");
     setSelectedFilter("none");
     setLocation("");
     setUserTags([]);
     setFeeling("");
     setMusic("");
-    setShareFacebook(false);
-    setShareTikTok(false);
-    setShareOK(false);
+    setSelectedBgIdx(null);
+    setActivePanel(null);
     setPostType("post");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const urls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        urls.push(URL.createObjectURL(files[i]));
+      }
+      setImagePreviews((prev) => [...prev, ...urls]);
+      setSelectedBgIdx(null); // Disable color BG if files added
     }
   };
 
@@ -80,10 +94,14 @@ export default function CreatePostModal() {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const urls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        urls.push(URL.createObjectURL(files[i]));
+      }
+      setImagePreviews((prev) => [...prev, ...urls]);
+      setSelectedBgIdx(null); // Disable color BG if files added
     }
   };
 
@@ -110,19 +128,60 @@ export default function CreatePostModal() {
     setCaption((prev) => prev + emoji);
   };
 
-  const handleShare = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!imagePreview) return;
-
-    createPost(imagePreview, caption, {
-      location,
-      filter: selectedFilter,
-      feelings: feeling,
-      tags: userTags,
-      music: music ? `${music} 🎶` : undefined,
+  const handleRemovePreview = (idxToRemove: number) => {
+    setImagePreviews((prev) => {
+      const updated = prev.filter((_, i) => i !== idxToRemove);
+      if (activePreviewIdx >= updated.length) {
+        setActivePreviewIdx(Math.max(0, updated.length - 1));
+      }
+      return updated;
     });
+  };
+
+  const handleShare = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check if text-only bg post
+    const isTextOnly = selectedBgIdx !== null && imagePreviews.length === 0;
+
+    if (!isTextOnly && imagePreviews.length === 0) {
+      showToast("Please upload an image or select a color background!", "info");
+      return;
+    }
+
+    if (isTextOnly && !caption.trim()) {
+      showToast("Please write a message for your colored background post!", "info");
+      return;
+    }
+
+    if (isTextOnly) {
+      createPost("", caption, {
+        bgGradient: BG_GRADIENTS[selectedBgIdx!].value,
+        isTextOnly: true,
+        location,
+        feelings: feeling,
+        tags: userTags,
+        music: music ? `${music} 🎶` : undefined,
+      });
+    } else {
+      createPost(imagePreviews[0], caption, {
+        imgs: imagePreviews,
+        filter: selectedFilter,
+        location,
+        feelings: feeling,
+        tags: userTags,
+        music: music ? `${music} 🎶` : undefined,
+      });
+    }
     handleClose();
   };
+
+  const togglePanel = (panel: typeof activePanel) => {
+    setActivePanel((prev) => (prev === panel ? null : panel));
+  };
+
+  // Preview is text-only if background gradient is selected and no images are uploaded
+  const isTextOnlyPost = selectedBgIdx !== null && imagePreviews.length === 0;
 
   return (
     <div
@@ -131,20 +190,20 @@ export default function CreatePostModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[650px] max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col"
+        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[550px] max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col scrollbar-thin"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#222] sticky top-0 bg-[#111] z-10">
+        <div className="flex items-center justify-between p-4 border-b border-[#222] sticky top-0 bg-[#111] z-30">
           <button
             onClick={handleClose}
             className="text-white hover:text-gray-300 text-[14px] cursor-pointer"
           >
             Cancel
           </button>
-          <h3 className="font-bold text-[15px]">Create new {postType}</h3>
+          <h3 className="font-bold text-[15px]">Create {postType}</h3>
           <button
             onClick={handleShare}
-            disabled={!imagePreview}
+            disabled={imagePreviews.length === 0 && selectedBgIdx === null}
             className="text-insta-blue hover:text-white font-bold text-[14px] cursor-pointer disabled:opacity-40 disabled:cursor-default"
           >
             Share
@@ -153,68 +212,112 @@ export default function CreatePostModal() {
 
         {/* Content Body */}
         <div className="flex flex-col">
-          {imagePreview ? (
+          {imagePreviews.length > 0 || isTextOnlyPost ? (
             <form onSubmit={handleShare} className="flex flex-col">
-              {/* Selected Preview with filter applied */}
+              {/* Media Preview Container */}
               <div className="aspect-square bg-black overflow-hidden relative border-b border-[#222]">
-                <img
-                  src={imagePreview}
-                  alt="Post preview"
-                  className="w-full h-full object-cover transition-all duration-300"
-                  style={{ filter: selectedFilter }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setImagePreview(null)}
-                  className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 rounded-full p-1.5 transition text-white"
-                  title="Remove image"
-                >
-                  <X size={18} />
-                </button>
+                {isTextOnlyPost ? (
+                  /* Color BG preview box */
+                  <div
+                    className="w-full h-full flex items-center justify-center p-8 text-center text-[19px] font-semibold font-sans break-words text-white select-text leading-relaxed"
+                    style={{ background: BG_GRADIENTS[selectedBgIdx!].value }}
+                  >
+                    {caption || "Your text will appear here..."}
+                  </div>
+                ) : (
+                  /* Standard Image Preview with carousel */
+                  <div className="relative w-full h-full">
+                    <img
+                      src={imagePreviews[activePreviewIdx]}
+                      alt="Post preview"
+                      className="w-full h-full object-cover transition-all duration-300"
+                      style={{ filter: selectedFilter }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePreview(activePreviewIdx)}
+                      className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 rounded-full p-1.5 transition text-white z-10"
+                      title="Remove this image"
+                    >
+                      <X size={16} />
+                    </button>
+
+                    {/* Carousel Navigation */}
+                    {imagePreviews.length > 1 && (
+                      <>
+                        {activePreviewIdx > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setActivePreviewIdx((prev) => prev - 1)}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-10 transition text-white border-none cursor-pointer"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                        )}
+                        {activePreviewIdx < imagePreviews.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setActivePreviewIdx((prev) => prev + 1)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-10 transition text-white border-none cursor-pointer"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        )}
+
+                        {/* Pagination Indicator */}
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 px-2.5 py-1 rounded-full text-[10px] text-gray-300 z-10">
+                          {activePreviewIdx + 1} / {imagePreviews.length}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Photos Filters Carousel */}
-              <div className="p-4 bg-[#161616] border-b border-[#222]">
-                <p className="text-[12px] font-semibold text-gray-400 mb-3 select-none">
-                  Apply Filter:
-                </p>
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                  {FILTERS.map((f) => (
-                    <button
-                      key={f.name}
-                      type="button"
-                      onClick={() => setSelectedFilter(f.filter)}
-                      className={`flex flex-col items-center gap-1.5 cursor-pointer shrink-0 transition-all duration-200 ${
-                        selectedFilter === f.filter ? "scale-105" : "opacity-75 hover:opacity-100"
-                      }`}
-                    >
-                      <div className="w-[64px] h-[64px] rounded-lg overflow-hidden border-2 border-white/[0.08] relative">
-                        <img
-                          src={imagePreview}
-                          alt={f.name}
-                          className="w-full h-full object-cover"
-                          style={{ filter: f.filter }}
-                        />
-                        {selectedFilter === f.filter && (
-                          <div className="absolute inset-0 bg-[#FF2E93]/20 border border-[#FF2E93] rounded-lg" />
-                        )}
-                      </div>
-                      <span className="text-[10px] font-medium text-gray-300">
-                        {f.name}
-                      </span>
-                    </button>
-                  ))}
+              {/* Photos Filters Carousel (Only if showing images) */}
+              {!isTextOnlyPost && imagePreviews.length > 0 && (
+                <div className="p-4 bg-[#161616] border-b border-[#222]">
+                  <p className="text-[11px] font-semibold text-gray-400 mb-2.5 select-none">
+                    Apply Filter:
+                  </p>
+                  <div className="flex gap-3 overflow-x-auto pb-1.5 scrollbar-thin">
+                    {FILTERS.map((f) => (
+                      <button
+                        key={f.name}
+                        type="button"
+                        onClick={() => setSelectedFilter(f.filter)}
+                        className={`flex flex-col items-center gap-1 cursor-pointer shrink-0 transition-all duration-200 ${
+                          selectedFilter === f.filter ? "scale-105" : "opacity-75 hover:opacity-100"
+                        }`}
+                      >
+                        <div className="w-[56px] h-[56px] rounded-lg overflow-hidden border border-white/[0.08] relative">
+                          <img
+                            src={imagePreviews[activePreviewIdx]}
+                            alt={f.name}
+                            className="w-full h-full object-cover"
+                            style={{ filter: f.filter }}
+                          />
+                          {selectedFilter === f.filter && (
+                            <div className="absolute inset-0 bg-[#FF2E93]/20 border border-[#FF2E93] rounded-lg" />
+                          )}
+                        </div>
+                        <span className="text-[9px] font-medium text-gray-400">
+                          {f.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Rich Form Details */}
-              <div className="p-5 flex flex-col gap-5">
+              <div className="p-4.5 flex flex-col gap-4">
                 {/* Post Type Selector */}
                 <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-white/[0.05]">
                   <button
                     type="button"
                     onClick={() => setPostType("post")}
-                    className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition ${
                       postType === "post" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
                     }`}
                   >
@@ -223,7 +326,7 @@ export default function CreatePostModal() {
                   <button
                     type="button"
                     onClick={() => setPostType("reel")}
-                    className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition ${
                       postType === "reel" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
                     }`}
                   >
@@ -231,144 +334,223 @@ export default function CreatePostModal() {
                   </button>
                 </div>
 
-                {/* Caption textarea */}
+                {/* Caption textbox */}
                 <div>
                   <textarea
-                    placeholder="Write a caption..."
+                    placeholder={isTextOnlyPost ? "Write something on your gradient post..." : "Write a caption..."}
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)}
                     maxLength={2200}
-                    className="w-full bg-transparent border-none text-[14px] text-white outline-none placeholder-[#555] h-24 resize-none"
+                    className="w-full bg-transparent border-none text-[13.5px] text-white outline-none placeholder-[#555] h-20 resize-none"
                   />
                   <div className="flex items-center justify-between mt-1">
-                    {/* Emoji drawer list */}
+                    {/* Emoji list shortcuts */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {EMOJIS.map((emoji) => (
                         <button
                           key={emoji}
                           type="button"
                           onClick={() => appendEmoji(emoji)}
-                          className="text-[14px] hover:scale-125 transition cursor-pointer"
+                          className="text-[13px] hover:scale-125 transition cursor-pointer"
                         >
                           {emoji}
                         </button>
                       ))}
                     </div>
-                    <div className="text-[11px] text-[#555]">
+                    <div className="text-[10px] text-[#555]">
                       {caption.length} / 2,200
                     </div>
                   </div>
                 </div>
 
-                {/* Location adding */}
-                <div className="flex flex-col gap-2 border-t border-[#222] pt-4">
-                  <div className="flex items-center gap-2 text-gray-300 text-[13px] font-semibold">
-                    <MapPin size={16} className="text-insta-blue" />
-                    <span>Add Location</span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search/type a location..."
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white outline-none focus:border-insta-blue/50"
-                  />
-                  <div className="flex gap-2 flex-wrap mt-1">
-                    {SUGGESTED_LOCATIONS.map((loc) => (
+                {/* Facebook-style icon panel toggles */}
+                <div className="border-t border-[#222] pt-3 flex items-center justify-between">
+                  <span className="text-[11.5px] text-gray-400 font-semibold select-none">
+                    Add to your post
+                  </span>
+                  
+                  <div className="flex items-center gap-1 relative">
+                    {/* Location Toggle Icon */}
+                    <div className="group relative">
                       <button
-                        key={loc}
                         type="button"
-                        onClick={() => setLocation(loc)}
-                        className="text-[10px] bg-[#1a1a1a] border border-white/[0.05] hover:bg-[#222] text-gray-300 px-2.5 py-1 rounded-full transition cursor-pointer"
+                        onClick={() => togglePanel("location")}
+                        className={`p-2 rounded-lg cursor-pointer hover:bg-[#222] transition ${
+                          activePanel === "location" ? "bg-insta-blue/10 text-insta-blue" : "text-gray-300"
+                        }`}
                       >
-                        {loc}
+                        <MapPin size={17} />
                       </button>
-                    ))}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black text-[9.5px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap z-50">
+                        Add Location
+                      </div>
+                    </div>
+
+                    {/* Tag Users Icon */}
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        onClick={() => togglePanel("tag")}
+                        className={`p-2 rounded-lg cursor-pointer hover:bg-[#222] transition ${
+                          activePanel === "tag" ? "bg-[#FF8A00]/10 text-[#FF8A00]" : "text-gray-300"
+                        }`}
+                      >
+                        <Tag size={17} />
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black text-[9.5px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap z-50">
+                        Tag Friends
+                      </div>
+                    </div>
+
+                    {/* Feelings Icon */}
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        onClick={() => togglePanel("feeling")}
+                        className={`p-2 rounded-lg cursor-pointer hover:bg-[#222] transition ${
+                          activePanel === "feeling" ? "bg-[#9E00FF]/10 text-[#9E00FF]" : "text-gray-300"
+                        }`}
+                      >
+                        <Smile size={17} />
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black text-[9.5px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap z-50">
+                        Feelings / Activity
+                      </div>
+                    </div>
+
+                    {/* Music Icon */}
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        onClick={() => togglePanel("music")}
+                        className={`p-2 rounded-lg cursor-pointer hover:bg-[#222] transition ${
+                          activePanel === "music" ? "bg-[#FF2E93]/10 text-[#FF2E93]" : "text-gray-300"
+                        }`}
+                      >
+                        <Music size={17} />
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black text-[9.5px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap z-50">
+                        Add Music
+                      </div>
+                    </div>
+
+                    {/* Audience Selector Icon */}
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        onClick={() => togglePanel("audience")}
+                        className={`p-2 rounded-lg cursor-pointer hover:bg-[#222] transition ${
+                          activePanel === "audience" ? "bg-[#34A853]/10 text-[#34A853]" : "text-gray-300"
+                        }`}
+                      >
+                        <Globe size={17} />
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black text-[9.5px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap z-50">
+                        Audience Settings
+                      </div>
+                    </div>
+
+                    {/* Palette (Color BG Selector) Icon */}
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        disabled={imagePreviews.length > 0}
+                        onClick={() => togglePanel("color")}
+                        className={`p-2 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed ${
+                          imagePreviews.length > 0 ? "" : "hover:bg-[#222] cursor-pointer"
+                        } ${
+                          activePanel === "color" || selectedBgIdx !== null ? "bg-[#E0A96D]/10 text-[#E0A96D]" : "text-gray-300"
+                        }`}
+                      >
+                        <Palette size={17} />
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-black text-[9.5px] font-bold rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap z-50">
+                        Post Backgrounds
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Tag Users */}
-                <div className="flex flex-col gap-2 border-t border-[#222] pt-4">
-                  <div className="flex items-center gap-2 text-gray-300 text-[13px] font-semibold">
-                    <Tag size={16} className="text-[#FF8A00]" />
-                    <span>Tag Users</span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Type username and press Enter..."
-                    value={userTagInput}
-                    onChange={(e) => setUserTagInput(e.target.value)}
-                    onKeyDown={handleAddTag}
-                    className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white outline-none focus:border-[#FF8A00]/50"
-                  />
-                  {userTags.length > 0 && (
-                    <div className="flex gap-2 flex-wrap mt-1">
-                      {userTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="flex items-center gap-1.5 text-[11px] bg-[#FF8A00]/10 border border-[#FF8A00]/30 text-[#FF8A00] pl-3 pr-1.5 py-1 rounded-full"
+                {/* Sub Panels sliding drawer based on activePanel */}
+                {activePanel === "location" && (
+                  <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
+                    <input
+                      type="text"
+                      placeholder="Add a location..."
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none focus:border-insta-blue/50"
+                    />
+                    <div className="flex gap-1.5 flex-wrap mt-1">
+                      {SUGGESTED_LOCATIONS.map((loc) => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => setLocation(loc)}
+                          className="text-[9.5px] bg-[#111] border border-white/[0.04] hover:bg-[#222] text-gray-300 px-2.5 py-1 rounded-full transition cursor-pointer"
                         >
-                          @{tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            className="hover:text-white cursor-pointer"
-                          >
-                            <X size={12} />
-                          </button>
-                        </span>
+                          {loc}
+                        </button>
                       ))}
                     </div>
-                  )}
-                </div>
-
-                {/* Feelings / Activities */}
-                <div className="flex flex-col gap-2 border-t border-[#222] pt-4">
-                  <div className="flex items-center gap-2 text-gray-300 text-[13px] font-semibold">
-                    <Smile size={16} className="text-[#9E00FF]" />
-                    <span>Feeling/Activity</span>
                   </div>
-                  <select
-                    value={feeling}
-                    onChange={(e) => setFeeling(e.target.value)}
-                    className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-2.5 text-[13px] text-white outline-none focus:border-[#9E00FF]/50"
-                  >
-                    <option value="">-- How are you feeling? --</option>
-                    {FEELINGS.map((feel) => (
-                      <option key={feel.value} value={feel.value}>
-                        {feel.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                )}
 
-                {/* Advanced: Audience & Music Settings */}
-                <div className="grid grid-cols-2 gap-4 border-t border-[#222] pt-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-gray-300 text-[13px] font-semibold">
-                      <Globe size={16} className="text-[#34A853]" />
-                      <span>Audience</span>
-                    </div>
+                {activePanel === "tag" && (
+                  <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
+                    <input
+                      type="text"
+                      placeholder="Type username and press Enter..."
+                      value={userTagInput}
+                      onChange={(e) => setUserTagInput(e.target.value)}
+                      onKeyDown={handleAddTag}
+                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none focus:border-[#FF8A00]/50"
+                    />
+                    {userTags.length > 0 && (
+                      <div className="flex gap-1.5 flex-wrap mt-1">
+                        {userTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="flex items-center gap-1.5 text-[10.5px] bg-[#FF8A00]/10 border border-[#FF8A00]/30 text-[#FF8A00] pl-2.5 pr-1 py-0.5 rounded-full"
+                          >
+                            @{tag}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTag(tag)}
+                              className="hover:text-white cursor-pointer"
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activePanel === "feeling" && (
+                  <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
                     <select
-                      value={audience}
-                      onChange={(e) => setAudience(e.target.value)}
-                      className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-2.5 text-[12px] text-white outline-none"
+                      value={feeling}
+                      onChange={(e) => setFeeling(e.target.value)}
+                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none focus:border-[#9E00FF]/50"
                     >
-                      <option value="Public">Public 🌎</option>
-                      <option value="Friends">Friends 👥</option>
-                      <option value="Close Friends">Close Friends ⭐️</option>
+                      <option value="">-- Select feeling/activity --</option>
+                      {FEELINGS.map((feel) => (
+                        <option key={feel.value} value={feel.value}>
+                          {feel.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
+                )}
 
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-gray-300 text-[13px] font-semibold">
-                      <Music size={16} className="text-[#FF2E93]" />
-                      <span>Add Music</span>
-                    </div>
+                {activePanel === "music" && (
+                  <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
                     <select
                       value={music}
                       onChange={(e) => setMusic(e.target.value)}
-                      className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-2.5 text-[12px] text-white outline-none"
+                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none"
                     >
                       <option value="">No Music 🔇</option>
                       <option value="Lofi Summer">Lofi Summer 🏖️</option>
@@ -377,83 +559,106 @@ export default function CreatePostModal() {
                       <option value="Club Bass">Club Bass ⚡</option>
                     </select>
                   </div>
-                </div>
+                )}
 
-                {/* Cross-posting options (Instagram, Facebook, TikTok, OK.ru) */}
-                <div className="flex flex-col gap-3.5 border-t border-[#222] pt-4.5 pb-2">
-                  <div className="flex items-center gap-2 text-gray-300 text-[13px] font-semibold">
-                    <Share2 size={16} className="text-[#FF2E93]" />
-                    <span>Cross-post to other networks</span>
+                {activePanel === "audience" && (
+                  <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
+                    <select
+                      value={audience}
+                      onChange={(e) => setAudience(e.target.value)}
+                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none"
+                    >
+                      <option value="Public">Public 🌎</option>
+                      <option value="Friends">Friends 👥</option>
+                      <option value="Close Friends">Close Friends ⭐️</option>
+                    </select>
                   </div>
+                )}
 
-                  <div className="flex flex-col gap-2.5">
-                    {/* Facebook cross-post */}
-                    <label className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl border border-white/[0.02] cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[13px]">Share to Facebook</span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={shareFacebook}
-                        onChange={(e) => setShareFacebook(e.target.checked)}
-                        className="w-4 h-4 accent-insta-blue cursor-pointer"
-                      />
-                    </label>
+                {activePanel === "color" && imagePreviews.length === 0 && (
+                  <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
+                    <p className="text-[10px] font-semibold text-gray-400 select-none">
+                      Select Gradient Background:
+                    </p>
+                    <div className="flex gap-2 flex-wrap mt-1">
+                      {/* None / Reset circle */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBgIdx(null)}
+                        className={`w-8 h-8 rounded-full border-2 cursor-pointer transition ${
+                          selectedBgIdx === null ? "border-white" : "border-transparent"
+                        } bg-[#111] flex items-center justify-center`}
+                      >
+                        ❌
+                      </button>
 
-                    {/* TikTok cross-post */}
-                    <label className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl border border-white/[0.02] cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[13px]">Share to TikTok</span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={shareTikTok}
-                        onChange={(e) => setShareTikTok(e.target.checked)}
-                        className="w-4 h-4 accent-insta-blue cursor-pointer"
-                      />
-                    </label>
-
-                    {/* OK.ru cross-post */}
-                    <label className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl border border-white/[0.02] cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[13px]">Share to OK.ru (Odnoklassniki) 🇷🇺</span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={shareOK}
-                        onChange={(e) => setShareOK(e.target.checked)}
-                        className="w-4 h-4 accent-insta-blue cursor-pointer"
-                      />
-                    </label>
+                      {BG_GRADIENTS.map((bg, idx) => (
+                        <button
+                          key={bg.name}
+                          type="button"
+                          onClick={() => setSelectedBgIdx(idx)}
+                          className={`w-8 h-8 rounded-full border-2 cursor-pointer transition hover:scale-105 ${
+                            selectedBgIdx === idx ? "border-white" : "border-transparent"
+                          }`}
+                          style={{ background: bg.value }}
+                          title={bg.name}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </form>
           ) : (
-            /* Drag and Drop Zone */
-            <div
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              onClick={handleSelectClick}
-              className="py-24 px-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-[#1a1a1a]/30 transition group select-none"
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-                className="hidden"
-              />
-              <Upload size={56} className="text-[#a8a8a8] group-hover:scale-105 transition duration-300" />
-              <span className="text-[18px] text-gray-300 group-hover:text-white transition">
-                Drag photos and videos here
-              </span>
-              <button
-                type="button"
-                className="mt-2 px-5 py-2.5 rounded-lg bg-insta-blue hover:bg-insta-blue/95 font-bold text-[13px] active:scale-95 transition"
+            /* Drag and Drop Zone & Empty State Color BG helper */
+            <div className="flex flex-col">
+              <div
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onClick={handleSelectClick}
+                className="py-24 px-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-[#1a1a1a]/30 transition group select-none"
               >
-                Select from computer
-              </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+                <Upload size={56} className="text-[#a8a8a8] group-hover:scale-105 transition duration-300" />
+                <span className="text-[18px] text-gray-300 group-hover:text-white transition">
+                  Drag photos and videos here
+                </span>
+                <button
+                  type="button"
+                  className="mt-2 px-5 py-2.5 rounded-lg bg-insta-blue hover:bg-insta-blue/95 font-bold text-[13px] active:scale-95 transition"
+                >
+                  Select from computer
+                </button>
+              </div>
+
+              {/* Quick Background select circles on landing upload state */}
+              <div className="p-4 border-t border-[#222] bg-[#141414] flex flex-col gap-2.5">
+                <p className="text-[11px] font-semibold text-gray-400 select-none">
+                  Or write a text post with a colored background:
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {BG_GRADIENTS.map((bg, idx) => (
+                    <button
+                      key={bg.name}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBgIdx(idx);
+                        setActivePanel("color");
+                      }}
+                      className="w-7 h-7 rounded-full cursor-pointer hover:scale-105 transition"
+                      style={{ background: bg.value }}
+                      title={bg.name}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

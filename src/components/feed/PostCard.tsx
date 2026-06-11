@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useApp, MockPost } from "../AppContext";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface PostCardProps {
@@ -26,6 +26,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [commentText, setCommentText] = useState("");
   const [showHeartPop, setShowHeartPop] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
 
   const isLiked = !!likedPosts[post.id];
   const isSaved = savedPosts.has(post.id);
@@ -168,9 +169,68 @@ export default function PostCard({ post }: PostCardProps) {
       <div
         className="relative aspect-square overflow-hidden cursor-pointer select-none"
         onDoubleClick={handleDoubleTap}
+        onClick={() => setActivePostId(post.id)}
       >
-        <img src={post.img} className="w-full h-full object-cover" style={{ filter: post.filter || "none" }} alt="post" />
-        
+        {post.isTextOnly ? (
+          <div
+            className="w-full h-full flex items-center justify-center p-8 text-center text-[19px] font-semibold font-sans break-words text-white select-text leading-relaxed"
+            style={{ background: post.bgGradient || "linear-gradient(45deg, #FF8A00, #FF2E93, #9E00FF)" }}
+          >
+            {post.caption}
+          </div>
+        ) : (
+          <div className="relative w-full h-full">
+            <img
+              src={post.imgs && post.imgs.length > 0 ? post.imgs[activeImgIndex] : post.img}
+              className="w-full h-full object-cover transition-all duration-300"
+              style={{ filter: post.filter || "none" }}
+              alt="post content"
+            />
+
+            {/* Navigation arrows */}
+            {post.imgs && post.imgs.length > 1 && (
+              <>
+                {activeImgIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImgIndex((prev) => prev - 1);
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 transition text-white border-none cursor-pointer"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                )}
+                {activeImgIndex < post.imgs.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImgIndex((prev) => prev + 1);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 transition text-white border-none cursor-pointer"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                )}
+
+                {/* Carousel indicators */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                  {post.imgs.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
+                        idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Heart Pop Overlay */}
         <AnimatePresence>
           {showHeartPop && (
@@ -179,7 +239,7 @@ export default function PostCard({ post }: PostCardProps) {
               animate={{ scale: [0.3, 1.2, 1], opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.45 }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none text-red-500 drop-shadow-2xl z-10"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none text-red-500 drop-shadow-2xl z-30"
             >
               <Heart size={90} fill="currentColor" />
             </motion.div>

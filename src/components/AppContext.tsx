@@ -28,6 +28,7 @@ export interface MockPost {
   id: number;
   user: MockUser;
   img: string;
+  imgs?: string[];
   caption: string;
   likes: number;
   comments: MockComment[];
@@ -35,6 +36,8 @@ export interface MockPost {
   hasStory: boolean;
   location: string;
   filter?: string;
+  bgGradient?: string;
+  isTextOnly?: boolean;
 }
 
 export interface MockMessage {
@@ -105,7 +108,7 @@ interface AppContextType {
   addComment: (postId: number, text: string) => void;
   sendMessage: (chatId: number, text: string) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
-  createPost: (imgSrc: string, caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string }) => void;
+  createPost: (imgSrc: string, caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; imgs?: string[]; bgGradient?: string; isTextOnly?: boolean }) => void;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string }) => void;
 
   // Modals state
@@ -557,7 +560,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const createPost = (
     imgSrc: string,
     caption: string,
-    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string }
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; imgs?: string[]; bgGradient?: string; isTextOnly?: boolean }
   ) => {
     let finalCaption = caption;
     if (options?.feelings) {
@@ -582,6 +585,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         verified: false,
       },
       img: imgSrc || "https://picsum.photos/seed/default/600/600",
+      imgs: options?.imgs || (imgSrc ? [imgSrc] : []),
       caption: finalCaption || "New post! 📸",
       likes: 0,
       comments: [],
@@ -589,6 +593,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       hasStory: false,
       location: options?.location || "Aura Space 🌌",
       filter: options?.filter || "none",
+      bgGradient: options?.bgGradient,
+      isTextOnly: options?.isTextOnly || false,
     };
     setPosts((prev) => [newPost, ...prev]);
     showToast("Post shared! 🎉", "success");
