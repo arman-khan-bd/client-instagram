@@ -38,6 +38,8 @@ export interface MockPost {
   filter?: string;
   bgGradient?: string;
   isTextOnly?: boolean;
+  isReel?: boolean;
+  mediaType?: "image" | "video" | "text";
 }
 
 export interface MockMessage {

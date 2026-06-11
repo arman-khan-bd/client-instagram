@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
-import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle } from "lucide-react";
+import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus } from "lucide-react";
+import { api } from "../../lib/api";
 
 export default function Profile() {
   const {
@@ -19,18 +20,21 @@ export default function Profile() {
     setActivePostId,
     setFollowersModal,
     setShowEditProfileModal,
+    setShowStoryCreate,
+    storyGroups,
     setChats,
     showToast,
   } = useApp();
 
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
+  const [dbProfile, setDbProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   const isSelf = viewingUserId === null || (currentUser && viewingUserId === currentUser.id);
 
-  // Determine which user profile to display
+  // Determine which user profile reference to resolve first
   const profileUser = useMemo(() => {
     if (isSelf) {
-      // Return current logged in user details
       return {
         id: currentUser?.id || "0",
         name: currentUser?.name || "me",
@@ -60,12 +64,48 @@ export default function Profile() {
       };
     }
 
-    // Return selected mock user details
     const found = users.find((u) => u.id === viewingUserId || u.name === viewingUserId);
     return found ? { ...found, id: found.id.toString(), web: "myport.io" } : null;
   }, [viewingUserId, users, currentUser, posts, isSelf]);
 
-  const isFollowing = profileUser ? !!followStates[profileUser.id] : false;
+  // Fetch real profile details from Supabase
+  useEffect(() => {
+    if (!profileUser?.name) return;
+    setLoading(true);
+    api.getProfile(profileUser.name)
+      .then((data) => {
+        setDbProfile(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load profile from database:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [profileUser?.name, viewingUserId]);
+
+  // Handle follow / follow back
+  const handleFollowToggle = async () => {
+    if (!profileUser) return;
+    try {
+      const result = await api.toggleFollow(profileUser.id.toString());
+      setDbProfile((prev: any) => {
+        if (!prev) return prev;
+        const isNowFollowing = result.following;
+        return {
+          ...prev,
+          isFollowing: isNowFollowing,
+          _count: {
+            ...prev._count,
+            followers: prev._count.followers + (isNowFollowing ? 1 : -1),
+          }
+        };
+      });
+      toggleFollow(profileUser.id);
+    } catch (err: any) {
+      showToast(err.message || "Failed to follow user", "info");
+    }
+  };
 
   // Filter posts based on active tab
   const tabPosts = useMemo(() => {
@@ -75,13 +115,13 @@ export default function Profile() {
       return posts.filter((p) => savedPosts.has(p.id));
     }
     if (activeTabName === "tagged") {
-      return posts.slice(12, 18); // slice some dummy tagged posts
+      return posts.slice(12, 18);
     }
     if (activeTabName === "reels") {
-      return posts.filter((_, i) => i % 3 === 0); // dummy reels posts
+      return posts.filter((_, i) => i % 3 === 0);
     }
 
-    // Default: posts. Filter by the profile owner's ID or username
+    // Default posts
     return posts.filter(
       (p) =>
         p.user.id === profileUser.id ||
@@ -90,27 +130,35 @@ export default function Profile() {
     );
   }, [activeTabName, posts, profileUser, savedPosts]);
 
+  // Map dbProfile posts or tabPosts fallback
+  const profilePostsList = useMemo(() => {
+    if (dbProfile?.posts && activeTabName === "posts") {
+      return dbProfile.posts.map((p: any) => ({
+        id: p.id,
+        img: p.thumbnailUrl || p.mobileUrl || "https://picsum.photos/400/400",
+        likes: p._count?.likes ?? 0,
+        comments: { length: p._count?.comments ?? 0 },
+      }));
+    }
+    return tabPosts;
+  }, [dbProfile, tabPosts, activeTabName]);
+
   if (!profileUser) {
     return <div className="text-center p-12 text-white">User not found</div>;
   }
 
-  // Pre-defined highlights data
   const highlights = [
     { name: "Travel", img: "https://picsum.photos/seed/h1/64/64" },
     { name: "Food", img: "https://picsum.photos/seed/h2/64/64" },
     { name: "Work", img: "https://picsum.photos/seed/h3/64/64" },
     { name: "Friends", img: "https://picsum.photos/seed/h4/64/64" },
-    { name: "Sunsets", img: "https://picsum.photos/seed/h5/64/64" },
-    { name: "Pets", img: "https://picsum.photos/seed/h6/64/64" },
   ];
 
   const handleMessageUser = () => {
-    // Navigate to messages, check if conversation already exists, otherwise add it
     setChats((prevChats) => {
-      const exists = prevChats.some((c) => c.user.id === profileUser.id);
+      const exists = prevChats.some((c) => c.user.id.toString() === profileUser.id.toString());
       if (exists) return prevChats;
 
-      // Add a new session at the top
       const newSession = {
         id: Date.now(),
         user: profileUser as unknown as MockUser,
@@ -121,7 +169,6 @@ export default function Profile() {
       };
       return [newSession, ...prevChats];
     });
-
     setActiveTab("messages");
   };
 
@@ -133,26 +180,47 @@ export default function Profile() {
     });
   };
 
+  const handleAvatarClick = () => {
+    // If has story, view it
+    const storyIdx = storyGroups.findIndex(g => g.userId === profileUser.id);
+    if (storyIdx !== -1) {
+      setStoryViewerIndex(storyIdx);
+    } else if (isSelf) {
+      setShowStoryCreate(true);
+    }
+  };
+
+  // Find if user has active story
+  const hasStory = storyGroups.some(g => g.userId === profileUser.id);
+
   return (
     <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">
       <div className="max-w-[900px] mx-auto px-4 py-8">
+        
         {/* Profile Header */}
         <div className="flex gap-10 items-start mb-8">
           <div className="relative shrink-0 select-none">
-            <img
-              src={profileUser.img}
-              className={`w-[90px] h-[90px] md:w-[140px] md:h-[140px] rounded-full object-cover border-2 border-[#222] cursor-pointer ${
-                isSelf ? "p-[3px] bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]" : ""
+            <div
+              onClick={handleAvatarClick}
+              className={`w-[90px] h-[90px] md:w-[140px] md:h-[140px] rounded-full p-[3px] cursor-pointer overflow-hidden flex items-center justify-center ${
+                hasStory
+                  ? "bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
+                  : "bg-zinc-800"
               }`}
-              onClick={() => setStoryViewerIndex(0)}
-              alt="Profile"
-            />
+            >
+              <img
+                src={dbProfile?.avatarUrl || profileUser.img}
+                className="w-full h-full rounded-full object-cover border-2 border-black"
+                alt="Profile"
+              />
+            </div>
             {isSelf && (
               <div
-                onClick={() => {}}
+                onClick={() => setShowStoryCreate(true)}
                 className="absolute bottom-1 right-1 bg-insta-blue border border-black hover:bg-insta-blue/90 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer active:scale-95 transition"
+                title="Create Day / Story"
               >
-                ✏️
+                <Plus size={14} />
               </div>
             )}
           </div>
@@ -160,11 +228,9 @@ export default function Profile() {
           <div className="flex-1 flex flex-col min-w-0">
             {/* Username Row */}
             <div className="flex items-center gap-3.5 flex-wrap mb-4 select-none">
-              <h2 className="text-[22px] font-light truncate">{profileUser.name}</h2>
-              {profileUser.verified && (
-                <span className="text-insta-blue text-lg" title="Verified">
-                  ✓
-                </span>
+              <h2 className="text-[22px] font-light truncate">{dbProfile?.username || profileUser.name}</h2>
+              {(dbProfile?.isVerified || profileUser.verified) && (
+                <span className="text-insta-blue text-lg" title="Verified">✓</span>
               )}
 
               {isSelf ? (
@@ -176,35 +242,29 @@ export default function Profile() {
                     Edit profile
                   </button>
                   <button
-                    onClick={() => {}}
+                    onClick={() => setShowStoryCreate(true)}
                     className="px-4.5 py-1.5 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
                   >
-                    View archive
+                    Add Day
                   </button>
                 </>
               ) : (
                 <>
                   <button
-                    onClick={() => toggleFollow(profileUser.id)}
+                    onClick={handleFollowToggle}
                     className={`px-4.5 py-1.5 rounded-lg text-[13px] font-bold cursor-pointer transition ${
-                      isFollowing
-                        ? "border border-[#222] hover:bg-[#111]"
+                      dbProfile?.isFollowing
+                        ? "border border-[#222] hover:bg-[#111] text-white"
                         : "bg-insta-blue hover:bg-insta-blue/90 text-white"
                     }`}
                   >
-                    {isFollowing ? "Following" : "Follow"}
+                    {dbProfile?.isFollowing ? "Following" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
                   </button>
                   <button
                     onClick={handleMessageUser}
                     className="px-4.5 py-1.5 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
                   >
                     Message
-                  </button>
-                  <button
-                    onClick={() => {}}
-                    className="px-3 py-1.5 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a]"
-                  >
-                    ···
                   </button>
                 </>
               )}
@@ -214,31 +274,28 @@ export default function Profile() {
             <div className="flex gap-7 mb-4 select-none text-[14px]">
               <div>
                 <span className="font-bold mr-1">
-                  {posts.filter(
-                    (p) =>
-                      p.user.id === profileUser.id ||
-                      p.user.id.toString() === profileUser.id.toString() ||
-                      p.user.name === profileUser.name
-                  ).length}
+                  {dbProfile?._count?.posts ?? tabPosts.length}
                 </span>
                 <span className="text-[#a8a8a8]">posts</span>
               </div>
               <div onClick={() => handleOpenFollowers("followers")} className="cursor-pointer hover:opacity-80">
                 <span className="font-bold mr-1">
-                  {profileUser.followers >= 1000 ? (profileUser.followers / 1000).toFixed(1) + "k" : profileUser.followers}
+                  {dbProfile?._count?.followers ?? profileUser.followers}
                 </span>
                 <span className="text-[#a8a8a8]">followers</span>
               </div>
               <div onClick={() => handleOpenFollowers("following")} className="cursor-pointer hover:opacity-80">
-                <span className="font-bold mr-1">{profileUser.following}</span>
+                <span className="font-bold mr-1">
+                  {dbProfile?._count?.following ?? profileUser.following}
+                </span>
                 <span className="text-[#a8a8a8]">following</span>
               </div>
             </div>
 
             {/* Bio Row */}
             <div className="text-[14px] leading-relaxed select-text">
-              <span className="font-bold block mb-0.5">{profileUser.full}</span>
-              <p className="whitespace-pre-line text-gray-200">{profileUser.bio}</p>
+              <span className="font-bold block mb-0.5">{dbProfile?.fullName || profileUser.full}</span>
+              <p className="whitespace-pre-line text-gray-200">{dbProfile?.bio || profileUser.bio}</p>
               {profileUser.web && (
                 <a
                   href={`https://${profileUser.web}`}
@@ -258,8 +315,7 @@ export default function Profile() {
           {highlights.map((h, idx) => (
             <div
               key={`highlight-${idx}`}
-              onClick={() => setStoryViewerIndex(0)}
-              className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
+              className="flex flex-col items-center gap-1.5 shrink-0"
             >
               <div className="w-[64px] h-[64px] rounded-full border-2 border-[#222] overflow-hidden p-[2px] hover:border-gray-500 transition">
                 <img src={h.img} alt={h.name} className="w-full h-full rounded-full object-cover" />
@@ -271,14 +327,14 @@ export default function Profile() {
           ))}
           {isSelf && (
             <div
-              onClick={() => {}}
+              onClick={() => setShowStoryCreate(true)}
               className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
             >
               <div className="w-[64px] h-[64px] rounded-full border-2 border-dashed border-[#222] flex items-center justify-center text-[28px] hover:border-gray-500 text-gray-400 hover:text-white transition">
                 ➕
               </div>
               <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
-                New
+                Add Day
               </span>
             </div>
           )}
@@ -326,17 +382,17 @@ export default function Profile() {
         </div>
 
         {/* Profile Grid */}
-        {tabPosts.length === 0 ? (
+        {profilePostsList.length === 0 ? (
           <div className="text-center py-12 text-[#a8a8a8] text-[14px]">
             {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-1 md:gap-2 mt-4">
-            {tabPosts.map((post, i) => (
+            {profilePostsList.map((post: any, i: number) => (
               <div
                 key={`grid-post-${post.id}-${i}`}
                 onClick={() => setActivePostId(post.id)}
-                className="relative aspect-square overflow-hidden cursor-pointer group"
+                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in"
               >
                 <img
                   src={post.img}
@@ -345,7 +401,6 @@ export default function Profile() {
                   loading="lazy"
                 />
                 
-                {/* Film Reels indicator */}
                 {activeTabName === "reels" && (
                   <span className="absolute top-2 right-2 text-lg drop-shadow-md">🎬</span>
                 )}

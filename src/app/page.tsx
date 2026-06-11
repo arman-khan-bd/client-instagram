@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { AppProvider, useApp } from "../components/AppContext";
 import AuthScreen from "../components/auth/AuthScreen";
 import Sidebar from "../components/layout/Sidebar";
@@ -21,10 +21,23 @@ import FollowersModal from "../components/modals/FollowersModal";
 import CreatePostModal from "../components/modals/CreatePostModal";
 import StoryCreateModal from "../components/modals/StoryCreateModal";
 
-import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X } from "lucide-react";
+import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 function AppContent() {
-  const { currentUser, activeTab, toasts, removeToast } = useApp();
+  const {
+    currentUser,
+    activeTab,
+    setActiveTab,
+    toasts,
+    removeToast,
+    notifications,
+    setShowCreatePostModal,
+    setViewingUserId,
+    doLogout,
+  } = useApp();
+  const [showDrawer, setShowDrawer] = useState(false);
+  const unreadNotifs = notifications.filter((n) => n.unread).length;
 
   // Show Auth Screen if no user logged in
   if (!currentUser) {
@@ -74,12 +87,104 @@ function AppContent() {
 
   return (
     <div className="flex h-screen w-screen bg-black overflow-hidden relative font-sans">
+      {/* Top Header Mobile */}
+      <header className="sm:hidden flex items-center justify-between h-[54px] bg-black border-b border-zinc-900 fixed top-0 left-0 right-0 px-4 z-[90] select-none text-white">
+        <button onClick={() => setShowDrawer(true)} className="p-1 hover:text-gray-300">
+          <Menu size={22} />
+        </button>
+        <span onClick={() => { setViewingUserId(null); setActiveTab("home"); }} className="text-gradient-instagram font-bold text-lg cursor-pointer">
+          AuraGram
+        </span>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowCreatePostModal(true)} className="p-1 hover:text-gray-300">
+            <PlusSquare size={22} />
+          </button>
+          <button onClick={() => setActiveTab("notifications")} className="p-1 hover:text-gray-300 relative">
+            <Heart size={22} />
+            {unreadNotifs > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                {unreadNotifs}
+              </span>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* Left Menu Drawer (Mobile) */}
+      <AnimatePresence>
+        {showDrawer && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDrawer(false)}
+              className="fixed inset-0 bg-black z-[140] sm:hidden"
+            />
+            {/* Drawer Body */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "tween", duration: 0.25 }}
+              className="fixed top-0 bottom-0 left-0 w-[260px] bg-zinc-950 border-r border-zinc-900 z-[150] p-5 flex flex-col gap-6 text-white sm:hidden select-none"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-gradient-instagram font-bold text-xl">AuraGram</span>
+                <button onClick={() => setShowDrawer(false)} className="p-1 text-zinc-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <nav className="flex flex-col gap-2.5">
+                {[
+                  { name: "Home", tab: "home", icon: <HomeIcon size={20} /> },
+                  { name: "Search", tab: "search", icon: <SearchIcon size={20} /> },
+                  { name: "Explore", tab: "explore", icon: <Compass size={20} /> },
+                  { name: "Reels", tab: "reels", icon: <Film size={20} /> },
+                  { name: "Messages", tab: "messages", icon: <MessageSquare size={20} /> },
+                  { name: "Notifications", tab: "notifications", icon: <Heart size={20} /> },
+                  { name: "Profile", tab: "profile", icon: <User size={20} /> },
+                ].map((item) => (
+                  <button
+                    key={item.name}
+                    onClick={() => {
+                      if (item.tab === "profile") setViewingUserId(null);
+                      setActiveTab(item.tab);
+                      setShowDrawer(false);
+                    }}
+                    className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left text-sm ${
+                      activeTab === item.tab ? "bg-[#1a1a1a] font-bold text-white" : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.name}</span>
+                  </button>
+                ))}
+              </nav>
+
+              <div className="mt-auto flex flex-col gap-2">
+                <div className="h-[1px] bg-zinc-800 my-2" />
+                <button
+                  onClick={() => { doLogout(); setShowDrawer(false); }}
+                  className="flex items-center gap-4 p-3 rounded-xl hover:bg-red-950/20 text-red-500 text-sm font-semibold transition w-full text-left"
+                >
+                  <LogOut size={20} />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <div className="flex w-full h-full relative">
         {/* Left Desktop Sidebar */}
         <Sidebar />
 
         {/* Center/Right Dynamic Tab Content */}
-        <main className="flex-1 h-full flex flex-col relative pb-[60px] sm:pb-0">
+        <main className="flex-1 h-full flex flex-col relative pt-[54px] sm:pt-0 pb-[60px] sm:pb-0">
           {renderActiveView()}
         </main>
 

@@ -133,35 +133,57 @@ export default function PostCard({ post }: PostCardProps) {
   }, [post.id]);
 
   // ── Shared: commit a reaction ──────────────────────────────────────────────
-  const commitReaction = useCallback(async (type: string) => {
+  const commitReaction = useCallback((type: string) => {
     setShowHoverPicker(false);
     setShowLongPicker(false);
     setHoverPickerHovIdx(null);
     setLongPickerHovIdx(null);
-    try {
-      const result = await api.reactToPost(post.id, type);
-      if (result.reaction === null) {
-        // Un-reacted
-        setCurrentReaction(null);
-        if (hasReacted) setLocalLikes((l) => Math.max(0, l - 1));
-        setHasReacted(false);
-      } else {
-        // Reacted (new or changed)
-        setCurrentReaction(result.reaction as ReactionType);
-        if (!hasReacted) setLocalLikes((l) => l + 1);
-        setHasReacted(true);
-        const r = REACTIONS.find((r) => r.type === type);
-        if (r) showToast(`${r.emoji} ${r.label}`, "notification");
+
+    // Save previous state for rollback
+    const prevReaction = currentReaction;
+    const prevHasReacted = hasReacted;
+    const prevLocalLikes = localLikes;
+
+    // Instant/optimistic update
+    const isTogglingOff = currentReaction === type;
+    if (isTogglingOff) {
+      setCurrentReaction(null);
+      setHasReacted(false);
+      setLocalLikes((l) => Math.max(0, l - 1));
+    } else {
+      setCurrentReaction(type as ReactionType);
+      setHasReacted(true);
+      if (!prevHasReacted) {
+        setLocalLikes((l) => l + 1);
       }
-    } catch {
-      showToast("Log in to react", "info");
+      const r = REACTIONS.find((r) => r.type === type);
+      if (r) showToast(`${r.emoji} ${r.label}`, "notification");
     }
-  }, [post.id, hasReacted, showToast]);
+
+    // Call API in the background
+    api.reactToPost(post.id, type)
+      .then((result) => {
+        if (result.reaction === null) {
+          setCurrentReaction(null);
+          setHasReacted(false);
+        } else {
+          setCurrentReaction(result.reaction as ReactionType);
+          setHasReacted(true);
+        }
+      })
+      .catch((err) => {
+        console.error("Optimistic reaction commit failed, rolling back:", err);
+        setCurrentReaction(prevReaction);
+        setHasReacted(prevHasReacted);
+        setLocalLikes(prevLocalLikes);
+        showToast("Log in to react", "info");
+      });
+  }, [post.id, currentReaction, hasReacted, localLikes, showToast]);
 
   // ── Simple click on reaction button (no picker) ─────────────────────────────
-  const handleSimpleLike = useCallback(async () => {
+  const handleSimpleLike = useCallback(() => {
     if (showHoverPicker) return; // picker open — let user pick from it
-    await commitReaction(currentReaction ?? "love"); // toggles if same, un-reacts if null
+    commitReaction(currentReaction ?? "love"); // toggles if same, un-reacts if null
   }, [showHoverPicker, currentReaction, commitReaction]);
 
   // ── HOVER PICKER (desktop heart button): hover shows, click commits ─────────
@@ -201,7 +223,7 @@ export default function PostCard({ post }: PostCardProps) {
       if (now - lastTap.current < 300) {
         setShowHeartPop(true);
         setTimeout(() => setShowHeartPop(false), 850);
-        if (!hasReacted) commitReaction("love");
+        commitReaction("love"); // Force a "love" reaction on double-tap
         lastTap.current = 0;
       } else {
         lastTap.current = now;

@@ -438,6 +438,7 @@ class ApiClient {
 
     const { data: { user: authUser } } = await supabase.auth.getUser();
     let isFollowing = false;
+    let followsMe = false;
     if (authUser) {
       const { data: followRecord } = await supabase
         .from('Follow')
@@ -446,6 +447,14 @@ class ApiClient {
         .eq('followingId', user.id)
         .maybeSingle();
       isFollowing = !!followRecord;
+
+      const { data: followsMeRecord } = await supabase
+        .from('Follow')
+        .select('id')
+        .eq('followerId', user.id)
+        .eq('followingId', authUser.id)
+        .maybeSingle();
+      followsMe = !!followsMeRecord;
     }
 
     return {
@@ -456,7 +465,8 @@ class ApiClient {
         following: followingCount || 0,
       },
       posts: postsWithCounts,
-      isFollowing
+      isFollowing,
+      followsMe,
     };
   }
 
