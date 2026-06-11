@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate": "node scripts/migrate.js",
+    "predev": "npm run migrate",
+    "prebuild": "npm run migrate"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.12",
@@ -20,6 +23,7 @@
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.9",
+    "pg": "^8.21.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tailwind-merge": "^3.6.0"
