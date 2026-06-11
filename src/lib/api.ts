@@ -549,6 +549,51 @@ class ApiClient {
     if (error) throw error;
     return message;
   }
+
+  // ── Stories ──────────────────────────────────────────────────────────────────
+  async getStories() {
+    const { data, error } = await supabase
+      .from('Story')
+      .select('*, user:User(id, username, fullName, avatarUrl)')
+      .gt('expiresAt', new Date().toISOString())
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  async createStory(file: File, options?: { caption?: string; bgColor?: string }) {
+    // Upload to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'auragram');
+    formData.append('folder', 'auragram/stories');
+
+    const cloudRes = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    const cloudData = await cloudRes.json();
+    if (!cloudData.secure_url) throw new Error('Story upload failed');
+
+    const { data, error } = await supabase
+      .from('Story')
+      .insert({
+        mediaUrl: cloudData.secure_url,
+        mediaType: file.type.startsWith('video') ? 'video' : 'image',
+        caption: options?.caption || '',
+        bgColor: options?.bgColor || '',
+      })
+      .select('*, user:User(id, username, fullName, avatarUrl)')
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  async deleteStory(storyId: number) {
+    const { error } = await supabase.from('Story').delete().eq('id', storyId);
+    if (error) throw new Error(error.message);
+  }
 }
 
 export const api = new ApiClient();

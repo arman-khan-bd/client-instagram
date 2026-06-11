@@ -88,8 +88,8 @@ interface PostCardProps { post: MockPost }
 
 export default function PostCard({ post }: PostCardProps) {
   const {
-    likedPosts, savedPosts,
-    toggleLike, toggleSave, toggleFollow,
+    savedPosts,
+    toggleSave, toggleFollow,
     addComment, setViewingUserId, setActiveTab,
     setActivePostId, showToast,
   } = useApp();
@@ -101,6 +101,8 @@ export default function PostCard({ post }: PostCardProps) {
 
   // ── Reaction state ─────────────────────────────────────────────────────────
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
+  const [hasReacted, setHasReacted] = useState(false);     // DB-confirmed reaction exists
+  const [localLikes, setLocalLikes]   = useState(post.likes); // local like count, avoids broken toggleLike
 
   // Hover-on-button picker
   const [showHoverPicker, setShowHoverPicker] = useState(false);
@@ -117,14 +119,16 @@ export default function PostCard({ post }: PostCardProps) {
   // Double-click detection
   const lastTap         = useRef<number>(0);
 
-  const isLiked    = !!likedPosts[post.id] || !!currentReaction;
-  const isSaved    = savedPosts.has(post.id);
+  const isSaved     = savedPosts.has(post.id);
   const reactionInfo = getReactionInfo(currentReaction);
 
-  // Load existing reaction from DB
+  // Load existing reaction from DB — also initialise hasReacted + like count
   useEffect(() => {
     api.getPostReaction(post.id).then((r) => {
-      if (r) setCurrentReaction(r as ReactionType);
+      if (r) {
+        setCurrentReaction(r as ReactionType);
+        setHasReacted(true);
+      }
     }).catch(() => {});
   }, [post.id]);
 
@@ -137,31 +141,28 @@ export default function PostCard({ post }: PostCardProps) {
     try {
       const result = await api.reactToPost(post.id, type);
       if (result.reaction === null) {
+        // Un-reacted
         setCurrentReaction(null);
-        if (isLiked) toggleLike(post.id);
+        if (hasReacted) setLocalLikes((l) => Math.max(0, l - 1));
+        setHasReacted(false);
       } else {
+        // Reacted (new or changed)
         setCurrentReaction(result.reaction as ReactionType);
-        if (!isLiked) toggleLike(post.id);
+        if (!hasReacted) setLocalLikes((l) => l + 1);
+        setHasReacted(true);
+        const r = REACTIONS.find((r) => r.type === type);
+        if (r) showToast(`${r.emoji} ${r.label}`, "notification");
       }
-      const r = REACTIONS.find((r) => r.type === type);
-      if (r) showToast(`${r.emoji} ${r.label}`, "notification");
     } catch {
       showToast("Log in to react", "info");
     }
-  }, [post.id, isLiked, toggleLike, showToast]);
+  }, [post.id, hasReacted, showToast]);
 
-  // ── Simple like (click without picking a reaction) ─────────────────────────
+  // ── Simple click on reaction button (no picker) ─────────────────────────────
   const handleSimpleLike = useCallback(async () => {
-    if (showHoverPicker) return; // picker is open — let user pick
-    if (currentReaction || isLiked) {
-      // un-react
-      try { await api.reactToPost(post.id, currentReaction ?? "like"); } catch {}
-      setCurrentReaction(null);
-      toggleLike(post.id);
-    } else {
-      await commitReaction("like");
-    }
-  }, [showHoverPicker, currentReaction, isLiked, post.id, commitReaction, toggleLike]);
+    if (showHoverPicker) return; // picker open — let user pick from it
+    await commitReaction(currentReaction ?? "love"); // toggles if same, un-reacts if null
+  }, [showHoverPicker, currentReaction, commitReaction]);
 
   // ── HOVER PICKER (desktop heart button): hover shows, click commits ─────────
   const startHoverShow = () => {
@@ -200,7 +201,7 @@ export default function PostCard({ post }: PostCardProps) {
       if (now - lastTap.current < 300) {
         setShowHeartPop(true);
         setTimeout(() => setShowHeartPop(false), 850);
-        if (!isLiked) commitReaction("love");
+        if (!hasReacted) commitReaction("love");
         lastTap.current = 0;
       } else {
         lastTap.current = now;
@@ -437,7 +438,9 @@ export default function PostCard({ post }: PostCardProps) {
             {currentReaction ? (
               <span className="text-[22px] leading-none">{reactionInfo?.emoji}</span>
             ) : (
-              <Heart size={24} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-red-500" : "text-white"} />
+              {hasReacted && reactionInfo
+                ? <span className="text-[22px] leading-none">{reactionInfo.emoji}</span>
+                : <Heart size={24} fill="none" className="text-white" />}
             )}
           </button>
 
@@ -476,8 +479,18 @@ export default function PostCard({ post }: PostCardProps) {
         </button>
       </div>
 
-      {/* Likes */}
-      <div className="px-3.5 py-1 text-[13px] font-semibold">{formatLikes(post.likes)} likes</div>
+      {/* Reactions bar — show emoji + count, replace plain "X likes" */}
+      <div className="px-3.5 py-1 flex items-center gap-1.5 text-[13px] font-semibold">
+        {hasReacted && currentReaction && (
+          <span className="text-[15px] leading-none">
+            {REACTIONS.find((r) => r.type === currentReaction)?.emoji}
+          </span>
+        )}
+        <span>{formatLikes(localLikes)}</span>
+        <span className="font-normal text-[#a8a8a8]">
+          {localLikes === 1 ? 'reaction' : 'reactions'}
+        </span>
+      </div>
 
       {/* Caption (hidden for text-only posts — caption is shown in the gradient) */}
       {!post.isTextOnly && (

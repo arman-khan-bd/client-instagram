@@ -72,11 +72,30 @@ export interface ToastMessage {
   type: "notification" | "success" | "follow" | "comment" | "share" | "save" | "message" | "info";
 }
 
+export interface DbStory {
+  id: number;
+  userId: string;
+  mediaUrl: string;
+  mediaType: string;
+  caption: string;
+  bgColor: string;
+  expiresAt: string;
+  createdAt: string;
+  user: { id: string; username: string; fullName: string; avatarUrl: string };
+}
+
+export interface StoryGroup {
+  userId: string;
+  username: string;
+  avatarUrl: string;
+  stories: DbStory[];
+}
+
 interface AppContextType {
   // Navigation & Auth
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  currentUser: { name: string; img: string; full: string; bio: string; web: string; gender: string } | null;
+  currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string } | null;
   doLogin: (email: string, pass: string) => Promise<void>;
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
   doLoginWithGoogle: () => Promise<void>;
@@ -120,8 +139,15 @@ interface AppContextType {
   setShowEditProfileModal: (show: boolean) => void;
   showCreatePostModal: boolean;
   setShowCreatePostModal: (show: boolean) => void;
+  showStoryCreate: boolean;
+  setShowStoryCreate: (show: boolean) => void;
   followersModal: { open: boolean; type: "followers" | "following"; userId: number } | null;
   setFollowersModal: (data: { open: boolean; type: "followers" | "following"; userId: number } | null) => void;
+
+  // Stories
+  storyGroups: StoryGroup[];
+  loadStories: () => Promise<void>;
+  createStory: (file: File, opts?: { caption?: string }) => Promise<void>;
 
   // Toast notifications
   toasts: ToastMessage[];
@@ -200,16 +226,58 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activePostId, setActivePostId] = useState<number | null>(null);
   const [showEditProfileModal, setShowEditProfileModal] = useState<boolean>(false);
   const [showCreatePostModal, setShowCreatePostModal] = useState<boolean>(false);
+  const [showStoryCreate, setShowStoryCreate] = useState<boolean>(false);
   const [followersModal, setFollowersModal] = useState<AppContextType["followersModal"]>(null);
+
+  // Stories
+  const [storyGroups, setStoryGroups] = useState<StoryGroup[]>([]);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Stories helpers
+  const loadStories = async () => {
+    try {
+      const dbStories = await api.getStories() as DbStory[];
+      const groupsMap: Record<string, StoryGroup> = {};
+      dbStories.forEach((story) => {
+        const u = story.user;
+        if (!u) return;
+        if (!groupsMap[story.userId]) {
+          groupsMap[story.userId] = {
+            userId: story.userId,
+            username: u.username,
+            avatarUrl: u.avatarUrl || `https://i.pravatar.cc/150?u=${story.userId}`,
+            stories: [],
+          };
+        }
+        groupsMap[story.userId].stories.push(story);
+      });
+      setStoryGroups(Object.values(groupsMap));
+    } catch (err) {
+      console.error("Failed to load stories:", err);
+    }
+  };
+
+  const createStory = async (file: File, opts?: { caption?: string }) => {
+    try {
+      showToast("Uploading story... ⚡", "info");
+      await api.createStory(file, opts);
+      showToast("Story shared! ✨", "success");
+      await loadStories();
+    } catch (err: any) {
+      console.error("Failed to create story:", err);
+      showToast(err.message || "Failed to create story", "info");
+    }
+  };
 
   // Init Data on start
   useEffect(() => {
     // Fetch posts from Supabase
     const loadFeed = async () => {
       try {
+        loadStories();
+
         const { posts: dbPosts } = await api.getFeed(1, 20);
         const mapped: MockPost[] = dbPosts.map((p: any) => {
           // Build media URL list
@@ -319,6 +387,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
               if (dbUser) {
                 const user = {
+                  id: dbUser.id,
                   name: dbUser.username,
                   img: dbUser.avatarUrl || `https://i.pravatar.cc/150?u=${session.user.id}`,
                   full: dbUser.fullName || dbUser.username,
@@ -671,6 +740,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setShowCreatePostModal,
         followersModal,
         setFollowersModal,
+        showStoryCreate,
+        setShowStoryCreate,
+        storyGroups,
+        loadStories,
+        createStory,
         toasts,
         showToast,
         removeToast,

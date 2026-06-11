@@ -133,9 +133,22 @@ CREATE TABLE IF NOT EXISTS "Reaction" (
   "id"        SERIAL      PRIMARY KEY,
   "userId"    UUID        NOT NULL CONSTRAINT "Reaction_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
   "postId"    INTEGER     NOT NULL CONSTRAINT "Reaction_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
-  "type"      TEXT        NOT NULL DEFAULT 'like',
+  "type"      TEXT        NOT NULL DEFAULT 'love',
   "createdAt" TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT "Reaction_userId_postId_key" UNIQUE ("userId", "postId")
+);
+
+-- ── Story ──────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "Story" (
+  "id"        SERIAL      PRIMARY KEY,
+  "userId"    UUID        NOT NULL CONSTRAINT "Story_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "mediaUrl"  TEXT        NOT NULL DEFAULT '',
+  "mediaType" TEXT        NOT NULL DEFAULT 'image',
+  "caption"   TEXT        DEFAULT '',
+  "bgColor"   TEXT        DEFAULT '',
+  "viewCount" INTEGER     DEFAULT 0,
+  "expiresAt" TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '24 hours'),
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ── Auto-create User profile on auth signup ───────────────────────────────────
@@ -469,6 +482,30 @@ const rlsStatements = [
 
   `CREATE POLICY "Reaction: owner delete"
      ON "Reaction" FOR DELETE
+     USING (auth.uid() = "userId")`,
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Story table
+  //   • Authenticated users can read all non-expired stories
+  //   • Only the story owner can insert / delete
+  // ════════════════════════════════════════════════════════════════════════════
+  `ALTER TABLE "Story" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Story" FORCE ROW LEVEL SECURITY`,
+
+  `DROP POLICY IF EXISTS "Story: auth read"    ON "Story"`,
+  `DROP POLICY IF EXISTS "Story: owner insert" ON "Story"`,
+  `DROP POLICY IF EXISTS "Story: owner delete" ON "Story"`,
+
+  `CREATE POLICY "Story: auth read"
+     ON "Story" FOR SELECT
+     USING (auth.uid() IS NOT NULL)`,
+
+  `CREATE POLICY "Story: owner insert"
+     ON "Story" FOR INSERT
+     WITH CHECK (auth.uid() = "userId")`,
+
+  `CREATE POLICY "Story: owner delete"
+     ON "Story" FOR DELETE
      USING (auth.uid() = "userId")`,
 ];
 

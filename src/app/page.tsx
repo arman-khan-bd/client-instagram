@@ -19,6 +19,7 @@ import PostModal from "../components/modals/PostModal";
 import EditProfileModal from "../components/modals/EditProfileModal";
 import FollowersModal from "../components/modals/FollowersModal";
 import CreatePostModal from "../components/modals/CreatePostModal";
+import StoryCreateModal from "../components/modals/StoryCreateModal";
 
 import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X } from "lucide-react";
 
@@ -92,6 +93,7 @@ function AppContent() {
       <EditProfileModal />
       <FollowersModal />
       <CreatePostModal />
+      <StoryCreateModal />
 
       {/* Unique Glassmorphic Toast Notifications Container */}
       <div className="fixed top-4 right-4 md:right-6 left-4 md:left-auto z-[9999] flex flex-col gap-3 max-w-sm w-full md:w-[350px] pointer-events-none">
