@@ -6,6 +6,7 @@ import { X, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, C
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { REACTIONS } from "../feed/PostCard";
+import ReactionsModal from "./ReactionsModal";
 
 type ReactionType = typeof REACTIONS[number]["type"] | null;
 
@@ -35,6 +36,8 @@ export default function PostModal() {
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
   const [showReactions, setShowReactions]     = useState(false);
   const [hovReactionIdx, setHovReactionIdx]   = useState<number | null>(null);
+  const [reactionsList, setReactionsList] = useState<{ type: string; userId: string }[]>([]);
+  const [showReactionsModal, setShowReactionsModal] = useState(false);
 
   const hoverShowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,17 +56,20 @@ export default function PostModal() {
       setActiveImgIdx(0);
       setCurrentReaction(null);
       setShowReactions(false);
+      setReactionsList([]);
       return;
     }
     setLoadingComments(true);
     Promise.all([
       api.getComments(activePostId),
       api.getPostReaction(activePostId),
+      api.getPostReactionsDetails(activePostId),
     ])
-      .then(([comments, reaction]) => {
+      .then(([comments, reaction, reactionsDetails]) => {
         setDbComments(comments as DbComment[]);
         if (reaction) setCurrentReaction(reaction as ReactionType);
         else setCurrentReaction(null);
+        setReactionsList(reactionsDetails as any[]);
       })
       .catch(() => {})
       .finally(() => setLoadingComments(false));
@@ -89,12 +95,32 @@ export default function PostModal() {
           setCurrentReaction(result.reaction as ReactionType);
           toggleLike(activePostId as unknown as number);
         }
+        api.getPostReactionsDetails(activePostId).then((list) => {
+          setReactionsList(list as any[]);
+        }).catch(() => {});
       } catch {
         showToast("Log in to react", "info");
       }
     },
     [activePostId, toggleLike, showToast]
   );
+
+  const getDisplayEmojis = () => {
+    const counts: Record<string, number> = {};
+    reactionsList.forEach((r) => {
+      counts[r.type] = (counts[r.type] || 0) + 1;
+    });
+
+    const sortedTypes = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    const top2 = sortedTypes.slice(0, 2);
+    const emojisToShow = [...top2];
+
+    if (currentReaction && !top2.includes(currentReaction)) {
+      emojisToShow.push(currentReaction);
+    }
+
+    return emojisToShow.map((type) => REACTIONS.find((r) => r.type === type)?.emoji).filter(Boolean);
+  };
 
   // ── Early return after ALL hooks ──────────────────────────────────────────
   if (!activePost) return null;
@@ -463,8 +489,18 @@ export default function PostModal() {
               </button>
             </div>
 
-            <div className="text-[13px] font-semibold text-white">
-              {activePost.likes} likes
+            <div 
+              onClick={() => setShowReactionsModal(true)}
+              className="text-[13px] font-semibold text-white cursor-pointer hover:underline flex items-center gap-1.5 w-fit select-none"
+            >
+              <div className="flex items-center -space-x-1 mr-0.5">
+                {getDisplayEmojis().map((emoji, i) => (
+                  <span key={i} className="text-[14px] leading-none select-none">
+                    {emoji}
+                  </span>
+                ))}
+              </div>
+              <span>{activePost.likes} {activePost.likes === 1 ? 'reaction' : 'reactions'}</span>
             </div>
           </div>
 
@@ -497,6 +533,12 @@ export default function PostModal() {
           </form>
         </div>
       </motion.div>
+
+      <ReactionsModal
+        isOpen={showReactionsModal}
+        onClose={() => setShowReactionsModal(false)}
+        postId={activePost.id}
+      />
     </div>
   );
 }

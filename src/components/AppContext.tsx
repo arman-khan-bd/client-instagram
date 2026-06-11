@@ -535,6 +535,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setFollowStates((prev) => {
       const isFollowing = !prev[userId];
       showToast(isFollowing ? "Following! 🎉" : "Unfollowed", "follow");
+      if (typeof userId === "string") {
+        api.toggleFollow(userId).catch(console.error);
+      }
       return { ...prev, [userId]: isFollowing };
     });
   };

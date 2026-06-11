@@ -258,6 +258,23 @@ class ApiClient {
     return data?.type || null;
   }
 
+  async getPostReactionsDetails(postId: string | number) {
+    const { data, error } = await supabase
+      .from('Reaction')
+      .select(`
+        id,
+        type,
+        userId,
+        createdAt,
+        user:User!Reaction_userId_fkey(id, username, fullName, avatarUrl)
+      `)
+      .eq('postId', postId)
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
   async getComments(postId: string | number) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const { data: comments, error } = await supabase
@@ -402,6 +419,37 @@ class ApiClient {
 
     if (error) throw error;
     return users || [];
+  }
+
+  async getSuggestedUsers(limit = 5) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    
+    let query = supabase
+      .from('User')
+      .select('id, username, fullName, avatarUrl, isVerified')
+      .limit(limit * 2);
+      
+    if (authUser) {
+      query = query.neq('id', authUser.id);
+    }
+    
+    const { data: users, error } = await query;
+    if (error) throw error;
+    
+    if (authUser && users) {
+      const enriched = await Promise.all(users.map(async (u: any) => {
+        const { data: followRecord } = await supabase
+          .from('Follow')
+          .select('id')
+          .eq('followerId', authUser.id)
+          .eq('followingId', u.id)
+          .maybeSingle();
+        return { ...u, isFollowing: !!followRecord };
+      }));
+      return enriched.filter((u: any) => !u.isFollowing).slice(0, limit);
+    }
+    
+    return (users || []).slice(0, limit);
   }
 
   async getProfile(username: string) {

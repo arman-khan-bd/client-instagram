@@ -32,7 +32,8 @@ export default function StoryViewerModal() {
 
   const groupIndex = storyViewerIndex ?? 0;
   const currentGroup = storyGroups[groupIndex];
-  const activeStory = currentGroup?.stories[activeStoryIndex];
+  const safeActiveStoryIndex = activeStoryIndex >= (currentGroup?.stories.length ?? 0) ? 0 : activeStoryIndex;
+  const activeStory = currentGroup?.stories[safeActiveStoryIndex];
 
   // Reset active story index when group changes
   useEffect(() => {
@@ -235,8 +236,8 @@ export default function StoryViewerModal() {
         <div className="absolute top-3 left-0 right-0 z-30 px-3 flex gap-1">
           {currentGroup.stories.map((_, idx) => {
             let width = "0%";
-            if (idx < activeStoryIndex) width = "100%";
-            if (idx === activeStoryIndex) width = `${progress}%`;
+            if (idx < safeActiveStoryIndex) width = "100%";
+            if (idx === safeActiveStoryIndex) width = `${progress}%`;
 
             return (
               <div key={`story-seg-${idx}`} className="flex-1 h-[2.5px] bg-white/30 rounded-full overflow-hidden">
@@ -325,7 +326,11 @@ export default function StoryViewerModal() {
         {/* Facebook-like Story reactions & reply panel */}
         <div className="bg-black/90 p-4 flex flex-col gap-3.5 z-30 select-none border-t border-zinc-900 backdrop-blur-md">
           {/* Reaction Emojis Panel (Facebook Style) */}
-          <div className="flex items-center justify-around px-2 py-1 bg-zinc-900/50 rounded-full border border-zinc-800/60 backdrop-blur-sm">
+          <div 
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            className="flex items-center justify-around px-2 py-1 bg-zinc-900/50 rounded-full border border-zinc-800/60 backdrop-blur-sm"
+          >
             {facebookReactions.map((emoji) => (
               <button
                 key={emoji}

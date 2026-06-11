@@ -5,6 +5,7 @@ import { useApp, MockPost } from "../AppContext";
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
+import ReactionsModal from "../modals/ReactionsModal";
 
 // ── Reactions ─────────────────────────────────────────────────────────────────
 export const REACTIONS = [
@@ -103,6 +104,9 @@ export default function PostCard({ post }: PostCardProps) {
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
   const [hasReacted, setHasReacted] = useState(false);     // DB-confirmed reaction exists
   const [localLikes, setLocalLikes]   = useState(post.likes); // local like count, avoids broken toggleLike
+  const [reactionsList, setReactionsList] = useState<{ type: string; userId: string }[]>([]);
+  const [showReactionsModal, setShowReactionsModal] = useState(false);
+  const { currentUser } = useApp();
 
   // Hover-on-button picker
   const [showHoverPicker, setShowHoverPicker] = useState(false);
@@ -122,13 +126,17 @@ export default function PostCard({ post }: PostCardProps) {
   const isSaved     = savedPosts.has(post.id);
   const reactionInfo = getReactionInfo(currentReaction);
 
-  // Load existing reaction from DB — also initialise hasReacted + like count
+  // Load existing reaction from DB — also initialise hasReacted + like count + reactions details
   useEffect(() => {
     api.getPostReaction(post.id).then((r) => {
       if (r) {
         setCurrentReaction(r as ReactionType);
         setHasReacted(true);
       }
+    }).catch(() => {});
+
+    api.getPostReactionsDetails(post.id).then((list) => {
+      setReactionsList(list as any[]);
     }).catch(() => {});
   }, [post.id]);
 
@@ -143,18 +151,30 @@ export default function PostCard({ post }: PostCardProps) {
     const prevReaction = currentReaction;
     const prevHasReacted = hasReacted;
     const prevLocalLikes = localLikes;
+    const prevReactionsList = reactionsList;
 
     // Instant/optimistic update
     const isTogglingOff = currentReaction === type;
+    const currentUserId = currentUser?.id;
+
     if (isTogglingOff) {
       setCurrentReaction(null);
       setHasReacted(false);
       setLocalLikes((l) => Math.max(0, l - 1));
+      if (currentUserId) {
+        setReactionsList((prev) => prev.filter((r) => r.userId !== currentUserId));
+      }
     } else {
       setCurrentReaction(type as ReactionType);
       setHasReacted(true);
       if (!prevHasReacted) {
         setLocalLikes((l) => l + 1);
+      }
+      if (currentUserId) {
+        setReactionsList((prev) => {
+          const filtered = prev.filter((r) => r.userId !== currentUserId);
+          return [...filtered, { type, userId: currentUserId }];
+        });
       }
       const r = REACTIONS.find((r) => r.type === type);
       if (r) showToast(`${r.emoji} ${r.label}`, "notification");
@@ -170,15 +190,19 @@ export default function PostCard({ post }: PostCardProps) {
           setCurrentReaction(result.reaction as ReactionType);
           setHasReacted(true);
         }
+        api.getPostReactionsDetails(post.id).then((list) => {
+          setReactionsList(list as any[]);
+        }).catch(() => {});
       })
       .catch((err) => {
         console.error("Optimistic reaction commit failed, rolling back:", err);
         setCurrentReaction(prevReaction);
         setHasReacted(prevHasReacted);
         setLocalLikes(prevLocalLikes);
+        setReactionsList(prevReactionsList);
         showToast("Log in to react", "info");
       });
-  }, [post.id, currentReaction, hasReacted, localLikes, showToast]);
+  }, [post.id, currentReaction, hasReacted, localLikes, reactionsList, currentUser, showToast]);
 
   // ── Simple click on reaction button (no picker) ─────────────────────────────
   const handleSimpleLike = useCallback(() => {
@@ -260,6 +284,23 @@ export default function PostCard({ post }: PostCardProps) {
     n >= 1_000_000 ? (n / 1_000_000).toFixed(1) + "M"
     : n >= 1_000   ? (n / 1_000).toFixed(1) + "K"
     : n.toString();
+
+  const getDisplayEmojis = () => {
+    const counts: Record<string, number> = {};
+    reactionsList.forEach((r) => {
+      counts[r.type] = (counts[r.type] || 0) + 1;
+    });
+
+    const sortedTypes = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    const top2 = sortedTypes.slice(0, 2);
+    const emojisToShow = [...top2];
+
+    if (currentReaction && !top2.includes(currentReaction)) {
+      emojisToShow.push(currentReaction);
+    }
+
+    return emojisToShow.map((type) => REACTIONS.find((r) => r.type === type)?.emoji).filter(Boolean);
+  };
 
   return (
     <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-[24px] mb-6 overflow-hidden w-full text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
@@ -502,12 +543,17 @@ export default function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Reactions bar — show emoji + count, replace plain "X likes" */}
-      <div className="px-3.5 py-1 flex items-center gap-1.5 text-[13px] font-semibold">
-        {hasReacted && currentReaction && (
-          <span className="text-[15px] leading-none">
-            {REACTIONS.find((r) => r.type === currentReaction)?.emoji}
-          </span>
-        )}
+      <div
+        onClick={() => setShowReactionsModal(true)}
+        className="px-3.5 py-1 flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer hover:underline w-fit select-none"
+      >
+        <div className="flex items-center -space-x-1.5 mr-0.5">
+          {getDisplayEmojis().map((emoji, i) => (
+            <span key={i} className="text-[15px] leading-none drop-shadow-sm select-none">
+              {emoji}
+            </span>
+          ))}
+        </div>
         <span>{formatLikes(localLikes)}</span>
         <span className="font-normal text-[#a8a8a8]">
           {localLikes === 1 ? 'reaction' : 'reactions'}
@@ -566,6 +612,12 @@ export default function PostCard({ post }: PostCardProps) {
           Post
         </button>
       </form>
+      
+      <ReactionsModal
+        isOpen={showReactionsModal}
+        onClose={() => setShowReactionsModal(false)}
+        postId={post.id}
+      />
     </div>
   );
 }

@@ -1,11 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useApp } from "../AppContext";
+import { api } from "../../lib/api";
+
+interface SuggestedUser {
+  id: string;
+  username: string;
+  fullName: string;
+  avatarUrl: string;
+  isVerified: boolean;
+}
 
 export default function RightSidebar() {
   const {
-    users,
     currentUser,
     followStates,
     toggleFollow,
@@ -14,12 +22,24 @@ export default function RightSidebar() {
     showToast,
   } = useApp();
 
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+
+  useEffect(() => {
+    api.getSuggestedUsers(5)
+      .then((data: any) => {
+        setSuggestedUsers(data || []);
+      })
+      .catch((err) => {
+        console.error("Failed to load suggestions:", err);
+      });
+  }, []);
+
   const handleSelfProfileClick = () => {
     setViewingUserId(null); // Show self profile
     setActiveTab("profile");
   };
 
-  const handleUserClick = (userId: number) => {
+  const handleUserClick = (userId: number | string) => {
     setViewingUserId(userId);
     setActiveTab("profile");
   };
@@ -66,14 +86,14 @@ export default function RightSidebar() {
 
       {/* Suggested Users List */}
       <div className="flex flex-col gap-3.5 mb-6">
-        {users.slice(0, 5).map((u) => {
+        {suggestedUsers.map((u) => {
           const isFollowing = !!followStates[u.id];
           return (
             <div key={u.id} className="flex items-center gap-2.5">
               <img
-                src={u.img}
+                src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
                 className="w-[38px] h-[38px] rounded-full object-cover cursor-pointer border border-[#222]"
-                alt={u.name}
+                alt={u.username}
                 onClick={() => handleUserClick(u.id)}
               />
               <div className="flex-1 min-w-0">
@@ -81,11 +101,11 @@ export default function RightSidebar() {
                   onClick={() => handleUserClick(u.id)}
                   className="text-[13px] font-semibold cursor-pointer hover:underline truncate flex items-center gap-1"
                 >
-                  {u.name}
-                  {u.verified && <span className="text-[#3897f0] text-[10px]">✓</span>}
+                  {u.username}
+                  {u.isVerified && <span className="text-[#3897f0] text-[10px]">✓</span>}
                 </div>
                 <div className="text-[11px] text-[#a8a8a8] truncate">
-                  {u.verified ? "Verified account" : "Suggested for you"}
+                  {u.fullName || u.username}
                 </div>
               </div>
               <button
