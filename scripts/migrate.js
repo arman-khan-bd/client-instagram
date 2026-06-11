@@ -72,8 +72,41 @@ CREATE TABLE IF NOT EXISTS "Comment" (
   "id" SERIAL PRIMARY KEY,
   "userId" UUID NOT NULL CONSTRAINT "Comment_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
   "postId" INTEGER NOT NULL CONSTRAINT "Comment_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
-  "text" TEXT NOT NULL,
+  "text" TEXT,
   "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Apply incremental column updates to Comment table
+ALTER TABLE "Comment" ALTER COLUMN "text" DROP NOT NULL;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "parentId" INTEGER CONSTRAINT "Comment_parentId_fkey" REFERENCES "Comment"("id") ON DELETE CASCADE;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "emoji" TEXT;
+
+-- Create CommentLike table
+CREATE TABLE IF NOT EXISTS "CommentLike" (
+  "id" SERIAL PRIMARY KEY,
+  "userId" UUID NOT NULL CONSTRAINT "CommentLike_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "commentId" INTEGER NOT NULL CONSTRAINT "CommentLike_commentId_fkey" REFERENCES "Comment"("id") ON DELETE CASCADE,
+  "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT "CommentLike_userId_commentId_key" UNIQUE ("userId", "commentId")
+);
+
+-- Create Share table
+CREATE TABLE IF NOT EXISTS "Share" (
+  "id" SERIAL PRIMARY KEY,
+  "userId" UUID NOT NULL CONSTRAINT "Share_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "postId" INTEGER NOT NULL CONSTRAINT "Share_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
+  "sharedTo" TEXT DEFAULT 'external',
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create Save table
+CREATE TABLE IF NOT EXISTS "Save" (
+  "id" SERIAL PRIMARY KEY,
+  "userId" UUID NOT NULL CONSTRAINT "Save_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "postId" INTEGER NOT NULL CONSTRAINT "Save_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
+  "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT "Save_userId_postId_key" UNIQUE ("userId", "postId")
 );
 
 -- Create Follow table

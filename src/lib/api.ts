@@ -249,13 +249,18 @@ class ApiClient {
     return comments || [];
   }
 
-  async addComment(postId: string, text: string) {
+  async addComment(postId: string | number, text: string, options?: { parentId?: number; imageUrl?: string; emoji?: string }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
+    const insertData: any = { text, userId: authUser.id, postId };
+    if (options?.parentId) insertData.parentId = options.parentId;
+    if (options?.imageUrl) insertData.imageUrl = options.imageUrl;
+    if (options?.emoji) insertData.emoji = options.emoji;
+
     const { data: comment, error } = await supabase
       .from('Comment')
-      .insert({ text, userId: authUser.id, postId })
+      .insert(insertData)
       .select(`
         *,
         user:User!Comment_userId_fkey(id, username, avatarUrl)
@@ -264,6 +269,88 @@ class ApiClient {
 
     if (error) throw error;
     return comment;
+  }
+
+  // Comment Likes
+  async likeComment(commentId: number) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: existing } = await supabase
+      .from('CommentLike')
+      .select('id')
+      .eq('userId', authUser.id)
+      .eq('commentId', commentId)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase.from('CommentLike').delete().eq('id', existing.id);
+      if (error) throw error;
+      return { liked: false };
+    } else {
+      const { error } = await supabase.from('CommentLike').insert({ userId: authUser.id, commentId });
+      if (error) throw error;
+      return { liked: true };
+    }
+  }
+
+  // Share Post
+  async sharePost(postId: number | string, sharedTo: string = 'external') {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id || null;
+
+    const { data, error } = await supabase
+      .from('Share')
+      .insert({ userId, postId, sharedTo })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Toggle Save Post
+  async toggleSavePost(postId: number | string) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: existing } = await supabase
+      .from('Save')
+      .select('id')
+      .eq('userId', authUser.id)
+      .eq('postId', postId)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase.from('Save').delete().eq('id', existing.id);
+      if (error) throw error;
+      return { saved: false };
+    } else {
+      const { error } = await supabase.from('Save').insert({ userId: authUser.id, postId });
+      if (error) throw error;
+      return { saved: true };
+    }
+  }
+
+  // Get Saved Posts
+  async getSavedPosts() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: saves, error } = await supabase
+      .from('Save')
+      .select(`
+        id,
+        post:Post!Save_postId_fkey(
+          *,
+          user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
+        )
+      `)
+      .eq('userId', authUser.id)
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+    return (saves || []).map((s: any) => s.post).filter(Boolean);
   }
 
   // Users
