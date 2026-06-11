@@ -211,38 +211,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const loadFeed = async () => {
       try {
         const { posts: dbPosts } = await api.getFeed(1, 20);
-        const mapped: MockPost[] = dbPosts.map((p: any) => ({
-          id: p.id,
-          user: {
-            id: p.user?.id || 0,
-            name: p.user?.username || "unknown",
-            full: p.user?.fullName || p.user?.username || "User",
-            img: p.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
-            followers: 0,
-            following: 0,
-            bio: "",
-            verified: p.user?.isVerified || false,
-          },
-          img: p.thumbnailUrl || p.mediaUrls?.[0]?.url || "",
-          imgs: Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-            ? p.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
-            : (p.thumbnailUrl ? [p.thumbnailUrl] : []),
-          caption: p.caption || "",
-          likes: p._count?.likes ?? p.likes ?? 0,
-          comments: [],
-          time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
-          hasStory: false,
-          location: p.location || "",
-          filter: p.masterUrl !== 'none' ? p.masterUrl : undefined,
-          bgGradient: p.isTextOnly ? p.thumbnailUrl : undefined,
-          isTextOnly: !Array.isArray(p.mediaUrls) || p.mediaUrls.length === 0 ? !!p.bgGradient : false,
-        }));
+        const mapped: MockPost[] = dbPosts.map((p: any) => {
+          // Build media URL list
+          const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+            ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
+            : [];
+
+          // A text-only post: no media, and thumbnailUrl stores the CSS gradient string
+          const isTextOnly =
+            mediaList.length === 0 &&
+            typeof p.thumbnailUrl === "string" &&
+            (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+
+          const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
+          const img         = isTextOnly ? "" : (mediaList[0] || p.thumbnailUrl || "");
+          const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
+
+          return {
+            id: p.id,
+            user: {
+              id: p.user?.id || 0,
+              name: p.user?.username || "unknown",
+              full: p.user?.fullName || p.user?.username || "User",
+              img: p.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+              followers: 0,
+              following: 0,
+              bio: "",
+              verified: p.user?.isVerified || false,
+            },
+            img,
+            imgs: isTextOnly ? [] : mediaList,
+            caption: p.caption || "",
+            likes: p._count?.likes ?? 0,
+            comments: [],
+            time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
+            hasStory: false,
+            location: p.location || "",
+            filter: filterVal,
+            bgGradient,
+            isTextOnly,
+          };
+        });
         setPosts(mapped);
       } catch (err) {
         console.error("Failed to load feed:", err);
       }
     };
     loadFeed();
+
 
     // Generate notifications
     const initialNotifications: MockNotification[] = [

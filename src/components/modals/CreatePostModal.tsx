@@ -197,7 +197,7 @@ export default function CreatePostModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[550px] max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col scrollbar-thin"
+        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[550px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-2xl flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[#222] sticky top-0 bg-[#111] z-30">
