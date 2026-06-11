@@ -6,14 +6,16 @@ import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, Chev
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 
-// ── Facebook-style reactions ──────────────────────────────────────────────────
+// ── Reactions ─────────────────────────────────────────────────────────────────
 export const REACTIONS = [
-  { type: "like",  emoji: "👍", label: "Like",  color: "#0095f6" },
-  { type: "love",  emoji: "❤️", label: "Love",  color: "#ff3d5a" },
-  { type: "haha",  emoji: "😂", label: "Haha",  color: "#f5a623" },
-  { type: "wow",   emoji: "😮", label: "Wow",   color: "#f5a623" },
-  { type: "sad",   emoji: "😢", label: "Sad",   color: "#f5a623" },
-  { type: "angry", emoji: "😡", label: "Angry", color: "#e05a00" },
+  { type: "love",  emoji: "❤️",  label: "Love",  color: "#ff3d5a" },
+  { type: "hot",   emoji: "🔥",  label: "Hot",   color: "#ff6b35" },
+  { type: "care",  emoji: "🤗",  label: "Care",  color: "#f5c518" },
+  { type: "wow",   emoji: "😮",  label: "Wow",   color: "#f5a623" },
+  { type: "haha",  emoji: "😂",  label: "Haha",  color: "#f5a623" },
+  { type: "sad",   emoji: "😢",  label: "Sad",   color: "#5b9bd5" },
+  { type: "angry", emoji: "😡",  label: "Angry", color: "#e05a00" },
+  { type: "slap",  emoji: "🩴",  label: "Slap",  color: "#9b59b6" },
 ] as const;
 
 type ReactionType = typeof REACTIONS[number]["type"] | null;
@@ -161,29 +163,25 @@ export default function PostCard({ post }: PostCardProps) {
     }
   }, [showHoverPicker, currentReaction, isLiked, post.id, commitReaction, toggleLike]);
 
-  // ── HOVER PICKER (desktop heart button) ───────────────────────────────────
+  // ── HOVER PICKER (desktop heart button): hover shows, click commits ─────────
   const startHoverShow = () => {
     if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
-    hoverShowTimer.current = setTimeout(() => setShowHoverPicker(true), 380);
+    hoverShowTimer.current = setTimeout(() => setShowHoverPicker(true), 340);
   };
   const startHoverHide = () => {
     if (hoverShowTimer.current) clearTimeout(hoverShowTimer.current);
+    // No auto-commit on leave — user must click a reaction
     hoverHideTimer.current = setTimeout(() => {
-      // If user had hovered an emoji, commit it before hiding
-      if (hoverPickerHovIdx !== null) {
-        commitReaction(REACTIONS[hoverPickerHovIdx].type);
-      }
       setShowHoverPicker(false);
       setHoverPickerHovIdx(null);
-    }, 260);
+    }, 220);
   };
   const cancelHoverHide = () => {
     if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
   };
 
-  // ── LONG-PRESS PICKER (image) ─────────────────────────────────────────────
+  // ── LONG-PRESS PICKER (image): hold shows, click reaction to commit ──────────
   const onImagePointerDown = (e: React.PointerEvent) => {
-    // Only primary button / first touch
     if (e.pointerType === "mouse" && e.button !== 0) return;
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
@@ -194,20 +192,12 @@ export default function PostCard({ post }: PostCardProps) {
 
   const onImagePointerUp = (e: React.PointerEvent) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    if (showLongPicker) {
-      // If hovering a reaction, commit it; otherwise just close
-      if (longPickerHovIdx !== null) {
-        commitReaction(REACTIONS[longPickerHovIdx].type);
-      } else {
-        setShowLongPicker(false);
-      }
-      return;
-    }
-    // Not a long press — handle double-click via two rapid taps
+    // If picker is open, just close it — user clicks a reaction emoji to commit
+    if (showLongPicker) return;
+    // Double-tap detection
     if (!isLongPress.current) {
       const now = Date.now();
       if (now - lastTap.current < 300) {
-        // Double tap → love reaction
         setShowHeartPop(true);
         setTimeout(() => setShowHeartPop(false), 850);
         if (!isLiked) commitReaction("love");
@@ -451,14 +441,14 @@ export default function PostCard({ post }: PostCardProps) {
             )}
           </button>
 
-          {/* Hover picker — appears above the heart button */}
+          {/* Hover picker — appears above heart button: hover shows, click commits */}
           <div onMouseEnter={cancelHoverHide} onMouseLeave={startHoverHide}>
             <ReactionPicker
               visible={showHoverPicker}
               anchorBottom
               hoveredIdx={hoverPickerHovIdx}
               onHover={setHoverPickerHovIdx}
-              onSelect={commitReaction}
+              onSelect={(type) => { commitReaction(type); setShowHoverPicker(false); }}
               onMouseLeave={startHoverHide}
             />
           </div>

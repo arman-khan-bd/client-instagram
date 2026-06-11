@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { REACTIONS } from "../feed/PostCard";
 
-type ReactionType = "like" | "love" | "haha" | "wow" | "sad" | "angry" | null;
+type ReactionType = typeof REACTIONS[number]["type"] | null;
 
 interface DbComment {
   id: number;
@@ -27,31 +27,46 @@ export default function PostModal() {
     showToast,
   } = useApp();
 
-  const [commentText, setCommentText]     = useState("");
-  const [dbComments, setDbComments]       = useState<DbComment[]>([]);
+  // ── ALL hooks must come before any early return ───────────────────────────
+  const [commentText, setCommentText]         = useState("");
+  const [dbComments, setDbComments]           = useState<DbComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
-  const [activeImgIdx, setActiveImgIdx]   = useState(0);
+  const [activeImgIdx, setActiveImgIdx]       = useState(0);
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
-  const [showReactions, setShowReactions] = useState(false);
-  const [hovReactionIdx, setHovReactionIdx] = useState<number | null>(null);
+  const [showReactions, setShowReactions]     = useState(false);
+  const [hovReactionIdx, setHovReactionIdx]   = useState<number | null>(null);
+
   const hoverShowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLInputElement>(null);
 
-  const activePost = useMemo(() => posts.find((p) => p.id === activePostId), [posts, activePostId]);
+  const activePost = useMemo(
+    () => posts.find((p) => p.id === activePostId),
+    [posts, activePostId]
+  );
 
-  // Load comments + existing reaction when post opens
+  // Load comments + current reaction when post opens
   useEffect(() => {
-    if (!activePostId) { setDbComments([]); setActiveImgIdx(0); return; }
+    if (!activePostId) {
+      setDbComments([]);
+      setActiveImgIdx(0);
+      setCurrentReaction(null);
+      setShowReactions(false);
+      return;
+    }
     setLoadingComments(true);
     Promise.all([
       api.getComments(activePostId),
       api.getPostReaction(activePostId),
-    ]).then(([comments, reaction]) => {
-      setDbComments(comments as DbComment[]);
-      if (reaction) setCurrentReaction(reaction as ReactionType);
-    }).catch(() => {}).finally(() => setLoadingComments(false));
+    ])
+      .then(([comments, reaction]) => {
+        setDbComments(comments as DbComment[]);
+        if (reaction) setCurrentReaction(reaction as ReactionType);
+        else setCurrentReaction(null);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingComments(false));
   }, [activePostId]);
 
   // Auto-scroll to newest comment
@@ -59,10 +74,33 @@ export default function PostModal() {
     commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [dbComments.length]);
 
+  // commitReaction MUST be before early return — activePost.id accessed safely via optional chain
+  const commitReaction = useCallback(
+    async (type: string) => {
+      if (!activePostId) return;
+      setShowReactions(false);
+      setHovReactionIdx(null);
+      try {
+        const result = await api.reactToPost(activePostId, type);
+        if (result.reaction === null) {
+          setCurrentReaction(null);
+          toggleLike(activePostId as unknown as number);
+        } else {
+          setCurrentReaction(result.reaction as ReactionType);
+          toggleLike(activePostId as unknown as number);
+        }
+      } catch {
+        showToast("Log in to react", "info");
+      }
+    },
+    [activePostId, toggleLike, showToast]
+  );
+
+  // ── Early return after ALL hooks ──────────────────────────────────────────
   if (!activePost) return null;
 
-  const isLiked    = !!likedPosts[activePost.id] || !!currentReaction;
-  const isSaved    = savedPosts.has(activePost.id);
+  const isLiked      = !!likedPosts[activePost.id] || !!currentReaction;
+  const isSaved      = savedPosts.has(activePost.id);
   const reactionInfo = currentReaction ? REACTIONS.find((r) => r.type === currentReaction) : null;
 
   const handleClose = () => setActivePostId(null);
@@ -73,7 +111,6 @@ export default function PostModal() {
     handleClose();
   };
 
-  // ── Post a comment ─────────────────────────────────────────────────────────
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -87,7 +124,6 @@ export default function PostModal() {
     }
   };
 
-  // ── Like a comment ─────────────────────────────────────────────────────────
   const handleCommentLike = async (commentId: number) => {
     try {
       await api.likeComment(commentId);
@@ -103,47 +139,31 @@ export default function PostModal() {
     }
   };
 
-  // ── React to post ──────────────────────────────────────────────────────────
-  const commitReaction = useCallback(async (type: string) => {
-    setShowReactions(false);
-    setHovReactionIdx(null);
-    try {
-      const result = await api.reactToPost(activePost.id, type);
-      if (result.reaction === null) {
-        setCurrentReaction(null);
-        if (isLiked) toggleLike(activePost.id);
-      } else {
-        setCurrentReaction(result.reaction as ReactionType);
-        if (!isLiked) toggleLike(activePost.id);
-      }
-    } catch {
-      showToast("Log in to react", "info");
-    }
-  }, [activePost.id, isLiked, toggleLike, showToast]);
-
   const handleSimpleLike = async () => {
     if (showReactions) return;
     if (currentReaction || isLiked) {
-      try { await api.reactToPost(activePost.id, currentReaction ?? "like"); } catch {}
+      try { await api.reactToPost(activePost.id, currentReaction ?? "love"); } catch {}
       setCurrentReaction(null);
       toggleLike(activePost.id);
     } else {
-      await commitReaction("like");
+      await commitReaction("love");
     }
   };
 
-  // hover
+  // Hover picker controls — hover shows, click commits (no commit on leave)
   const startShow = () => {
     if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
-    hoverShowTimer.current = setTimeout(() => setShowReactions(true), 350);
+    hoverShowTimer.current = setTimeout(() => setShowReactions(true), 320);
   };
   const startHide = () => {
     if (hoverShowTimer.current) clearTimeout(hoverShowTimer.current);
     hoverHideTimer.current = setTimeout(() => {
-      if (hovReactionIdx !== null) commitReaction(REACTIONS[hovReactionIdx].type);
       setShowReactions(false);
       setHovReactionIdx(null);
-    }, 240);
+    }, 220);
+  };
+  const cancelHide = () => {
+    if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
   };
 
   const formatCaption = (text: string) =>
@@ -163,35 +183,37 @@ export default function PostModal() {
     return `${Math.floor(h / 24)}d`;
   };
 
-  // image list
-  const images = activePost.imgs && activePost.imgs.length > 0 ? activePost.imgs : (activePost.img ? [activePost.img] : []);
+  const images =
+    activePost.imgs && activePost.imgs.length > 0
+      ? activePost.imgs
+      : activePost.img
+      ? [activePost.img]
+      : [];
 
   return (
     <div
       onClick={handleClose}
       className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 text-white"
     >
-      {/* ── Modal shell ──────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.18 }}
+        transition={{ duration: 0.16 }}
         onClick={(e) => e.stopPropagation()}
         className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[920px] h-[88vh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative"
       >
         {/* Close */}
         <button
           onClick={handleClose}
-          className="absolute right-4 top-4 z-[220] bg-black/50 hover:bg-black/80 rounded-full p-1.5 transition"
+          className="absolute right-4 top-4 z-[220] bg-black/50 hover:bg-black/80 rounded-full p-1.5 transition cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        {/* ── LEFT: media ──────────────────────────────────────────────────── */}
+        {/* ── LEFT: media ─────────────────────────────────────────────────── */}
         <div className="flex-1 bg-black flex items-center justify-center overflow-hidden relative min-h-[40vh] md:min-h-0">
           {activePost.isTextOnly ? (
-            /* Color / gradient text post */
             <div
               className="w-full h-full flex items-center justify-center p-10 text-center font-bold leading-relaxed break-words"
               style={{
@@ -203,13 +225,16 @@ export default function PostModal() {
               {activePost.caption}
             </div>
           ) : (
-            /* Image(s) with carousel */
             <>
               <img
                 src={images[activeImgIdx] || ""}
                 alt="post"
                 className="w-full h-full object-contain max-h-[88vh]"
-                style={{ filter: activePost.filter && activePost.filter !== "none" ? activePost.filter : undefined }}
+                style={{
+                  filter: activePost.filter && activePost.filter !== "none"
+                    ? activePost.filter
+                    : undefined,
+                }}
               />
               {images.length > 1 && (
                 <>
@@ -231,7 +256,12 @@ export default function PostModal() {
                   )}
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
                     {images.map((_, idx) => (
-                      <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${idx === activeImgIdx ? "bg-white scale-125" : "bg-white/40"}`} />
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                          idx === activeImgIdx ? "bg-white scale-125" : "bg-white/40"
+                        }`}
+                      />
                     ))}
                   </div>
                 </>
@@ -240,14 +270,14 @@ export default function PostModal() {
           )}
         </div>
 
-        {/* ── RIGHT: header + comments + actions ───────────────────────────── */}
+        {/* ── RIGHT: header + comments + actions ──────────────────────────── */}
         <div className="w-full md:w-[360px] shrink-0 flex flex-col h-full border-t md:border-t-0 md:border-l border-[#222] bg-[#0a0a0a]">
 
           {/* Header */}
           <div className="flex items-center gap-3 p-4 border-b border-[#222] shrink-0">
             <img
               src={activePost.user.img}
-              className="w-9 h-9 rounded-full object-cover border border-[#222] cursor-pointer"
+              className="w-9 h-9 rounded-full object-cover border border-[#222] cursor-pointer shrink-0"
               onClick={() => handleUserClick(activePost.user.id)}
               alt="user"
             />
@@ -257,19 +287,25 @@ export default function PostModal() {
                 className="font-bold text-[13.5px] hover:underline cursor-pointer truncate flex items-center gap-1"
               >
                 {activePost.user.name}
-                {activePost.user.verified && <span className="text-[#3897f0] text-[10px]">✓</span>}
+                {activePost.user.verified && (
+                  <span className="text-[#3897f0] text-[10px]">✓</span>
+                )}
               </div>
-              {activePost.location && <div className="text-[11px] text-[#a8a8a8] truncate">{activePost.location}</div>}
+              {activePost.location && (
+                <div className="text-[11px] text-[#a8a8a8] truncate">{activePost.location}</div>
+              )}
             </div>
-            <button onClick={() => showToast("More options")} className="text-[#a8a8a8] hover:text-white p-1 cursor-pointer">
+            <button
+              onClick={() => showToast("More options")}
+              className="text-[#a8a8a8] hover:text-white p-1 cursor-pointer"
+            >
               <MoreHorizontal size={18} />
             </button>
           </div>
 
           {/* Comments list */}
           <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 min-h-0">
-
-            {/* Post caption */}
+            {/* Caption */}
             <div className="flex gap-3 items-start">
               <img
                 src={activePost.user.img}
@@ -284,35 +320,38 @@ export default function PostModal() {
                 >
                   {activePost.user.name}
                 </span>
-                {activePost.isTextOnly
-                  ? <span className="text-[#a8a8a8] italic">Text post</span>
-                  : formatCaption(activePost.caption)
-                }
+                {activePost.isTextOnly ? (
+                  <span className="text-[#a8a8a8] italic">Text post</span>
+                ) : (
+                  formatCaption(activePost.caption)
+                )}
                 <div className="text-[11px] text-[#555] mt-1">{activePost.time}</div>
               </div>
             </div>
 
-            {/* Divider */}
             <div className="border-t border-[#1a1a1a]" />
 
             {/* DB comments */}
             {loadingComments ? (
-              <div className="text-center text-[12px] text-[#555] py-4">Loading comments…</div>
+              <div className="text-center text-[12px] text-[#555] py-6 animate-pulse">
+                Loading comments…
+              </div>
             ) : dbComments.length === 0 ? (
-              <div className="text-center text-[12px] text-[#444] py-6">
-                No comments yet.<br />
-                <span className="text-[#666]">Be the first to comment!</span>
+              <div className="text-center text-[12px] text-[#444] py-8">
+                No comments yet.
+                <br />
+                <span className="text-[#666]">Be the first!</span>
               </div>
             ) : (
               dbComments.map((c) => (
                 <div key={c.id} className="flex gap-3 items-start group">
                   <img
                     src={c.user.avatarUrl || `https://i.pravatar.cc/80?u=${c.user.id}`}
-                    className="w-8 h-8 rounded-full object-cover border border-[#222] cursor-pointer shrink-0"
+                    className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
                     alt={c.user.username}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] leading-relaxed">
+                    <div className="text-[13px] leading-relaxed break-words">
                       <span className="font-bold mr-1.5 cursor-pointer hover:underline">
                         {c.user.username}
                       </span>
@@ -325,7 +364,6 @@ export default function PostModal() {
                       <button
                         onClick={() => handleCommentLike(c.id)}
                         className="ml-auto text-[13px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                        title={c.isLiked ? "Unlike" : "Like"}
                       >
                         {c.isLiked ? "❤️" : "🤍"}
                       </button>
@@ -337,11 +375,11 @@ export default function PostModal() {
             <div ref={commentsEndRef} />
           </div>
 
-          {/* ── Actions panel ─────────────────────────────────────────────── */}
+          {/* ── Actions ─────────────────────────────────────────────────────── */}
           <div className="p-4 border-t border-[#222] shrink-0">
             <div className="flex items-center gap-4 mb-2">
 
-              {/* Like / reaction with hover picker */}
+              {/* Like / reaction button */}
               <div
                 className="relative"
                 onMouseEnter={startShow}
@@ -349,17 +387,21 @@ export default function PostModal() {
               >
                 <button
                   onClick={handleSimpleLike}
-                  className="cursor-pointer transition hover:scale-105 active:scale-95"
+                  className="cursor-pointer transition hover:scale-110 active:scale-95"
                   style={{ color: reactionInfo?.color }}
                 >
                   {currentReaction ? (
                     <span className="text-[22px] leading-none">{reactionInfo?.emoji}</span>
                   ) : (
-                    <Heart size={22} fill={isLiked ? "currentColor" : "none"} className={isLiked ? "text-red-500" : "text-white"} />
+                    <Heart
+                      size={22}
+                      fill={isLiked ? "currentColor" : "none"}
+                      className={isLiked ? "text-red-500" : "text-white"}
+                    />
                   )}
                 </button>
 
-                {/* Hover reaction picker */}
+                {/* Hover reaction picker — hover to show, click to react */}
                 <AnimatePresence>
                   {showReactions && (
                     <motion.div
@@ -368,22 +410,27 @@ export default function PostModal() {
                       exit={{ opacity: 0, scale: 0.75, y: 6 }}
                       transition={{ type: "spring", stiffness: 420, damping: 26 }}
                       className="absolute bottom-[calc(100%+8px)] left-0 flex items-end gap-1 bg-[#111]/95 backdrop-blur-xl border border-white/10 rounded-full px-3 py-2 shadow-2xl z-50"
-                      onMouseEnter={() => { if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current); }}
+                      onMouseEnter={cancelHide}
                       onMouseLeave={startHide}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {REACTIONS.map((r, idx) => (
                         <motion.button
                           key={r.type}
-                          animate={{ scale: hovReactionIdx === idx ? 1.5 : 1, y: hovReactionIdx === idx ? -8 : 0 }}
+                          animate={{
+                            scale: hovReactionIdx === idx ? 1.5 : 1,
+                            y: hovReactionIdx === idx ? -8 : 0,
+                          }}
+                          transition={{ type: "spring", stiffness: 480, damping: 22 }}
                           title={r.label}
                           onMouseEnter={() => setHovReactionIdx(idx)}
+                          onMouseLeave={() => setHovReactionIdx(null)}
                           onClick={() => commitReaction(r.type)}
                           className="text-[24px] leading-none cursor-pointer relative"
                         >
                           {r.emoji}
                           {hovReactionIdx === idx && (
-                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none font-semibold">
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">
                               {r.label}
                             </span>
                           )}
@@ -422,8 +469,16 @@ export default function PostModal() {
           </div>
 
           {/* Comment input */}
-          <form onSubmit={handlePostComment} className="border-t border-[#222] flex items-center px-4 py-3 gap-3 bg-[#111] shrink-0">
-            <span className="text-[18px] cursor-pointer" onClick={() => setCommentText((p) => p + "😊")}>😊</span>
+          <form
+            onSubmit={handlePostComment}
+            className="border-t border-[#222] flex items-center px-4 py-3 gap-3 bg-[#111] shrink-0"
+          >
+            <span
+              className="text-[18px] cursor-pointer"
+              onClick={() => setCommentText((p) => p + "😊")}
+            >
+              😊
+            </span>
             <input
               ref={inputRef}
               type="text"
