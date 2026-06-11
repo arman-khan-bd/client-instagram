@@ -169,7 +169,7 @@ export default function PostCard({ post }: PostCardProps) {
         className="relative aspect-square overflow-hidden cursor-pointer select-none"
         onDoubleClick={handleDoubleTap}
       >
-        <img src={post.img} className="w-full h-full object-cover" alt="post" />
+        <img src={post.img} className="w-full h-full object-cover" style={{ filter: post.filter || "none" }} alt="post" />
         
         {/* Heart Pop Overlay */}
         <AnimatePresence>

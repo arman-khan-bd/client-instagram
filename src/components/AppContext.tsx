@@ -34,6 +34,7 @@ export interface MockPost {
   time: string;
   hasStory: boolean;
   location: string;
+  filter?: string;
 }
 
 export interface MockMessage {
@@ -104,7 +105,7 @@ interface AppContextType {
   addComment: (postId: number, text: string) => void;
   sendMessage: (chatId: number, text: string) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
-  createPost: (imgSrc: string, caption: string) => void;
+  createPost: (imgSrc: string, caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string }) => void;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string }) => void;
 
   // Modals state
@@ -553,7 +554,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     sendMessage(chatId, emoji);
   };
 
-  const createPost = (imgSrc: string, caption: string) => {
+  const createPost = (
+    imgSrc: string,
+    caption: string,
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string }
+  ) => {
+    let finalCaption = caption;
+    if (options?.feelings) {
+      finalCaption = `${options.feelings} — ${finalCaption}`;
+    }
+    if (options?.tags && options.tags.length > 0) {
+      finalCaption = `${finalCaption}\n\nTags: ${options.tags.map((t) => `@${t}`).join(", ")}`;
+    }
+    if (options?.music) {
+      finalCaption = `${finalCaption}\n\n🎵 Music: ${options.music}`;
+    }
     const newPost: MockPost = {
       id: posts.length + 1,
       user: {
@@ -567,12 +582,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         verified: false,
       },
       img: imgSrc || "https://picsum.photos/seed/default/600/600",
-      caption: caption || "New post! 📸",
+      caption: finalCaption || "New post! 📸",
       likes: 0,
       comments: [],
       time: "just now",
       hasStory: false,
-      location: "My Current Location",
+      location: options?.location || "Aura Space 🌌",
+      filter: options?.filter || "none",
     };
     setPosts((prev) => [newPost, ...prev]);
     showToast("Post shared! 🎉", "success");
