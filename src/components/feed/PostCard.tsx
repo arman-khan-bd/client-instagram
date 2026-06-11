@@ -74,7 +74,7 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <div className="bg-[#111] border border-[#222] rounded-2xl mb-5 overflow-hidden w-full text-white">
+    <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-[24px] mb-6 overflow-hidden w-full text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
       {/* Header */}
       <div className="flex items-center gap-3 p-3.5 select-none">
         <img
@@ -256,7 +256,7 @@ export default function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Comment Input */}
-      <form onSubmit={handlePostComment} className="border-t border-[#222] flex items-center p-3.5 gap-3">
+      <form onSubmit={handlePostComment} className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15">
         <span
           style={{ fontSize: "20px", cursor: "pointer" }}
           onClick={() => setCommentText((prev) => prev + "😊")}

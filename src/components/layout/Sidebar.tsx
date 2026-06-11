@@ -29,7 +29,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden sm:flex flex-col bg-[#111] border-r border-[#222] h-screen sticky top-0 py-6 px-3 lg:w-[240px] md:w-[76px] w-[70px] transition-all z-50 text-[#f5f5f5]">
+    <aside className="hidden sm:flex flex-col bg-[var(--surface)] backdrop-blur-xl border-r border-[var(--border)] h-screen sticky top-0 py-6 px-3 lg:w-[240px] md:w-[76px] w-[70px] transition-all z-50 text-[var(--text)]">
       {/* Logo */}
       <div
         onClick={() => handleNav("home")}
