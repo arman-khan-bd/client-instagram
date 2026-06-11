@@ -1,11 +1,45 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useApp } from "../AppContext";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AuthScreen() {
-  const { doLoginWithGoogle } = useApp();
+  const { doLogin, doRegister, doLoginWithGoogle, showToast } = useApp();
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+
+  // Login fields
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPass, setLoginPass] = useState("");
+
+  // Register fields
+  const [regEmail, setRegEmail] = useState("");
+  const [regName, setRegName] = useState("");
+  const [regUser, setRegUser] = useState("");
+  const [regPass, setRegPass] = useState("");
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPass) {
+      showToast("Email and password are required!");
+      return;
+    }
+    doLogin(loginEmail, loginPass);
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regEmail || !regName || !regUser || !regPass) {
+      showToast("All fields are required!");
+      return;
+    }
+    doRegister({
+      username: regUser,
+      email: regEmail,
+      pass: regPass,
+      fullName: regName
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_#2b1055_0%,_#050505_70%)] text-white relative overflow-hidden font-sans">
@@ -17,31 +51,143 @@ export default function AuthScreen() {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-10 flex flex-col items-center shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-8 flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
         >
-          {/* AuraGram Logo Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] p-[3px] shadow-lg mb-6 flex items-center justify-center select-none animate-spin-slow">
-            <div className="w-full h-full bg-[#050505] rounded-[13px] flex items-center justify-center text-2xl">
-              ✨
+          {/* Brand Header */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] p-[2px] shadow-lg mb-3 flex items-center justify-center select-none">
+              <div className="w-full h-full bg-[#050505] rounded-[10px] flex items-center justify-center text-lg">
+                ✨
+              </div>
             </div>
+            <h1 className="text-center text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] select-none">
+              AuraGram
+            </h1>
           </div>
 
-          <h1 className="text-center text-4xl mb-3 font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] select-none">
-            AuraGram
-          </h1>
+          {/* Form Tabs */}
+          <div className="flex bg-white/[0.04] p-1 rounded-xl mb-6 border border-white/[0.05]">
+            <button
+              onClick={() => setAuthMode("login")}
+              className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+                authMode === "login" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => setAuthMode("register")}
+              className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+                authMode === "register" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
 
-          <p className="text-center text-[13.5px] text-gray-400 mb-9 leading-relaxed max-w-[280px]">
-            Connect, share, and manifest your moments in the social aura.
-          </p>
+          {/* Forms switcher */}
+          <AnimatePresence mode="wait">
+            {authMode === "login" ? (
+              <motion.form
+                key="login-form"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleLoginSubmit}
+                className="flex flex-col gap-3"
+              >
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={loginPass}
+                  onChange={(e) => setLoginPass(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition"
+                  required
+                />
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] text-white text-[13px] font-bold cursor-pointer hover:opacity-95 active:scale-[0.98] transition shadow-md"
+                >
+                  Log In
+                </button>
+              </motion.form>
+            ) : (
+              <motion.form
+                key="register-form"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleRegisterSubmit}
+                className="flex flex-col gap-3"
+              >
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={regUser}
+                  onChange={(e) => setRegUser(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={regPass}
+                  onChange={(e) => setRegPass(e.target.value)}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition"
+                  required
+                />
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] text-white text-[13px] font-bold cursor-pointer hover:opacity-95 active:scale-[0.98] transition shadow-md"
+                >
+                  Sign Up
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          <div className="flex items-center gap-3 my-5 text-[11px] text-gray-500 w-full select-none">
+            <div className="flex-1 h-[1px] bg-white/[0.08]" />
+            OR
+            <div className="flex-1 h-[1px] bg-white/[0.08]" />
+          </div>
 
           {/* Google Login Button */}
           <button
             onClick={doLoginWithGoogle}
-            className="w-full py-3.5 bg-white text-black hover:bg-gray-100 rounded-2xl text-[14px] font-bold cursor-pointer transition-all duration-300 shadow-md flex items-center justify-center gap-3 active:scale-[0.98]"
+            className="w-full py-3 bg-white text-black hover:bg-gray-100 rounded-xl text-[13px] font-semibold cursor-pointer transition-all duration-300 shadow-sm flex items-center justify-center gap-2.5 active:scale-[0.98]"
           >
             {/* Google Icon SVG */}
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
               <path
                 fill="#EA4335"
                 d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.37 3.67 1.39 7.56l3.89 3.02C6.21 7.57 8.87 5.04 12 5.04z"
@@ -62,8 +208,8 @@ export default function AuthScreen() {
             Continue with Google
           </button>
 
-          <p className="text-[11px] text-gray-500 text-center mt-9 leading-relaxed max-w-[260px]">
-            By continuing, you agree to AuraGram's <span className="text-gray-400 cursor-pointer hover:underline">Terms of Service</span> and <span className="text-gray-400 cursor-pointer hover:underline">Privacy Policy</span>.
+          <p className="text-[10.5px] text-gray-500 text-center mt-6 leading-relaxed select-none">
+            By signing up, you agree to our <span className="text-gray-400 cursor-pointer hover:underline">Terms</span> and <span className="text-gray-400 cursor-pointer hover:underline">Privacy Policy</span>.
           </p>
         </motion.div>
 
