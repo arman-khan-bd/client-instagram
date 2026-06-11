@@ -170,42 +170,55 @@ class ApiClient {
     return { posts: postsWithDetails, page };
   }
 
-  async createPost(formData: FormData) {
-    const caption = formData.get('caption') as string;
-    const location = formData.get('location') as string;
-    const file = formData.get('image') as File;
-
-    if (!file) throw new Error('Image is required');
-
+  async createPost(data: {
+    caption: string;
+    location?: string;
+    files?: File[];
+    bgGradient?: string;
+    isTextOnly?: boolean;
+    filter?: string;
+  }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
-    // Upload file directly to Cloudinary using unsigned upload preset
-    const uploadData = new FormData();
-    uploadData.append('file', file);
-    uploadData.append('upload_preset', 'auragram');
+    let mediaUrls: any[] = [];
+    let thumbnailUrl = '';
 
-    const res = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
-      method: 'POST',
-      body: uploadData,
-    });
+    if (data.isTextOnly && data.bgGradient) {
+      thumbnailUrl = data.bgGradient;
+    } else if (data.files && data.files.length > 0) {
+      mediaUrls = await Promise.all(
+        data.files.map(async (file) => {
+          const uploadData = new FormData();
+          uploadData.append('file', file);
+          uploadData.append('upload_preset', 'auragram');
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error?.message || 'Image upload to Cloudinary failed');
+          const res = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
+            method: 'POST',
+            body: uploadData,
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error?.message || 'Image upload to Cloudinary failed');
+          }
+
+          const { secure_url } = await res.json();
+          return { url: secure_url, type: 'image' };
+        })
+      );
+      thumbnailUrl = mediaUrls[0]?.url || '';
     }
-
-    const { secure_url: publicUrl } = await res.json();
 
     const { data: post, error: dbError } = await supabase
       .from('Post')
       .insert({
-        caption: caption || '',
-        location: location || null,
-        mediaUrls: [{ url: publicUrl, type: 'image' }],
-        thumbnailUrl: publicUrl,
-        mobileUrl: publicUrl,
-        masterUrl: publicUrl,
+        caption: data.caption || '',
+        location: data.location || null,
+        mediaUrls: mediaUrls,
+        thumbnailUrl: thumbnailUrl,
+        mobileUrl: thumbnailUrl,
+        masterUrl: data.filter || 'none',
         userId: authUser.id,
       })
       .select(`

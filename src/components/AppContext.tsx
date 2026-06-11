@@ -108,7 +108,7 @@ interface AppContextType {
   addComment: (postId: number, text: string) => void;
   sendMessage: (chatId: number, text: string) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
-  createPost: (imgSrc: string, caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; imgs?: string[]; bgGradient?: string; isTextOnly?: boolean }) => void;
+  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string }) => void;
 
   // Modals state
@@ -143,25 +143,7 @@ const MOCK_USERS: MockUser[] = [
   { id: 8, name: "lily.art", full: "Lily Moss", img: "https://i.pravatar.cc/80?img=20", followers: 6200, following: 340, bio: "🌸 Art & Design", verified: false },
 ];
 
-const IMG_SEEDS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250];
-const CAPTIONS = [
-  "Golden hour never gets old 🌅 #photography #sunset #golden",
-  "Exploring the city one frame at a time 📸 #streetphotography",
-  "Life is better with good food and good vibes 🍜 #foodie",
-  "Adventure is out there waiting ✈️ #travel #explore",
-  "Creating something beautiful every day 🎨 #art #design",
-  "This view though 😍 #nature #views #blessed",
-  "Weekend vibes only 🙌 #weekend #chill",
-  "Chasing light and good moments 📷 #photography",
-  "Urban jungle stories 🏙️ #urban #city #street",
-  "Making memories that last forever 💫 #memories #life",
-];
-const COMMENTS_DATA = [
-  "Absolutely stunning! 😍", "Love this so much! ❤️", "Goals! 🙌", "Where is this?!",
-  "You never miss 🔥", "The lighting is perfect", "This is art 🎨", "Wow amazing shot!",
-  "Totally vibing with this", "Peak aesthetic ✨", "🤩🤩🤩", "Need this on my wall",
-  "Incredible content as always!", "This feed is everything", "Fire 🔥",
-];
+
 
 const INITIAL_DM_DATA = [
   { id: 1, user: MOCK_USERS[0], preview: "haha yes exactly 😂", time: "2m", unread: 2, online: true },
@@ -225,42 +207,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Init Data on start
   useEffect(() => {
-    // Generate initial posts
-    const initialPosts: MockPost[] = IMG_SEEDS.map((seed, i) => {
-      const user = MOCK_USERS[i % MOCK_USERS.length];
-      const likes = Math.floor(Math.random() * 9800) + 100;
-      return {
-        id: i + 1,
-        user,
-        img: `https://picsum.photos/seed/${seed}/600/600`,
-        caption: CAPTIONS[i % CAPTIONS.length],
-        likes,
-        comments: Array.from({ length: Math.floor(Math.random() * 8) + 2 }, (_, j) => ({
-          id: j + 1,
-          user: MOCK_USERS[(i + j + 1) % MOCK_USERS.length],
-          text: COMMENTS_DATA[(i + j) % COMMENTS_DATA.length],
-          time: `${Math.floor(Math.random() * 59) + 1}m`,
-          liked: false,
-        })),
-        time: `${Math.floor(Math.random() * 23) + 1}h`,
-        hasStory: Math.random() > 0.5,
-        location: ["New York", "Paris", "Tokyo", "London", "Sydney", "Bali"][i % 6],
-      };
-    });
-    setPosts(initialPosts);
+    // Fetch posts from Supabase
+    const loadFeed = async () => {
+      try {
+        const { posts: dbPosts } = await api.getFeed(1, 20);
+        const mapped: MockPost[] = dbPosts.map((p: any) => ({
+          id: p.id,
+          user: {
+            id: p.user?.id || 0,
+            name: p.user?.username || "unknown",
+            full: p.user?.fullName || p.user?.username || "User",
+            img: p.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+            followers: 0,
+            following: 0,
+            bio: "",
+            verified: p.user?.isVerified || false,
+          },
+          img: p.thumbnailUrl || p.mediaUrls?.[0]?.url || "",
+          imgs: Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+            ? p.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
+            : (p.thumbnailUrl ? [p.thumbnailUrl] : []),
+          caption: p.caption || "",
+          likes: p._count?.likes ?? p.likes ?? 0,
+          comments: [],
+          time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
+          hasStory: false,
+          location: p.location || "",
+          filter: p.masterUrl !== 'none' ? p.masterUrl : undefined,
+          bgGradient: p.isTextOnly ? p.thumbnailUrl : undefined,
+          isTextOnly: !Array.isArray(p.mediaUrls) || p.mediaUrls.length === 0 ? !!p.bgGradient : false,
+        }));
+        setPosts(mapped);
+      } catch (err) {
+        console.error("Failed to load feed:", err);
+      }
+    };
+    loadFeed();
 
     // Generate notifications
     const initialNotifications: MockNotification[] = [
-      { id: 1, type: "like", user: MOCK_USERS[0], text: "liked your photo.", time: "2m", img: initialPosts[0]?.img, unread: true },
-      { id: 2, type: "comment", user: MOCK_USERS[1], text: 'commented: "This is fire 🔥"', time: "15m", img: initialPosts[1]?.img, unread: true },
+      { id: 1, type: "like", user: MOCK_USERS[0], text: "liked your photo.", time: "2m", unread: true },
+      { id: 2, type: "comment", user: MOCK_USERS[1], text: 'commented: "This is fire 🔥"', time: "15m", unread: true },
       { id: 3, type: "follow", user: MOCK_USERS[2], text: "started following you.", time: "1h", unread: true },
-      { id: 4, type: "like", user: MOCK_USERS[3], text: "liked your reel.", time: "2h", img: initialPosts[2]?.img, unread: true },
-      { id: 5, type: "mention", user: MOCK_USERS[4], text: "mentioned you in a comment.", time: "3h", img: initialPosts[3]?.img, unread: true },
+      { id: 4, type: "like", user: MOCK_USERS[3], text: "liked your reel.", time: "2h", unread: true },
+      { id: 5, type: "mention", user: MOCK_USERS[4], text: "mentioned you in a comment.", time: "3h", unread: true },
       { id: 6, type: "follow", user: MOCK_USERS[5], text: "started following you.", time: "1d", unread: false },
-      { id: 7, type: "like", user: MOCK_USERS[6], text: "and 48 others liked your photo.", time: "2d", img: initialPosts[4]?.img, unread: false },
-      { id: 8, type: "tag", user: MOCK_USERS[7], text: "tagged you in a post.", time: "3d", img: initialPosts[5]?.img, unread: false },
+      { id: 7, type: "like", user: MOCK_USERS[6], text: "and 48 others liked your photo.", time: "2d", unread: false },
+      { id: 8, type: "tag", user: MOCK_USERS[7], text: "tagged you in a post.", time: "3d", unread: false },
       { id: 9, type: "follow", user: MOCK_USERS[0], text: "and others you may know joined Instagram.", time: "1w", unread: false },
-      { id: 10, type: "like", user: MOCK_USERS[1], text: "liked your story.", time: "1w", img: initialPosts[6]?.img, unread: false },
+      { id: 10, type: "like", user: MOCK_USERS[1], text: "liked your story.", time: "1w", unread: false },
     ];
     setNotifications(initialNotifications);
 
@@ -557,10 +552,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     sendMessage(chatId, emoji);
   };
 
-  const createPost = (
-    imgSrc: string,
+  const createPost = async (
+    files: File[],
     caption: string,
-    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; imgs?: string[]; bgGradient?: string; isTextOnly?: boolean }
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean }
   ) => {
     let finalCaption = caption;
     if (options?.feelings) {
@@ -572,32 +567,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (options?.music) {
       finalCaption = `${finalCaption}\n\n🎵 Music: ${options.music}`;
     }
-    const newPost: MockPost = {
-      id: posts.length + 1,
-      user: {
-        id: 0,
-        name: currentUser?.name || "alex_dev",
-        full: currentUser?.full || "Alex Developer",
-        img: currentUser?.img || "https://i.pravatar.cc/150?img=1",
-        followers: 1200,
-        following: 400,
-        bio: currentUser?.bio || "",
-        verified: false,
-      },
-      img: imgSrc || "https://picsum.photos/seed/default/600/600",
-      imgs: options?.imgs || (imgSrc ? [imgSrc] : []),
-      caption: finalCaption || "New post! 📸",
-      likes: 0,
-      comments: [],
-      time: "just now",
-      hasStory: false,
-      location: options?.location || "Aura Space 🌌",
-      filter: options?.filter || "none",
-      bgGradient: options?.bgGradient,
-      isTextOnly: options?.isTextOnly || false,
-    };
-    setPosts((prev) => [newPost, ...prev]);
-    showToast("Post shared! 🎉", "success");
+
+    try {
+      showToast("Sharing your post… ✨", "info");
+      const dbPost = await api.createPost({
+        caption: finalCaption || "New post! 📸",
+        location: options?.location,
+        files: files.length > 0 ? files : undefined,
+        bgGradient: options?.bgGradient,
+        isTextOnly: options?.isTextOnly,
+        filter: options?.filter,
+      });
+
+      const mediaUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
+        ? dbPost.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
+        : (dbPost.thumbnailUrl ? [dbPost.thumbnailUrl] : []);
+
+      const newPost: MockPost = {
+        id: dbPost.id,
+        user: {
+          id: dbPost.user?.id || 0,
+          name: dbPost.user?.username || currentUser?.name || "me",
+          full: dbPost.user?.fullName || currentUser?.full || "Me",
+          img: dbPost.user?.avatarUrl || currentUser?.img || "https://i.pravatar.cc/150?img=1",
+          followers: 0,
+          following: 0,
+          bio: currentUser?.bio || "",
+          verified: dbPost.user?.isVerified || false,
+        },
+        img: dbPost.thumbnailUrl || mediaUrls[0] || "",
+        imgs: mediaUrls,
+        caption: finalCaption || "New post! 📸",
+        likes: 0,
+        comments: [],
+        time: "just now",
+        hasStory: false,
+        location: options?.location || "",
+        filter: options?.filter,
+        bgGradient: options?.bgGradient,
+        isTextOnly: options?.isTextOnly || false,
+      };
+      setPosts((prev) => [newPost, ...prev]);
+      showToast("Post shared! 🎉", "success");
+    } catch (err: any) {
+      console.error("Create post error:", err);
+      showToast(err.message || "Failed to share post", "info");
+    }
   };
 
   const saveProfileChanges = (data: { name: string; username: string; web: string; bio: string; gender: string }) => {

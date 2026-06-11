@@ -39,8 +39,10 @@ const BG_GRADIENTS = [
 export default function CreatePostModal() {
   const { showCreatePostModal, setShowCreatePostModal, createPost, showToast } = useApp();
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [activePreviewIdx, setActivePreviewIdx] = useState(0);
   const [caption, setCaption] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Advanced metadata fields
@@ -64,6 +66,7 @@ export default function CreatePostModal() {
   const handleClose = () => {
     setShowCreatePostModal(false);
     setImagePreviews([]);
+    setSelectedFiles([]);
     setActivePreviewIdx(0);
     setCaption("");
     setSelectedFilter("none");
@@ -74,16 +77,16 @@ export default function CreatePostModal() {
     setSelectedBgIdx(null);
     setActivePanel(null);
     setPostType("post");
+    setIsSharing(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const urls: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        urls.push(URL.createObjectURL(files[i]));
-      }
+      const newFiles = Array.from(files);
+      const urls: string[] = newFiles.map((f) => URL.createObjectURL(f));
       setImagePreviews((prev) => [...prev, ...urls]);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
       setSelectedBgIdx(null); // Disable color BG if files added
     }
   };
@@ -96,11 +99,10 @@ export default function CreatePostModal() {
     e.preventDefault();
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      const urls: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        urls.push(URL.createObjectURL(files[i]));
-      }
+      const newFiles = Array.from(files);
+      const urls: string[] = newFiles.map((f) => URL.createObjectURL(f));
       setImagePreviews((prev) => [...prev, ...urls]);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
       setSelectedBgIdx(null); // Disable color BG if files added
     }
   };
@@ -136,6 +138,7 @@ export default function CreatePostModal() {
       }
       return updated;
     });
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== idxToRemove));
   };
 
   const handleShare = async (e: React.FormEvent) => {
@@ -154,26 +157,30 @@ export default function CreatePostModal() {
       return;
     }
 
-    if (isTextOnly) {
-      createPost("", caption, {
-        bgGradient: BG_GRADIENTS[selectedBgIdx!].value,
-        isTextOnly: true,
-        location,
-        feelings: feeling,
-        tags: userTags,
-        music: music ? `${music} 🎶` : undefined,
-      });
-    } else {
-      createPost(imagePreviews[0], caption, {
-        imgs: imagePreviews,
-        filter: selectedFilter,
-        location,
-        feelings: feeling,
-        tags: userTags,
-        music: music ? `${music} 🎶` : undefined,
-      });
+    setIsSharing(true);
+    try {
+      if (isTextOnly) {
+        await createPost([], caption, {
+          bgGradient: BG_GRADIENTS[selectedBgIdx!].value,
+          isTextOnly: true,
+          location,
+          feelings: feeling,
+          tags: userTags,
+          music: music ? `${music} 🎶` : undefined,
+        });
+      } else {
+        await createPost(selectedFiles, caption, {
+          filter: selectedFilter,
+          location,
+          feelings: feeling,
+          tags: userTags,
+          music: music ? `${music} 🎶` : undefined,
+        });
+      }
+      handleClose();
+    } catch {
+      setIsSharing(false);
     }
-    handleClose();
   };
 
   const togglePanel = (panel: typeof activePanel) => {
@@ -203,10 +210,10 @@ export default function CreatePostModal() {
           <h3 className="font-bold text-[15px]">Create {postType}</h3>
           <button
             onClick={handleShare}
-            disabled={imagePreviews.length === 0 && selectedBgIdx === null}
-            className="text-insta-blue hover:text-white font-bold text-[14px] cursor-pointer disabled:opacity-40 disabled:cursor-default"
+            disabled={isSharing || (imagePreviews.length === 0 && selectedBgIdx === null)}
+            className="text-insta-blue hover:text-white font-bold text-[14px] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-opacity"
           >
-            Share
+            {isSharing ? "Sharing…" : "Share"}
           </button>
         </div>
 
