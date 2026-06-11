@@ -180,21 +180,22 @@ class ApiClient {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
-    // Upload file to Cloudinary via Next.js API Route
+    // Upload file directly to Cloudinary using unsigned upload preset
     const uploadData = new FormData();
     uploadData.append('file', file);
+    uploadData.append('upload_preset', 'auragram');
 
-    const res = await fetch('/api/upload', {
+    const res = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
       method: 'POST',
       body: uploadData,
     });
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Image upload to Cloudinary failed');
+      throw new Error(errData.error?.message || 'Image upload to Cloudinary failed');
     }
 
-    const { url: publicUrl } = await res.json();
+    const { secure_url: publicUrl } = await res.json();
 
     const { data: post, error: dbError } = await supabase
       .from('Post')
