@@ -437,10 +437,10 @@ export default function PostCard({ post }: PostCardProps) {
           >
             {currentReaction ? (
               <span className="text-[22px] leading-none">{reactionInfo?.emoji}</span>
+            ) : hasReacted && reactionInfo ? (
+              <span className="text-[22px] leading-none">{reactionInfo.emoji}</span>
             ) : (
-              {hasReacted && reactionInfo
-                ? <span className="text-[22px] leading-none">{reactionInfo.emoji}</span>
-                : <Heart size={24} fill="none" className="text-white" />}
+              <Heart size={24} fill="none" className="text-white" />
             )}
           </button>
 
