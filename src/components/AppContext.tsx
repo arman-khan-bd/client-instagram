@@ -141,8 +141,8 @@ interface AppContextType {
   setShowCreatePostModal: (show: boolean) => void;
   showStoryCreate: boolean;
   setShowStoryCreate: (show: boolean) => void;
-  followersModal: { open: boolean; type: "followers" | "following"; userId: number } | null;
-  setFollowersModal: (data: { open: boolean; type: "followers" | "following"; userId: number } | null) => void;
+  followersModal: { open: boolean; type: "followers" | "following"; userId: string | number } | null;
+  setFollowersModal: (data: { open: boolean; type: "followers" | "following"; userId: string | number } | null) => void;
 
   // Stories
   storyGroups: StoryGroup[];

@@ -13,7 +13,7 @@ export default function FollowersModal() {
     setFollowersModal(null);
   };
 
-  const handleUserClick = (userId: number) => {
+  const handleUserClick = (userId: string | number) => {
     setViewingUserId(userId);
     setActiveTab("profile");
     handleClose();
