@@ -23,8 +23,8 @@ if (fs.existsSync(envPath)) {
 
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error("Error: DIRECT_URL or DATABASE_URL not found in environment or .env file.");
-  process.exit(1);
+  console.warn("Warning: DIRECT_URL or DATABASE_URL not found in environment or .env file. Skipping database migrations during build.");
+  process.exit(0);
 }
 
 const client = new Client({
