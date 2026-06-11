@@ -102,8 +102,8 @@ interface AppContextType {
   doLogout: () => void;
 
   // Viewing other users profiles
-  viewingUserId: number | null;
-  setViewingUserId: (id: number | null) => void;
+  viewingUserId: string | number | null;
+  setViewingUserId: (id: string | number | null) => void;
 
   // State arrays
   users: MockUser[];
@@ -118,17 +118,17 @@ interface AppContextType {
   // User Actions States
   likedPosts: Record<number, boolean>;
   savedPosts: Set<number>;
-  followStates: Record<number, boolean>;
+  followStates: Record<string | number, boolean>;
 
   // Interaction handlers
   toggleLike: (postId: number) => void;
   toggleSave: (postId: number) => void;
-  toggleFollow: (userId: number) => void;
+  toggleFollow: (userId: string | number) => void;
   addComment: (postId: number, text: string) => void;
   sendMessage: (chatId: number, text: string) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean }) => Promise<void>;
-  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string }) => void;
+  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => Promise<void>;
 
   // Modals state
   storyViewerIndex: number | null;
@@ -208,7 +208,7 @@ const INITIAL_DM_MESSAGES: Record<number, MockMessage[]> = {
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeTab, setActiveTab] = useState<string>("home");
   const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(null);
-  const [viewingUserId, setViewingUserId] = useState<number | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | number | null>(null);
 
   // Core Arrays
   const [posts, setPosts] = useState<MockPost[]>([]);
@@ -219,7 +219,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // User states
   const [likedPosts, setLikedPosts] = useState<Record<number, boolean>>({});
   const [savedPosts, setSavedPosts] = useState<Set<number>>(new Set());
-  const [followStates, setFollowStates] = useState<Record<number, boolean>>({});
+  const [followStates, setFollowStates] = useState<Record<string | number, boolean>>({});
 
   // Modals
   const [storyViewerIndex, setStoryViewerIndex] = useState<number | null>(null);
@@ -518,7 +518,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const toggleFollow = (userId: number) => {
+  const toggleFollow = (userId: string | number) => {
     setFollowStates((prev) => {
       const isFollowing = !prev[userId];
       showToast(isFollowing ? "Following! 🎉" : "Unfollowed", "follow");
@@ -682,21 +682,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const saveProfileChanges = (data: { name: string; username: string; web: string; bio: string; gender: string }) => {
+  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => {
     if (!currentUser) return;
-    const updated = {
-      ...currentUser,
-      full: data.name,
-      name: data.username,
-      web: data.web,
-      bio: data.bio,
-      gender: data.gender,
-    };
-    setCurrentUser(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("insta_me", JSON.stringify(updated));
+    try {
+      showToast("Updating profile... ⚡", "info");
+      await api.updateProfile({
+        fullName: data.name,
+        username: data.username,
+        bio: data.bio,
+        avatarUrl: data.avatarUrl,
+      });
+
+      const updated = {
+        ...currentUser,
+        full: data.name,
+        name: data.username,
+        web: data.web,
+        bio: data.bio,
+        gender: data.gender,
+        img: data.avatarUrl || currentUser.img,
+      };
+      setCurrentUser(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("insta_me", JSON.stringify(updated));
+      }
+      showToast("Profile saved! ✅", "success");
+    } catch (err: any) {
+      console.error("Failed to save profile changes:", err);
+      showToast(err.message || "Failed to update profile", "info");
+      throw err;
     }
-    showToast("Profile saved! ✅", "success");
   };
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "../AppContext";
 
 export default function EditProfileModal() {
@@ -11,6 +11,10 @@ export default function EditProfileModal() {
   const [web, setWeb] = useState("");
   const [bio, setBio] = useState("");
   const [gender, setGender] = useState("Prefer not to say");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load current values on open
   useEffect(() => {
@@ -20,6 +24,7 @@ export default function EditProfileModal() {
       setWeb(currentUser.web || "");
       setBio(currentUser.bio || "");
       setGender(currentUser.gender || "Prefer not to say");
+      setAvatarUrl(currentUser.img || "");
     }
   }, [currentUser, showEditProfileModal]);
 
@@ -29,20 +34,60 @@ export default function EditProfileModal() {
     setShowEditProfileModal(false);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleAvatarClick = () => {
+    if (isUploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      showToast("Uploading profile photo... ⚡", "info");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "auragram");
+      formData.append("folder", "auragram/avatars");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.secure_url) {
+        setAvatarUrl(data.secure_url);
+        showToast("Photo uploaded! Click Done to save.", "success");
+      } else {
+        throw new Error("Failed to upload image");
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to upload photo", "info");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
       showToast("Username cannot be empty!");
       return;
     }
-    saveProfileChanges({
-      name,
-      username,
-      web,
-      bio,
-      gender,
-    });
-    handleClose();
+    try {
+      await saveProfileChanges({
+        name,
+        username,
+        web,
+        bio,
+        gender,
+        avatarUrl,
+      });
+      handleClose();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -52,7 +97,7 @@ export default function EditProfileModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[480px] overflow-hidden shadow-2xl"
+        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[480px] overflow-hidden shadow-2xl animate-fade-in"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[#222]">
@@ -65,7 +110,8 @@ export default function EditProfileModal() {
           <h3 className="font-bold text-[15px]">Edit Profile</h3>
           <button
             onClick={handleSave}
-            className="text-insta-blue hover:text-white font-bold text-[14px] cursor-pointer"
+            disabled={isUploading}
+            className="text-insta-blue hover:text-white font-bold text-[14px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Done
           </button>
@@ -75,17 +121,31 @@ export default function EditProfileModal() {
         <form onSubmit={handleSave} className="p-5 flex flex-col gap-4 overflow-y-auto max-h-[75vh]">
           {/* Avatar Area */}
           <div className="flex flex-col items-center gap-2 mb-2 select-none">
-            <img
-              src={currentUser?.img || "https://i.pravatar.cc/150?img=1"}
-              alt="avatar"
-              className="w-20 h-20 rounded-full object-cover border-2 border-[#222]"
-            />
+            <div className="relative cursor-pointer group" onClick={handleAvatarClick}>
+              <img
+                src={avatarUrl || "https://i.pravatar.cc/150?img=1"}
+                alt="avatar"
+                className="w-20 h-20 rounded-full object-cover border-2 border-[#222] group-hover:opacity-75 transition"
+              />
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-xs font-semibold text-white">
+                  ...
+                </div>
+              )}
+            </div>
             <span
-              onClick={() => showToast("Change profile photo simulation")}
+              onClick={handleAvatarClick}
               className="text-insta-blue text-[14px] font-semibold cursor-pointer hover:underline"
             >
-              Change profile photo
+              {isUploading ? "Uploading..." : "Change profile photo"}
             </span>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarChange}
+              accept="image/*"
+              className="hidden"
+            />
           </div>
 
           <div>

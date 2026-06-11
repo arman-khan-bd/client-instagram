@@ -575,9 +575,13 @@ class ApiClient {
     const cloudData = await cloudRes.json();
     if (!cloudData.secure_url) throw new Error('Story upload failed');
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
     const { data, error } = await supabase
       .from('Story')
       .insert({
+        userId: authUser.id,
         mediaUrl: cloudData.secure_url,
         mediaType: file.type.startsWith('video') ? 'video' : 'image',
         caption: options?.caption || '',
@@ -593,6 +597,26 @@ class ApiClient {
   async deleteStory(storyId: number) {
     const { error } = await supabase.from('Story').delete().eq('id', storyId);
     if (error) throw new Error(error.message);
+  }
+
+  async updateProfile(data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: updatedUser, error } = await supabase
+      .from('User')
+      .update({
+        fullName: data.fullName,
+        username: data.username,
+        bio: data.bio,
+        avatarUrl: data.avatarUrl,
+      })
+      .eq('id', authUser.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return updatedUser;
   }
 }
 

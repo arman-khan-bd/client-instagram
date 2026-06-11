@@ -25,28 +25,46 @@ export default function Profile() {
 
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
 
+  const isSelf = viewingUserId === null || (currentUser && viewingUserId === currentUser.id);
+
   // Determine which user profile to display
   const profileUser = useMemo(() => {
-    if (viewingUserId === null) {
+    if (isSelf) {
       // Return current logged in user details
       return {
-        id: 0,
-        name: currentUser?.name || "alex_dev",
-        full: currentUser?.full || "Alex Developer",
+        id: currentUser?.id || "0",
+        name: currentUser?.name || "me",
+        full: currentUser?.full || "Me",
         img: currentUser?.img || "https://i.pravatar.cc/150?img=1",
-        followers: 1200,
-        following: 400,
-        bio: currentUser?.bio || "📸 Capturing life, one frame at a time\n🌍 Based in SF · Travels everywhere",
+        followers: 1240,
+        following: 382,
+        bio: currentUser?.bio || "Welcome to AuraGram! ✨",
         verified: false,
-        web: currentUser?.web || "alexdev.io",
+        web: currentUser?.web || "",
       };
     }
-    // Return selected user details
-    const found = users.find((u) => u.id === viewingUserId);
-    return found ? { ...found, web: "myport.io" } : null;
-  }, [viewingUserId, users, currentUser]);
+    
+    // Look in posts first to find real user info
+    const postUser = posts.find(p => p.user.id === viewingUserId || p.user.name === viewingUserId)?.user;
+    if (postUser) {
+      return {
+        id: postUser.id,
+        name: postUser.name,
+        full: postUser.full,
+        img: postUser.img,
+        followers: 4320,
+        following: 512,
+        bio: postUser.bio || "Capturing life's best moments! 📸",
+        verified: postUser.verified || false,
+        web: "",
+      };
+    }
 
-  const isSelf = viewingUserId === null;
+    // Return selected mock user details
+    const found = users.find((u) => u.id === viewingUserId || u.name === viewingUserId);
+    return found ? { ...found, id: found.id.toString(), web: "myport.io" } : null;
+  }, [viewingUserId, users, currentUser, posts, isSelf]);
+
   const isFollowing = profileUser ? !!followStates[profileUser.id] : false;
 
   // Filter posts based on active tab
@@ -62,15 +80,15 @@ export default function Profile() {
     if (activeTabName === "reels") {
       return posts.filter((_, i) => i % 3 === 0); // dummy reels posts
     }
-    // Default: posts
-    if (isSelf) {
-      // Show self mock posts
-      return posts.filter((p) => p.user.id === 0);
-    } else {
-      // Show this user's posts
-      return posts.filter((p) => p.user.id === profileUser.id);
-    }
-  }, [activeTabName, posts, profileUser, savedPosts, isSelf]);
+
+    // Default: posts. Filter by the profile owner's ID or username
+    return posts.filter(
+      (p) =>
+        p.user.id === profileUser.id ||
+        p.user.id.toString() === profileUser.id.toString() ||
+        p.user.name === profileUser.name
+    );
+  }, [activeTabName, posts, profileUser, savedPosts]);
 
   if (!profileUser) {
     return <div className="text-center p-12 text-white">User not found</div>;
@@ -195,7 +213,14 @@ export default function Profile() {
             {/* Stats Row */}
             <div className="flex gap-7 mb-4 select-none text-[14px]">
               <div>
-                <span className="font-bold mr-1">{isSelf ? posts.filter((p) => p.user.id === 0).length : 12}</span>
+                <span className="font-bold mr-1">
+                  {posts.filter(
+                    (p) =>
+                      p.user.id === profileUser.id ||
+                      p.user.id.toString() === profileUser.id.toString() ||
+                      p.user.name === profileUser.name
+                  ).length}
+                </span>
                 <span className="text-[#a8a8a8]">posts</span>
               </div>
               <div onClick={() => handleOpenFollowers("followers")} className="cursor-pointer hover:opacity-80">
