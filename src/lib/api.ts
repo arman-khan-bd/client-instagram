@@ -24,6 +24,17 @@ class ApiClient {
   }
 
   // Auth
+  async signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}` : undefined,
+      }
+    });
+    if (error) throw error;
+    return data;
+  }
+
   async register(data: { username: string; email: string; password: string; fullName: string }) {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,

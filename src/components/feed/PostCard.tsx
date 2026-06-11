@@ -252,7 +252,7 @@ export default function PostCard({ post }: PostCardProps) {
 
       {/* Time */}
       <div className="px-3.5 py-1 pb-3.5 text-[11px] text-[#666] uppercase tracking-wider select-none">
-        {post.time} ago · INSTAGRAM
+        {post.time} ago · AURAGRAM
       </div>
 
       {/* Comment Input */}

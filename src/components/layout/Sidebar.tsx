@@ -33,12 +33,12 @@ export default function Sidebar() {
       {/* Logo */}
       <div
         onClick={() => handleNav("home")}
-        className="cursor-pointer mb-8 px-3 font-semibold text-2xl tracking-wide select-none"
+        className="cursor-pointer mb-8 px-3 font-bold text-[22px] tracking-tight select-none"
       >
-        <span className="hidden lg:inline text-gradient-instagram font-['Pacifico',cursive] text-2xl">
-          Instagram
+        <span className="hidden lg:inline text-gradient-instagram font-sans">
+          AuraGram
         </span>
-        <span className="lg:hidden block text-xl text-center">📸</span>
+        <span className="lg:hidden block text-xl text-center">✨</span>
       </div>
 
       {/* Navigation */}

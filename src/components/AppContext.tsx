@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { api } from "../lib/api";
+import { supabase } from "../lib/supabase";
 
 // Types
 export interface MockUser {
@@ -74,6 +75,7 @@ interface AppContextType {
   currentUser: { name: string; img: string; full: string; bio: string; web: string; gender: string } | null;
   doLogin: (email: string, pass: string) => Promise<void>;
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
+  doLoginWithGoogle: () => Promise<void>;
   doLogout: () => void;
 
   // Viewing other users profiles
@@ -258,34 +260,73 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     ];
     setNotifications(initialNotifications);
 
-    // Auto load current user from server using token if existing
-    const initAuth = async () => {
-      const token = api.getToken();
-      if (token) {
-        try {
-          const dbUser = await api.getMe() as any;
-          const user = {
-            name: dbUser.username,
-            img: dbUser.avatarUrl || "https://i.pravatar.cc/150?img=1",
-            full: dbUser.fullName,
-            bio: dbUser.bio || "Welcome to my profile! ✨",
-            web: "",
-            gender: "Prefer not to say",
-          };
-          setCurrentUser(user);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("insta_me", JSON.stringify(user));
+    // Auto load current user and listen for OAuth redirects
+    const initAuth = () => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          try {
+            let { data: dbUser, error: dbError } = await supabase
+              .from('User')
+              .select('id, username, fullName, bio, avatarUrl, isVerified')
+              .eq('id', session.user.id)
+              .single();
+
+            if (dbError || !dbUser) {
+              const baseUsername = session.user.email?.split('@')[0] || `user_${Date.now()}`;
+              const { data: newUser, error: createError } = await supabase
+                .from('User')
+                .insert({
+                  id: session.user.id,
+                  username: baseUsername,
+                  email: session.user.email || '',
+                  passwordHash: '',
+                  fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                  avatarUrl: session.user.user_metadata?.avatar_url || '',
+                  bio: 'Welcome to AuraGram! ✨',
+                })
+                .select('id, username, fullName, bio, avatarUrl, isVerified')
+                .single();
+
+              if (!createError) {
+                dbUser = newUser;
+              }
+            }
+
+            if (dbUser) {
+              const user = {
+                name: dbUser.username,
+                img: dbUser.avatarUrl || "https://i.pravatar.cc/150?img=1",
+                full: dbUser.fullName,
+                bio: dbUser.bio || "Welcome to AuraGram! ✨",
+                web: "",
+                gender: "Prefer not to say",
+              };
+              setCurrentUser(user);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("insta_me", JSON.stringify(user));
+                localStorage.setItem("token", session.access_token);
+              }
+            }
+          } catch (err) {
+            console.error("Init auth error:", err);
           }
-        } catch {
-          api.clearToken();
+        } else {
           setCurrentUser(null);
           if (typeof window !== "undefined") {
             localStorage.removeItem("insta_me");
+            localStorage.removeItem("token");
           }
         }
-      }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
     };
-    initAuth();
+    const unsubscribeAuth = initAuth();
+    return () => {
+      if (unsubscribeAuth) unsubscribeAuth();
+    };
   }, []);
 
   // Toasts helpers
@@ -357,6 +398,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       showToast("Account created! 🎉", "success");
     } catch (err: any) {
       showToast(err.message || "Registration failed", "info");
+    }
+  };
+
+  const doLoginWithGoogle = async () => {
+    try {
+      await api.signInWithGoogle();
+    } catch (err: any) {
+      showToast(err.message || "Google Sign-In failed", "info");
     }
   };
 
@@ -554,6 +603,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         currentUser,
         doLogin,
         doRegister,
+        doLoginWithGoogle,
         doLogout,
         viewingUserId,
         setViewingUserId,
