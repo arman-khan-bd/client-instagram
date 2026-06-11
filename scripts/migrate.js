@@ -137,6 +137,59 @@ CREATE TABLE IF NOT EXISTS "Reaction" (
   "createdAt" TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT "Reaction_userId_postId_key" UNIQUE ("userId", "postId")
 );
+
+-- ── Auto-create User profile on auth signup ───────────────────────────────────
+-- This trigger runs as SECURITY DEFINER (superuser), bypassing RLS,
+-- so the row is always created even if the client session isn't ready yet.
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _username  TEXT;
+  _full_name TEXT;
+BEGIN
+  -- Extract from user_metadata (set by api.register) or fall back to email prefix
+  _username  := COALESCE(
+    NEW.raw_user_meta_data->>'username',
+    split_part(NEW.email, '@', 1),
+    'user_' || substr(NEW.id::text, 1, 8)
+  );
+  _full_name := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'fullName',
+    _username
+  );
+
+  -- Upsert so re-runs are idempotent
+  INSERT INTO "User" (
+    "id", "username", "email", "fullName",
+    "avatarUrl", "passwordHash", "bio", "isVerified", "createdAt"
+  )
+  VALUES (
+    NEW.id,
+    regexp_replace(_username, '[^a-zA-Z0-9_.]', '_', 'g'),
+    COALESCE(NEW.email, ''),
+    _full_name,
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', ''),
+    '',
+    'Welcome to AuraGram! ✨',
+    FALSE,
+    NOW()
+  )
+  ON CONFLICT ("id") DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Drop old trigger if exists, then recreate
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────

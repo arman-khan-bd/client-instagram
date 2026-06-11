@@ -36,68 +36,30 @@ class ApiClient {
   }
 
   async register(data: { username: string; email: string; password: string; fullName: string }) {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
+      options: {
+        // Store username + fullName in user_metadata so onAuthStateChange can use them
+        data: { username: data.username, full_name: data.fullName },
+      },
     });
-    if (authError || !authData.user) throw new Error(authError?.message || 'Signup failed');
-
-    // Create user record in User table
-    const { data: user, error: dbError } = await supabase
-      .from('User')
-      .insert({
-        id: authData.user.id,
-        username: data.username,
-        email: data.email,
-        passwordHash: '',
-        fullName: data.fullName,
-      })
-      .select('id, username, email, fullName, avatarUrl, createdAt')
-      .single();
-
-    if (dbError || !user) throw new Error(dbError?.message || 'Profile creation failed');
-
-    const token = authData.session?.access_token || '';
-    if (token) this.setToken(token);
-    return { user, token };
+    if (error) throw new Error(error.message);
+    // User table insert is handled by onAuthStateChange once the session is established
+    return authData;
   }
 
   async login(data: { email: string; password: string }) {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
-    if (authError || !authData.user) throw new Error(authError?.message || 'Invalid credentials');
-
-    // Retrieve database profile using the Supabase user ID
-    let { data: user, error: dbError } = await supabase
-      .from('User')
-      .select('id, username, email, fullName, bio, avatarUrl')
-      .eq('id', authData.user.id)
-      .single();
-
-    if (dbError || !user) {
-      // Fallback user creation if missing from DB
-      const { data: newUser, error: createError } = await supabase
-        .from('User')
-        .insert({
-          id: authData.user.id,
-          username: data.email.split('@')[0] || `user_${Date.now()}`,
-          email: data.email,
-          passwordHash: '',
-          fullName: data.email.split('@')[0] || 'User',
-          bio: 'Welcome to my profile! ✨',
-        })
-        .select('id, username, email, fullName, bio, avatarUrl')
-        .single();
-
-      if (createError || !newUser) throw new Error(createError?.message || 'Login profile sync failed');
-      user = newUser;
-    }
-
+    if (error) throw new Error(error.message);
+    if (!authData.user) throw new Error('Login failed. Please try again.');
     const token = authData.session?.access_token || '';
     if (token) this.setToken(token);
-    return { user, token };
+    // User table upsert + state update handled by onAuthStateChange
+    return authData;
   }
 
   async getMe() {
