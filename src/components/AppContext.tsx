@@ -291,6 +291,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             typeof p.thumbnailUrl === "string" &&
             (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
 
+          const isVideo = mediaList.some(
+            (m) =>
+              typeof m === "string" &&
+              (m.endsWith(".mp4") ||
+                m.endsWith(".mov") ||
+                m.endsWith(".webm") ||
+                m.includes("/video/upload/"))
+          );
+
           const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
           const img         = isTextOnly ? "" : (mediaList[0] || p.thumbnailUrl || "");
           const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
@@ -318,6 +327,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             filter: filterVal,
             bgGradient,
             isTextOnly,
+            isReel: isVideo,
+            mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
           };
         });
         setPosts(mapped);
@@ -673,6 +684,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         filter: options?.filter,
         bgGradient: options?.bgGradient,
         isTextOnly: options?.isTextOnly || false,
+        isReel: mediaUrls.some(
+          (m: string) =>
+            m.endsWith(".mp4") ||
+            m.endsWith(".mov") ||
+            m.endsWith(".webm") ||
+            m.includes("/video/upload/")
+        ),
+        mediaType: options?.isTextOnly
+          ? "text"
+          : mediaUrls.some(
+              (m: string) =>
+                m.endsWith(".mp4") ||
+                m.endsWith(".mov") ||
+                m.endsWith(".webm") ||
+                m.includes("/video/upload/")
+            )
+          ? "video"
+          : "image",
       };
       setPosts((prev) => [newPost, ...prev]);
       showToast("Post shared! 🎉", "success");
