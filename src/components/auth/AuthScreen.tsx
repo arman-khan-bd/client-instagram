@@ -20,7 +20,7 @@ export default function AuthScreen() {
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    doLogin(loginUsername || "alex_dev");
+    doLogin(loginUsername, loginPass);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -29,7 +29,12 @@ export default function AuthScreen() {
       showToast("Please enter a username!");
       return;
     }
-    doRegister(regUser);
+    doRegister({
+      username: regUser,
+      email: regMobile,
+      pass: regPass,
+      fullName: regName
+    });
   };
 
   return (

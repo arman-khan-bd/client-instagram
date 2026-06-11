@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { api } from "../lib/api";
 
 // Types
 export interface MockUser {
@@ -71,8 +72,8 @@ interface AppContextType {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   currentUser: { name: string; img: string; full: string; bio: string; web: string; gender: string } | null;
-  doLogin: (username: string) => void;
-  doRegister: (username: string) => void;
+  doLogin: (email: string, pass: string) => Promise<void>;
+  doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
   doLogout: () => void;
 
   // Viewing other users profiles
@@ -257,13 +258,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     ];
     setNotifications(initialNotifications);
 
-    // Auto load current user from storage if existing
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("insta_me");
-      if (stored) {
-        setCurrentUser(JSON.parse(stored));
+    // Auto load current user from server using token if existing
+    const initAuth = async () => {
+      const token = api.getToken();
+      if (token) {
+        try {
+          const dbUser = await api.getMe() as any;
+          const user = {
+            name: dbUser.username,
+            img: dbUser.avatarUrl || "https://i.pravatar.cc/150?img=1",
+            full: dbUser.fullName,
+            bio: dbUser.bio || "Welcome to my profile! ✨",
+            web: "",
+            gender: "Prefer not to say",
+          };
+          setCurrentUser(user);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("insta_me", JSON.stringify(user));
+          }
+        } catch {
+          api.clearToken();
+          setCurrentUser(null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("insta_me");
+          }
+        }
       }
-    }
+    };
+    initAuth();
   }, []);
 
   // Toasts helpers
@@ -280,41 +302,66 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Auth operations
-  const doLogin = (username: string) => {
-    const user = {
-      name: username || "alex_dev",
-      img: "https://i.pravatar.cc/150?img=1",
-      full: "Alex Developer",
-      bio: "📸 Capturing life, one frame at a time\n🌍 Based in SF · Travels everywhere",
-      web: "alexdev.io",
-      gender: "Prefer not to say",
-    };
-    setCurrentUser(user);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("insta_me", JSON.stringify(user));
+  const doLogin = async (email: string, pass: string) => {
+    try {
+      const data = await api.login({ email, password: pass });
+      api.setToken(data.token);
+      
+      const user = {
+        name: data.user.username,
+        img: data.user.avatarUrl || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 50) + 1}`,
+        full: data.user.fullName,
+        bio: data.user.bio || "Welcome to my profile! ✨",
+        web: "",
+        gender: "Prefer not to say",
+      };
+      
+      setCurrentUser(user);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("insta_me", JSON.stringify(user));
+      }
+      setActiveTab("home");
+      showToast("Welcome back! 👋", "info");
+    } catch (err: any) {
+      showToast(err.message || "Login failed", "info");
     }
-    setActiveTab("home");
-    showToast("Welcome back! 👋", "info");
   };
 
-  const doRegister = (username: string) => {
-    const user = {
-      name: username || "new_user",
-      img: "https://i.pravatar.cc/150?img=1",
-      full: "New Instagram User",
-      bio: "Welcome to my profile! ✨",
-      web: "",
-      gender: "Prefer not to say",
-    };
-    setCurrentUser(user);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("insta_me", JSON.stringify(user));
+  const doRegister = async (data: { username: string; email: string; pass: string; fullName: string }) => {
+    try {
+      const result = await api.register({
+        username: data.username,
+        email: data.email,
+        password: data.pass,
+        fullName: data.fullName,
+      }) as any;
+      
+      if (result.token) {
+        api.setToken(result.token);
+      }
+      
+      const user = {
+        name: result.user.username,
+        img: result.user.avatarUrl || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 50) + 1}`,
+        full: result.user.fullName,
+        bio: result.user.bio || "Welcome to my profile! ✨",
+        web: "",
+        gender: "Prefer not to say",
+      };
+      
+      setCurrentUser(user);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("insta_me", JSON.stringify(user));
+      }
+      setActiveTab("home");
+      showToast("Account created! 🎉", "success");
+    } catch (err: any) {
+      showToast(err.message || "Registration failed", "info");
     }
-    setActiveTab("home");
-    showToast("Account created! 🎉", "success");
   };
 
   const doLogout = () => {
+    api.clearToken();
     setCurrentUser(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("insta_me");
