@@ -465,7 +465,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load saved posts, followings, and notifications on currentUser change
+  // Load saved posts, followings, and notifications
   useEffect(() => {
     if (!currentUser) {
       setSavedPosts(new Set());
@@ -497,7 +497,42 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
 
     loadNotifications();
+
+    // Set up periodic polling fallback every 8 seconds to ensure updates are fetched
+    const pollInterval = setInterval(() => {
+      loadNotifications();
+    }, 8000);
+
+    // Set up Supabase Realtime channel subscription for instant updates on Notification insertions or updates
+    const channel = supabase
+      .channel(`public:Notification:${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Notification',
+          filter: `receiverId=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log("Realtime notification update received:", payload);
+          loadNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+    };
   }, [currentUser]);
+
+  // Refetch notifications when user clicks on/switches to the notifications tab
+  useEffect(() => {
+    if (currentUser && activeTab === "notifications") {
+      loadNotifications();
+    }
+  }, [activeTab, currentUser]);
 
   const createStory = async (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => {
     try {

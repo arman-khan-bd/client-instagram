@@ -577,7 +577,7 @@ const rlsStatements = [
 
   `CREATE POLICY "Notification: receiver read"
      ON "Notification" FOR SELECT
-     USING (auth.uid() = "receiverId")`,
+     USING (auth.uid() = "receiverId" OR auth.uid() = "notifierId")`,
 
   `CREATE POLICY "Notification: auth insert"
      ON "Notification" FOR INSERT
