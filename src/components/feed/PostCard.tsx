@@ -122,8 +122,15 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
       { threshold: 0.5 }
     );
     observer.observe(el);
+
+    // Force autoplay on mount / src change if already visible in viewport
+    el.muted = globalMuted;
+    el.play().catch(() => {});
+    setPlaying(true);
+    setHasStarted(true);
+
     return () => observer.disconnect();
-  }, []);
+  }, [src]);
 
   const handlePointerDown = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
@@ -591,35 +598,51 @@ export default function PostCard({ post }: PostCardProps) {
                     currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
                   );
 
+                  // Preload the next video in the carousel to load quickly
+                  const nextMediaUrl = mediaList[activeImgIndex + 1];
+                  const isNextMediaVideo = nextMediaUrl && typeof nextMediaUrl === "string" && (
+                    nextMediaUrl.match(/\.(mp4|mov|webm)/i) || nextMediaUrl.includes("/video/upload/")
+                  );
+
                   if (isCurrentMediaVideo) {
                     return (
-                      <FeedVideo 
-                        src={currentMediaUrl} 
-                        poster={post.img || undefined} 
-                        postId={post.id}
-                        onDoubleTap={() => {
-                          setShowHeartPop(true);
-                          setTimeout(() => setShowHeartPop(false), 850);
-                          commitReaction("love");
-                        }}
-                        onLongPress={() => {
-                          setShowLongPicker(true);
-                        }}
-                      />
+                      <>
+                        <FeedVideo 
+                          src={currentMediaUrl} 
+                          poster={post.img || undefined} 
+                          postId={post.id}
+                          onDoubleTap={() => {
+                            setShowHeartPop(true);
+                            setTimeout(() => setShowHeartPop(false), 850);
+                            commitReaction("love");
+                          }}
+                          onLongPress={() => {
+                            setShowLongPicker(true);
+                          }}
+                        />
+                        {isNextMediaVideo && (
+                          <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
+                        )}
+                      </>
                     );
                   } else {
                     return (
-                      <img
-                        src={currentMediaUrl}
-                        className="w-full h-full object-cover transition-all duration-300"
-                        style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
-                        alt="post"
-                        draggable={false}
-                        onPointerDown={onImagePointerDown}
-                        onPointerUp={onImagePointerUp}
-                        onPointerCancel={onImagePointerCancel}
-                        onPointerLeave={onImagePointerCancel}
-                      />
+                      <>
+                        <img
+                          src={currentMediaUrl}
+                          className="w-full h-full object-cover transition-all duration-300"
+                          style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
+                          alt="post"
+                          draggable={false}
+                          onPointerDown={onImagePointerDown}
+                          onPointerUp={onImagePointerUp}
+                          onPointerCancel={onImagePointerCancel}
+                          onPointerLeave={onImagePointerCancel}
+                        />
+                        {isNextMediaVideo && (
+                          <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
+                        )}
+                      </>
                     );
                   }
                 })()}

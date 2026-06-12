@@ -201,8 +201,9 @@ export default function PostModal() {
                 </div>
               ) : (
                 allComments.map((c, cIdx) => {
-                  const username = c.user?.username || c.user?.name || "user";
-                  const avatarUrl = c.user?.avatarUrl || c.user?.img || `https://i.pravatar.cc/80?u=${c.user?.id || cIdx}`;
+                  const userAny = c.user as any;
+                  const username = userAny?.username || userAny?.name || "user";
+                  const avatarUrl = userAny?.avatarUrl || userAny?.img || `https://i.pravatar.cc/80?u=${userAny?.id || cIdx}`;
                   const displayTime = (() => {
                     if (!c.createdAt) return "now";
                     const date = new Date(c.createdAt);

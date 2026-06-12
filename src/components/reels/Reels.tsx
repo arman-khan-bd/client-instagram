@@ -66,24 +66,7 @@ export default function Reels() {
   // Dropdown for settings
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
 
-  // Handle scrolling to target reel from feed view
-  useEffect(() => {
-    const targetIdStr = localStorage.getItem("activeReelId");
-    if (targetIdStr && reelsList.length > 0) {
-      const targetId = Number(targetIdStr);
-      const targetIdx = reelsList.findIndex((r) => r.originalPostId === targetId || r.id === targetId);
-      if (targetIdx !== -1) {
-        setTimeout(() => {
-          const cards = containerRef.current?.querySelectorAll("[data-reel-card]");
-          if (cards && cards[targetIdx]) {
-            cards[targetIdx].scrollIntoView({ behavior: "auto" });
-            setActiveVideoIdx(targetIdx);
-          }
-        }, 150);
-      }
-      localStorage.removeItem("activeReelId");
-    }
-  }, [reelsList]);
+
 
   const resetHideTimer = useCallback(() => {
     setShowOverlays(true);
@@ -157,6 +140,25 @@ export default function Reels() {
       img: MOCK_REEL_VIDEOS[idx % MOCK_REEL_VIDEOS.length],
     }));
   }, [posts]);
+
+  // Handle scrolling to target reel from feed view
+  useEffect(() => {
+    const targetIdStr = localStorage.getItem("activeReelId");
+    if (targetIdStr && reelsList.length > 0) {
+      const targetId = Number(targetIdStr);
+      const targetIdx = reelsList.findIndex((r) => r.originalPostId === targetId || r.id === targetId);
+      if (targetIdx !== -1) {
+        setTimeout(() => {
+          const cards = containerRef.current?.querySelectorAll("[data-reel-card]");
+          if (cards && cards[targetIdx]) {
+            cards[targetIdx].scrollIntoView({ behavior: "auto" });
+            setActiveVideoIdx(targetIdx);
+          }
+        }, 150);
+      }
+      localStorage.removeItem("activeReelId");
+    }
+  }, [reelsList]);
 
   // Helper to convert a Cloudinary video URL to an HLS (.m3u8) adaptive stream URL with optimal compression
   const getStreamingVideoUrl = (url: string | undefined): string => {
