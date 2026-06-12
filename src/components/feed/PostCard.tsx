@@ -86,18 +86,22 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
   const lastClickTime = useRef<number>(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-pause when scrolled out of view
+  // Auto-play when scrolled in view, auto-pause when scrolled out of view
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) {
+        if (entry.isIntersecting) {
+          el.play().catch(() => {});
+          setPlaying(true);
+          setHasStarted(true);
+        } else {
           el.pause();
           setPlaying(false);
         }
       },
-      { threshold: 0.4 }
+      { threshold: 0.5 }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -135,11 +139,9 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
             el.play().catch(() => {});
             setPlaying(true);
             setHasStarted(true);
-            setMuted(false);
-          } else {
-            el.pause();
-            setPlaying(false);
           }
+          el.muted = !el.muted;
+          setMuted(el.muted);
         }
       }, DOUBLE_CLICK_DELAY);
     }

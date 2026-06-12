@@ -41,6 +41,8 @@ export default function Reels() {
   // Comments drawer local states
   const [drawerPost, setDrawerPost] = useState<MockPost | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
+  const [drawerComments, setDrawerComments] = useState<any[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   // Reactions state for reels
   const [reelsReactions, setReelsReactions] = useState<Record<number, { type: string; list: any[] }>>({});
@@ -58,7 +60,7 @@ export default function Reels() {
   const [videoCurrentTimes, setVideoCurrentTimes] = useState<Record<number, number>>({});
 
   // Loop Button configuration (infinite, 1, 2, 3)
-  const [loopLimit, setLoopLimit] = useState<"infinite" | 1 | 2 | 3>("infinite");
+  const [loopLimit, setLoopLimit] = useState<"infinite" | 1 | 2 | 3>(1);
   const [reelPlayCounts, setReelPlayCounts] = useState<Record<number, number>>({});
 
   const resetHideTimer = useCallback(() => {
@@ -396,14 +398,42 @@ export default function Reels() {
     resetHideTimer();
   };
 
+  // Load comments when drawer opens
+  useEffect(() => {
+    if (!drawerPost) {
+      setDrawerComments([]);
+      return;
+    }
+    const origId = drawerPost.originalPostId || drawerPost.id;
+    setLoadingComments(true);
+    api.getComments(origId)
+      .then((comments) => {
+        setDrawerComments(comments);
+      })
+      .catch((err) => {
+        console.error("Failed to load comments for reel:", err);
+      })
+      .finally(() => {
+        setLoadingComments(false);
+      });
+  }, [drawerPost]);
+
   // Submit new comment inside drawer
-  const handleCommentSubmit = (e: React.FormEvent) => {
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!drawerPost || !newCommentText.trim()) return;
 
     const origId = drawerPost.originalPostId || drawerPost.id;
-    addComment(origId, newCommentText.trim());
+    const text = newCommentText.trim();
     setNewCommentText("");
+
+    try {
+      const newComment = await api.addComment(origId, text);
+      setDrawerComments((prev) => [...prev, newComment]);
+      addComment(origId, text);
+    } catch (err) {
+      console.error("Failed to post comment on reel:", err);
+    }
   };
 
   // Long-press reaction button picker trigger
@@ -802,9 +832,10 @@ export default function Reels() {
       <AnimatePresence>
         {drawerPost && (() => {
           const origId = drawerPost.originalPostId || drawerPost.id;
-          const dbComments = drawerPost.comments || [];
           const localComments = pendingComments[origId] || [];
-          const mergedComments = [...dbComments, ...localComments];
+          const dbTexts = new Set(drawerComments.map((c) => c.text));
+          const uniquePending = localComments.filter((c) => !dbTexts.has(c.text));
+          const mergedComments = [...drawerComments, ...uniquePending];
 
           const reactionsData = reelsReactions[drawerPost.id] || { type: "", list: [] };
 
@@ -849,26 +880,35 @@ export default function Reels() {
 
                 {/* Comments List */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scroll">
-                  {mergedComments.length === 0 ? (
+                  {loadingComments && drawerComments.length === 0 ? (
+                    <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
+                      Loading comments…
+                    </div>
+                  ) : mergedComments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-zinc-500 py-10 text-sm">
                       <span>No comments yet.</span>
                       <span>Start the conversation!</span>
                     </div>
                   ) : (
-                    mergedComments.map((comment, cIdx) => (
-                      <div key={`c-${comment.id || cIdx}`} className="flex items-start gap-3">
-                        <img
-                          src={comment.user?.img || "https://i.pravatar.cc/80?img=1"}
-                          alt={comment.user?.name || "user"}
-                          className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#222]"
-                        />
-                        <div className="flex-1 text-[13px] leading-relaxed">
-                          <span className="font-bold text-white mr-1.5">{comment.user?.name}</span>
-                          <span className="text-zinc-200 select-text">{comment.text}</span>
-                          <div className="text-[10px] text-zinc-500 mt-1">{comment.time || "now"}</div>
+                    mergedComments.map((comment, cIdx) => {
+                      const userAvatar = comment.user?.avatarUrl || comment.user?.img || `https://i.pravatar.cc/80?u=${comment.user?.id || cIdx}`;
+                      const username = comment.user?.username || comment.user?.name || "user";
+                      const displayTime = comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (comment.time || "now");
+                      return (
+                        <div key={`c-${comment.id || cIdx}`} className="flex items-start gap-3">
+                          <img
+                            src={userAvatar}
+                            alt={username}
+                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#222]"
+                          />
+                          <div className="flex-1 text-[13px] leading-relaxed">
+                            <span className="font-bold text-white mr-1.5">{username}</span>
+                            <span className="text-zinc-200 select-text">{comment.text}</span>
+                            <div className="text-[10px] text-zinc-500 mt-1">{displayTime}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 

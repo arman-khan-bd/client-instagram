@@ -160,13 +160,13 @@ export default function PostModal() {
             className="fixed inset-0 bg-black z-[200]"
           />
 
-          {/* Sliding Bottom Drawer (centered on desktop, full-width on mobile) */}
+          {/* Sliding Bottom Drawer (centered on desktop, same width as card on mobile) */}
           <motion.div
             initial={{ y: "100%", x: "-50%" }}
             animate={{ y: 0, x: "-50%" }}
             exit={{ y: "100%", x: "-50%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[450px] h-[65vh] bg-zinc-950 border-t border-zinc-850 rounded-t-3xl z-[210] flex flex-col overflow-hidden text-white shadow-2xl"
+            className="fixed bottom-0 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[500px] h-[65vh] bg-zinc-950 border border-b-0 border-zinc-850 rounded-t-3xl z-[210] flex flex-col overflow-hidden text-white shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900 shrink-0">
