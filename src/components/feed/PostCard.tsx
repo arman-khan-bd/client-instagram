@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useApp, MockPost } from "../AppContext";
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -80,6 +80,7 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
 function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [muted, setMuted] = useState(true);
   const lastClickTime = useRef<number>(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +133,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
           if (el.paused) {
             el.play().catch(() => {});
             setPlaying(true);
+            setHasStarted(true);
             setMuted(false);
           } else {
             el.pause();
@@ -150,6 +152,24 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
     setMuted(el.muted);
   };
 
+  // Convert video URLs in poster to Cloudinary thumbnail images if applicable
+  const posterUrl = useMemo(() => {
+    if (!poster) return undefined;
+    const cleanPoster = poster.trim();
+    if (cleanPoster.match(/\.(jpeg|jpg|gif|png|webp)/i)) {
+      return cleanPoster;
+    }
+    // If it's a Cloudinary video URL, convert it to a jpg thumbnail
+    if (cleanPoster.includes("res.cloudinary.com") && (cleanPoster.includes("/video/upload/") || cleanPoster.match(/\.(mp4|mov|webm)/i))) {
+      let url = cleanPoster.replace(/\.(mp4|mov|webm)$/i, ".jpg");
+      if (!url.includes("/so_")) {
+        url = url.replace("/video/upload/", "/video/upload/so_0/");
+      }
+      return url;
+    }
+    return cleanPoster;
+  }, [poster]);
+
   return (
     <div
       className="relative w-full h-full bg-black cursor-pointer"
@@ -162,14 +182,27 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
       <video
         ref={videoRef}
         src={src}
-        poster={poster}
+        poster={posterUrl}
         className="w-full h-full object-cover"
         playsInline
         muted={muted}
         loop
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          setPlaying(true);
+          setHasStarted(true);
+        }}
         onPause={() => setPlaying(false)}
       />
+
+      {/* Stretch thumbnail image overlay to guarantee it displays stretched under all conditions before starting */}
+      {!playing && !hasStarted && posterUrl && (
+        <img
+          src={posterUrl}
+          alt="thumbnail"
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+        />
+      )}
+
       {/* Play/pause overlay */}
       <AnimatePresence>
         {!playing && (
@@ -178,7 +211,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.15 }}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
           >
             <div className="w-16 h-16 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
               <Play size={28} className="text-white ml-1" fill="white" />
@@ -194,7 +227,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
       {/* Reel badge */}
-      <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10">
+      <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 z-10">
         🎬 REEL
       </div>
     </div>

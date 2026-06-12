@@ -360,7 +360,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           );
 
           const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
-          const img         = isTextOnly ? "" : (mediaList[0] || p.thumbnailUrl || "");
+          const img         = isTextOnly ? "" : (p.thumbnailUrl || mediaList[0] || "");
           const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
 
           return {
