@@ -132,6 +132,17 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
     return () => observer.disconnect();
   }, [src]);
 
+  const [isVertical, setIsVertical] = useState(false);
+
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (video.videoHeight > video.videoWidth) {
+      setIsVertical(true);
+    } else {
+      setIsVertical(false);
+    }
+  };
+
   const handlePointerDown = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => {
@@ -160,18 +171,20 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
       lastClickTime.current = now;
       setTimeout(() => {
         if (lastClickTime.current === now) {
-          if (el.paused) {
-            el.play().catch(() => {});
-            setPlaying(true);
-            setHasStarted(true);
-          } else {
-            el.pause();
-            setPlaying(false);
-          }
-          // Unmute globally on first video interaction
           if (globalMuted) {
+            // Unmute globally on first video interaction, but do NOT pause if already playing
             globalMuted = false;
             window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: false }));
+          } else {
+            // Otherwise, play/pause normally
+            if (el.paused) {
+              el.play().catch(() => {});
+              setPlaying(true);
+              setHasStarted(true);
+            } else {
+              el.pause();
+              setPlaying(false);
+            }
           }
         }
       }, DOUBLE_CLICK_DELAY);
@@ -267,6 +280,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         playsInline
         muted={muted}
         loop
+        onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => {
           setPlaying(true);
           setHasStarted(true);
@@ -308,17 +322,19 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
       {/* View Full Screen button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          localStorage.setItem("activeReelId", String(postId));
-          setActiveTab("reels");
-        }}
-        className="absolute bottom-3 right-13 px-2.5 py-1 bg-black/60 hover:bg-black/80 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold transition z-10 border border-white/10"
-      >
-        <Maximize size={12} />
-        Full Screen
-      </button>
+      {isVertical && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            localStorage.setItem("activeReelId", String(postId));
+            setActiveTab("reels");
+          }}
+          className="absolute bottom-3 right-13 px-2.5 py-1 bg-black/60 hover:bg-black/80 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold transition z-10 border border-white/10"
+        >
+          <Maximize size={12} />
+          Full Screen
+        </button>
+      )}
       {/* Reel badge */}
       <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 z-10">
         🎬 REEL

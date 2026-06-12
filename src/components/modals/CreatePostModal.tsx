@@ -136,10 +136,8 @@ export default function CreatePostModal() {
   const [isSharing, setIsSharing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Thumbnail picker state (for video files)
-  const [thumbnailFrames, setThumbnailFrames] = useState<string[]>([]); // extracted frames
-  const [selectedThumbnailIdx, setSelectedThumbnailIdx] = useState<number | null>(null);
-  const [selectedThumbnailDataUrl, setSelectedThumbnailDataUrl] = useState<string | null>(null);
+  // Thumbnail picker states for multiple videos
+  const [videoThumbnails, setVideoThumbnails] = useState<Record<number, { dataUrl: string; idx: number; frames: string[] }>>({});
 
   // Advanced metadata fields
   const [selectedFilter, setSelectedFilter] = useState("none");
@@ -177,9 +175,7 @@ export default function CreatePostModal() {
     setSelectedBgIdx(null);
     setActivePanel(null);
     setIsSharing(false);
-    setThumbnailFrames([]);
-    setSelectedThumbnailIdx(null);
-    setSelectedThumbnailDataUrl(null);
+    setVideoThumbnails({});
   };
 
   const validateAndAddFiles = async (rawFiles: File[]) => {
@@ -215,10 +211,12 @@ export default function CreatePostModal() {
         validFiles.push(file);
         validUrls.push(URL.createObjectURL(file));
         validTypes.push("video");
-        // Reset thumbnail frames for new video
-        setThumbnailFrames([]);
-        setSelectedThumbnailIdx(null);
-        setSelectedThumbnailDataUrl(null);
+        // Reset thumbnail data for this video slot
+        setVideoThumbnails((prev) => {
+          const copy = { ...prev };
+          delete copy[validFiles.length - 1];
+          return copy;
+        });
       } else {
         validFiles.push(file);
         validUrls.push(URL.createObjectURL(file));
@@ -319,13 +317,20 @@ export default function CreatePostModal() {
           music: music ? `${music} 🎶` : undefined,
         });
       } else {
+        const thumbnailDataUrls: Record<number, string> = {};
+        Object.entries(videoThumbnails).forEach(([k, v]) => {
+          if (v.dataUrl) {
+            thumbnailDataUrls[Number(k)] = v.dataUrl;
+          }
+        });
+
         await createPost(selectedFiles, caption, {
           filter: selectedFilter,
           location,
           feelings: feeling,
           tags: userTags,
           music: music ? `${music} 🎶` : undefined,
-          thumbnailDataUrl: selectedThumbnailDataUrl || undefined,
+          thumbnailDataUrls,
         });
       }
       handleClose();
@@ -449,11 +454,35 @@ export default function CreatePostModal() {
               {!isTextOnlyPost && imagePreviews.length > 0 && fileTypes[activePreviewIdx] === "video" && (
                 <VideoThumbnailPicker
                   videoSrc={imagePreviews[activePreviewIdx]}
-                  frames={thumbnailFrames}
-                  onFramesReady={setThumbnailFrames}
-                  selectedIdx={selectedThumbnailIdx}
-                  onSelectIdx={setSelectedThumbnailIdx}
-                  onSelect={setSelectedThumbnailDataUrl}
+                  frames={videoThumbnails[activePreviewIdx]?.frames || []}
+                  onFramesReady={(frames) => {
+                    setVideoThumbnails((prev) => ({
+                      ...prev,
+                      [activePreviewIdx]: {
+                        ...(prev[activePreviewIdx] || { dataUrl: "", idx: 0 }),
+                        frames,
+                      },
+                    }));
+                  }}
+                  selectedIdx={videoThumbnails[activePreviewIdx]?.idx ?? null}
+                  onSelectIdx={(idx) => {
+                    setVideoThumbnails((prev) => ({
+                      ...prev,
+                      [activePreviewIdx]: {
+                        ...(prev[activePreviewIdx] || { dataUrl: "", frames: [] }),
+                        idx,
+                      },
+                    }));
+                  }}
+                  onSelect={(dataUrl) => {
+                    setVideoThumbnails((prev) => ({
+                      ...prev,
+                      [activePreviewIdx]: {
+                        ...(prev[activePreviewIdx] || { idx: 0, frames: [] }),
+                        dataUrl,
+                      },
+                    }));
+                  }}
                 />
               )}
 

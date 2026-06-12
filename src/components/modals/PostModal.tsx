@@ -16,6 +16,7 @@ interface DbComment {
   createdAt: string;
   likeCount: number;
   isLiked: boolean;
+  parentId?: number;
   user: { id: string; username: string; fullName?: string; avatarUrl?: string };
 }
 
@@ -43,29 +44,51 @@ export default function PostModal() {
     [posts, activePostId]
   );
 
+  const [replyingTo, setReplyingTo] = useState<DbComment | null>(null);
+
   // Load comments + reaction details when drawer opens
   useEffect(() => {
     if (!activePostId) {
       setDbComments([]);
       setCurrentReaction(null);
       setReactionsList([]);
+      setReplyingTo(null);
       return;
     }
     setLoadingComments(true);
+
+    const timer = setTimeout(() => {
+      setLoadingComments(false);
+    }, 3000);
+
     Promise.all([
-      api.getComments(activePostId),
-      api.getPostReaction(activePostId),
-      api.getPostReactionsDetails(activePostId),
+      api.getComments(activePostId).catch((err) => {
+        console.warn("Failed to get comments:", err);
+        return [];
+      }),
+      api.getPostReaction(activePostId).catch((err) => {
+        console.warn("Failed to get reaction:", err);
+        return null;
+      }),
+      api.getPostReactionsDetails(activePostId).catch((err) => {
+        console.warn("Failed to get reactions details:", err);
+        return [];
+      }),
     ])
       .then(([comments, reaction, reactionsDetails]) => {
-        setDbComments(comments as DbComment[]);
+        clearTimeout(timer);
+        setDbComments((comments || []) as DbComment[]);
         if (reaction) setCurrentReaction(reaction as ReactionType);
         else setCurrentReaction(null);
-        setReactionsList(reactionsDetails as any[]);
+        setReactionsList((reactionsDetails || []) as any[]);
         clearPendingComments(activePostId);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Promise.all comments load error:", err);
+      })
       .finally(() => setLoadingComments(false));
+
+    return () => clearTimeout(timer);
   }, [activePostId, clearPendingComments]);
 
   // Auto-scroll to newest comment
@@ -117,6 +140,21 @@ export default function PostModal() {
     return [...dbComments, ...uniquePending];
   })();
 
+  const parentComments = useMemo(() => {
+    return allComments.filter((c) => !c.parentId);
+  }, [allComments]);
+
+  const repliesMap = useMemo(() => {
+    const map: Record<number, DbComment[]> = {};
+    allComments.forEach((c) => {
+      if (c.parentId) {
+        if (!map[c.parentId]) map[c.parentId] = [];
+        map[c.parentId].push(c);
+      }
+    });
+    return map;
+  }, [allComments]);
+
   const handleClose = () => setActivePostId(null);
 
   const handlePostComment = async (e: React.FormEvent) => {
@@ -124,8 +162,11 @@ export default function PostModal() {
     if (!commentText.trim()) return;
     const text = commentText.trim();
     setCommentText("");
+    const parentId = replyingTo?.id || undefined;
+    setReplyingTo(null);
+
     try {
-      const newComment = await api.addComment(activePost.id, text);
+      const newComment = await api.addComment(activePost.id, text, { parentId });
       setDbComments((prev) => [...prev, newComment as DbComment]);
     } catch {
       showToast("Log in to comment", "info");
@@ -188,19 +229,19 @@ export default function PostModal() {
             </div>
 
             {/* Comments list */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scroll">
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll">
               {loadingComments && dbComments.length === 0 ? (
                 <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
                   Loading comments…
                 </div>
-              ) : allComments.length === 0 ? (
+              ) : parentComments.length === 0 ? (
                 <div className="text-center text-[12px] text-zinc-500 py-10">
                   No comments yet.
                   <br />
                   <span className="text-zinc-600 text-[11px]">Start the conversation!</span>
                 </div>
               ) : (
-                allComments.map((c, cIdx) => {
+                parentComments.map((c, cIdx) => {
                   const userAny = c.user as any;
                   const username = userAny?.username || userAny?.name || "user";
                   const avatarUrl = userAny?.avatarUrl || userAny?.img || `https://i.pravatar.cc/80?u=${userAny?.id || cIdx}`;
@@ -210,37 +251,109 @@ export default function PostModal() {
                     if (isNaN(date.getTime())) return c.createdAt;
                     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                   })();
+                  const replies = repliesMap[c.id] || [];
+
                   return (
-                    <div key={c.id || cIdx} className="flex gap-3 items-start group">
-                      <img
-                        src={avatarUrl}
-                        className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
-                        alt={username}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] leading-relaxed break-words text-zinc-200">
-                          <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
-                            {username}
-                          </span>
-                          {c.text}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-[10px] text-zinc-500">
-                          <span>{displayTime}</span>
-                          {c.likeCount > 0 && <span>{c.likeCount} likes</span>}
-                          <button
-                            onClick={() => handleCommentLike(c.id)}
-                            className="ml-auto text-[11px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            {c.isLiked ? "❤️" : "🤍"}
-                          </button>
+                    <div key={c.id || cIdx} className="space-y-3">
+                      {/* Parent Comment */}
+                      <div className="flex gap-3 items-start">
+                        <img
+                          src={avatarUrl}
+                          className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
+                          alt={username}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] leading-relaxed break-words text-zinc-200">
+                            <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                              {username}
+                            </span>
+                            {c.text}
+                          </div>
+                          <div className="flex items-center gap-3.5 mt-1 text-[10px] text-zinc-500">
+                            <span>{displayTime}</span>
+                            {c.likeCount > 0 && <span>{c.likeCount} likes</span>}
+                            <button
+                              onClick={() => setReplyingTo(c)}
+                              className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                            >
+                              Reply
+                            </button>
+                            <button
+                              onClick={() => handleCommentLike(c.id)}
+                              className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[11px] text-zinc-400"
+                            >
+                              {c.isLiked ? "❤️" : "🤍"}
+                            </button>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Nested Replies */}
+                      {replies.length > 0 && (
+                        <div className="pl-11 space-y-3 border-l border-zinc-850/60 ml-4">
+                          {replies.map((reply, rIdx) => {
+                            const repUser = reply.user as any;
+                            const repUsername = repUser?.username || repUser?.name || "user";
+                            const repAvatar = repUser?.avatarUrl || repUser?.img || `https://i.pravatar.cc/80?u=${repUser?.id || rIdx}`;
+                            const repTime = (() => {
+                              if (!reply.createdAt) return "now";
+                              const date = new Date(reply.createdAt);
+                              if (isNaN(date.getTime())) return reply.createdAt;
+                              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            })();
+
+                            return (
+                              <div key={reply.id || rIdx} className="flex gap-2.5 items-start">
+                                <img
+                                  src={repAvatar}
+                                  className="w-6 h-6 rounded-full object-cover border border-[#222] shrink-0"
+                                  alt={repUsername}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[12.5px] leading-relaxed break-words text-zinc-300">
+                                    <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                                      {repUsername}
+                                    </span>
+                                    {reply.text}
+                                  </div>
+                                  <div className="flex items-center gap-3.5 mt-1 text-[9.5px] text-zinc-500">
+                                    <span>{repTime}</span>
+                                    {reply.likeCount > 0 && <span>{reply.likeCount} likes</span>}
+                                    <button
+                                      onClick={() => setReplyingTo(c)} // Reply to parent comment
+                                      className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                    >
+                                      Reply
+                                    </button>
+                                    <button
+                                      onClick={() => handleCommentLike(reply.id)}
+                                      className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[10px] text-zinc-400"
+                                    >
+                                      {reply.isLiked ? "❤️" : "🤍"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })
               )}
               <div ref={commentsEndRef} />
             </div>
+
+            {/* Replying To Bar */}
+            {replyingTo && (
+              <div className="px-5 py-1.5 bg-zinc-900 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-400 shrink-0 select-none">
+                <span>Replying to @{replyingTo.user?.username || (replyingTo.user as any)?.name || "user"}</span>
+                <button type="button" onClick={() => setReplyingTo(null)} className="text-white hover:underline font-semibold">
+                  Cancel
+                </button>
+              </div>
+            )}
 
             {/* Comment Form */}
             <form

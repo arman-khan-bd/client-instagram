@@ -25,8 +25,11 @@ export default function Reels() {
     followStates, 
     addComment,
     pendingComments,
-    currentUser
+    currentUser,
+    showToast
   } = useApp();
+
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
 
   const [autoScroll, setAutoScroll] = useState(true);
   const [activeVideoIdx, setActiveVideoIdx] = useState(0);
@@ -159,6 +162,16 @@ export default function Reels() {
       localStorage.removeItem("activeReelId");
     }
   }, [reelsList]);
+
+  // Synchronize browser URL to /reels/r/<id> when active reel changes, without Next.js router navigation
+  useEffect(() => {
+    if (reelsList.length > 0 && reelsList[activeVideoIdx]) {
+      const post = reelsList[activeVideoIdx];
+      const origId = post.originalPostId || post.id;
+      const newUrl = `/reels/r/${origId}`;
+      window.history.replaceState(null, "", newUrl);
+    }
+  }, [activeVideoIdx, reelsList]);
 
   // Helper to convert a Cloudinary video URL to an HLS (.m3u8) adaptive stream URL with optimal compression
   const getStreamingVideoUrl = (url: string | undefined): string => {
@@ -450,13 +463,31 @@ export default function Reels() {
     const origId = drawerPost.originalPostId || drawerPost.id;
     const text = newCommentText.trim();
     setNewCommentText("");
+    const parentId = replyingTo?.id || undefined;
+    setReplyingTo(null);
 
     try {
-      const newComment = await api.addComment(origId, text);
+      const newComment = await api.addComment(origId, text, { parentId });
       setDrawerComments((prev) => [...prev, newComment]);
       addComment(origId, text);
     } catch (err) {
       console.error("Failed to post comment on reel:", err);
+      showToast("Log in to comment", "info");
+    }
+  };
+
+  const handleCommentLike = async (commentId: number) => {
+    try {
+      await api.likeComment(commentId);
+      setDrawerComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, isLiked: !c.isLiked, likeCount: (c.likeCount || 0) + (c.isLiked ? -1 : 1) }
+            : c
+        )
+      );
+    } catch {
+      showToast("Log in to like", "info");
     }
   };
 
@@ -899,6 +930,15 @@ export default function Reels() {
           const uniquePending = localComments.filter((c) => !dbTexts.has(c.text));
           const mergedComments = [...drawerComments, ...uniquePending];
 
+          const parentComments = mergedComments.filter((c) => !c.parentId);
+          const repliesMap: Record<number, any[]> = {};
+          mergedComments.forEach((c) => {
+            if (c.parentId) {
+              if (!repliesMap[c.parentId]) repliesMap[c.parentId] = [];
+              repliesMap[c.parentId].push(c);
+            }
+          });
+
           const reactionsData = reelsReactions[drawerPost.id] || { type: "", list: [] };
 
           return (
@@ -941,38 +981,130 @@ export default function Reels() {
                 </div>
 
                 {/* Comments List */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scroll">
+                <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll">
                   {loadingComments && drawerComments.length === 0 ? (
                     <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
                       Loading comments…
                     </div>
-                  ) : mergedComments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-zinc-500 py-10 text-sm">
-                      <span>No comments yet.</span>
-                      <span>Start the conversation!</span>
+                  ) : parentComments.length === 0 ? (
+                    <div className="text-center text-[12px] text-zinc-500 py-10">
+                      No comments yet.
+                      <br />
+                      <span className="text-zinc-600 text-[11px]">Start the conversation!</span>
                     </div>
                   ) : (
-                    mergedComments.map((comment, cIdx) => {
-                      const userAvatar = comment.user?.avatarUrl || comment.user?.img || `https://i.pravatar.cc/80?u=${comment.user?.id || cIdx}`;
-                      const username = comment.user?.username || comment.user?.name || "user";
-                      const displayTime = comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (comment.time || "now");
+                    parentComments.map((c, cIdx) => {
+                      const userAny = c.user as any;
+                      const username = userAny?.username || userAny?.name || "user";
+                      const avatarUrl = userAny?.avatarUrl || userAny?.img || `https://i.pravatar.cc/80?u=${userAny?.id || cIdx}`;
+                      const displayTime = (() => {
+                        if (!c.createdAt) return "now";
+                        const date = new Date(c.createdAt);
+                        if (isNaN(date.getTime())) return c.createdAt;
+                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      })();
+                      const replies = repliesMap[c.id] || [];
+
                       return (
-                        <div key={`c-${comment.id || cIdx}`} className="flex items-start gap-3">
-                          <img
-                            src={userAvatar}
-                            alt={username}
-                            className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#222]"
-                          />
-                          <div className="flex-1 text-[13px] leading-relaxed">
-                            <span className="font-bold text-white mr-1.5">{username}</span>
-                            <span className="text-zinc-200 select-text">{comment.text}</span>
-                            <div className="text-[10px] text-zinc-500 mt-1">{displayTime}</div>
+                        <div key={c.id || cIdx} className="space-y-3 text-left">
+                          {/* Parent Comment */}
+                          <div className="flex gap-3 items-start">
+                            <img
+                              src={avatarUrl}
+                              className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
+                              alt={username}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] leading-relaxed break-words text-zinc-200">
+                                <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                                  {username}
+                                </span>
+                                {c.text}
+                              </div>
+                              <div className="flex items-center gap-3.5 mt-1 text-[10px] text-zinc-500">
+                                <span>{displayTime}</span>
+                                {(c.likeCount || 0) > 0 && <span>{c.likeCount} likes</span>}
+                                <button
+                                  onClick={() => setReplyingTo(c)}
+                                  className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                >
+                                  Reply
+                                </button>
+                                <button
+                                  onClick={() => handleCommentLike(c.id)}
+                                  className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[11px] text-zinc-400"
+                                >
+                                  {c.isLiked ? "❤️" : "🤍"}
+                                </button>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Nested Replies */}
+                          {replies.length > 0 && (
+                            <div className="pl-11 space-y-3 border-l border-zinc-850/60 ml-4">
+                              {replies.map((reply, rIdx) => {
+                                const repUser = reply.user as any;
+                                const repUsername = repUser?.username || repUser?.name || "user";
+                                const repAvatar = repUser?.avatarUrl || repUser?.img || `https://i.pravatar.cc/80?u=${repUser?.id || rIdx}`;
+                                const repTime = (() => {
+                                  if (!reply.createdAt) return "now";
+                                  const date = new Date(reply.createdAt);
+                                  if (isNaN(date.getTime())) return reply.createdAt;
+                                  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                })();
+
+                                return (
+                                  <div key={reply.id || rIdx} className="flex gap-2.5 items-start">
+                                    <img
+                                      src={repAvatar}
+                                      className="w-6 h-6 rounded-full object-cover border border-[#222] shrink-0"
+                                      alt={repUsername}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[12.5px] leading-relaxed break-words text-zinc-300">
+                                        <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                                          {repUsername}
+                                        </span>
+                                        {reply.text}
+                                      </div>
+                                      <div className="flex items-center gap-3.5 mt-1 text-[9.5px] text-zinc-500">
+                                        <span>{repTime}</span>
+                                        {(reply.likeCount || 0) > 0 && <span>{reply.likeCount} likes</span>}
+                                        <button
+                                          onClick={() => setReplyingTo(c)} // Reply to parent comment
+                                          className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                        >
+                                          Reply
+                                        </button>
+                                        <button
+                                          onClick={() => handleCommentLike(reply.id)}
+                                          className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[10px] text-zinc-400"
+                                        >
+                                          {reply.isLiked ? "❤️" : "🤍"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })
                   )}
                 </div>
+
+                {/* Replying To Bar */}
+                {replyingTo && (
+                  <div className="px-5 py-1.5 bg-zinc-900 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-400 shrink-0 select-none">
+                    <span>Replying to @{replyingTo.user?.username || (replyingTo.user as any)?.name || "user"}</span>
+                    <button onClick={() => setReplyingTo(null)} className="hover:text-white">
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 {/* Comment Form */}
                 <form onSubmit={handleCommentSubmit} className="p-4 bg-zinc-950 border-t border-zinc-900 flex gap-2">
@@ -980,7 +1112,7 @@ export default function Reels() {
                     type="text"
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
-                    placeholder="Add a comment..."
+                    placeholder={replyingTo ? `Reply to @${replyingTo.user?.username || (replyingTo.user as any)?.name || "user"}...` : "Add a comment..."}
                     className="flex-1 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-2 text-sm text-white outline-none focus:border-zinc-700 transition"
                   />
                   <button

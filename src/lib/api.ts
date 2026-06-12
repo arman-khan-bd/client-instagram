@@ -124,6 +124,7 @@ class ApiClient {
     isTextOnly?: boolean;
     filter?: string;
     thumbnailDataUrl?: string; // base64 data URL for video thumbnail frame
+    thumbnailDataUrls?: Record<number, string>; // base64 data URLs for multiple video thumbnail frames
   }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
@@ -135,7 +136,7 @@ class ApiClient {
       thumbnailUrl = data.bgGradient;
     } else if (data.files && data.files.length > 0) {
       mediaUrls = await Promise.all(
-        data.files.map(async (file) => {
+        data.files.map(async (file, idx) => {
           const isVideo = file.type.startsWith('video/');
           const uploadData = new FormData();
           uploadData.append('file', file);
@@ -157,32 +158,38 @@ class ApiClient {
           }
 
           const { secure_url } = await res.json();
-          return { url: secure_url, type: isVideo ? 'video' : 'image' };
+
+          // Upload custom thumbnail for this specific video if selected
+          let fileThumbnailUrl = '';
+          const customThumbDataUrl = data.thumbnailDataUrls?.[idx] || (idx === 0 ? data.thumbnailDataUrl : undefined);
+          if (isVideo && customThumbDataUrl) {
+            try {
+              const thumbRes = await fetch(customThumbDataUrl);
+              const blob = await thumbRes.blob();
+              const thumbForm = new FormData();
+              thumbForm.append('file', blob, `thumbnail_${idx}.jpg`);
+              thumbForm.append('upload_preset', 'auragram');
+              const clRes = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
+                method: 'POST',
+                body: thumbForm,
+              });
+              if (clRes.ok) {
+                const thumbData = await clRes.json();
+                fileThumbnailUrl = thumbData.secure_url;
+              }
+            } catch (e) {
+              console.warn(`Upload of thumbnail for video ${idx} failed:`, e);
+            }
+          }
+
+          return { 
+            url: secure_url, 
+            type: isVideo ? 'video' : 'image',
+            thumbnailUrl: fileThumbnailUrl || undefined
+          };
         })
       );
-      thumbnailUrl = mediaUrls[0]?.url || '';
-
-      // If a custom thumbnail frame was selected, upload it to Cloudinary
-      if (data.thumbnailDataUrl && thumbnailUrl) {
-        try {
-          // Convert data URL to blob
-          const res = await fetch(data.thumbnailDataUrl);
-          const blob = await res.blob();
-          const thumbForm = new FormData();
-          thumbForm.append('file', blob, 'thumbnail.jpg');
-          thumbForm.append('upload_preset', 'auragram');
-          const thumbRes = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
-            method: 'POST',
-            body: thumbForm,
-          });
-          if (thumbRes.ok) {
-            const { secure_url } = await thumbRes.json();
-            thumbnailUrl = secure_url;
-          }
-        } catch (e) {
-          console.warn('Thumbnail upload failed, using default:', e);
-        }
-      }
+      thumbnailUrl = mediaUrls[0]?.thumbnailUrl || mediaUrls[0]?.url || '';
     }
 
     const { data: post, error: dbError } = await supabase
@@ -300,7 +307,6 @@ class ApiClient {
         user:User!Comment_userId_fkey(id, username, fullName, avatarUrl)
       `)
       .eq('postId', postId)
-      .is('parentId', null)
       .order('createdAt', { ascending: true });
 
     if (error) throw error;

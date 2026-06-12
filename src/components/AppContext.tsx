@@ -30,6 +30,7 @@ export interface MockPost {
   user: MockUser;
   img: string;
   imgs?: string[];
+  thumbnailUrls?: string[];
   caption: string;
   likes: number;
   comments: MockComment[];
@@ -135,7 +136,7 @@ interface AppContextType {
   clearPendingComments: (postId: number) => void;
   sendMessage: (chatId: number, text: string) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
-  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string }) => Promise<void>;
+  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => Promise<void>;
 
   // Share dialog
@@ -250,7 +251,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeTab, setActiveTabState] = useState<string>(
     PATHNAME_TO_TAB[pathname] || "home"
   );
-  const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(null);
+  const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("insta_me");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
   const [viewingUserId, setViewingUserId] = useState<string | number | null>(null);
 
   // Sync activeTab when pathname changes externally (back/forward)
@@ -356,6 +369,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
             : [];
 
+          const thumbnailUrls: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+            ? p.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
+            : [];
+
           // A text-only post: no media, and thumbnailUrl stores the CSS gradient string
           const isTextOnly =
             mediaList.length === 0 &&
@@ -389,6 +406,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             },
             img,
             imgs: isTextOnly ? [] : mediaList,
+            thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
             caption: p.caption || "",
             likes: p._count?.likes ?? 0,
             comments: [],
@@ -663,13 +681,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Called by PostModal after it loads fresh DB comments, so we don't show duplicates
-  const clearPendingComments = (postId: number) => {
+  const clearPendingComments = useCallback((postId: number) => {
     setPendingComments((prev) => {
       const next = { ...prev };
       delete next[postId];
       return next;
     });
-  };
+  }, []);
 
   const sendMessage = (chatId: number, text: string) => {
     if (!text.trim()) return;
@@ -744,7 +762,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const createPost = async (
     files: File[],
     caption: string,
-    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string }
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }
   ) => {
     let finalCaption = caption;
     if (options?.feelings) {
@@ -767,11 +785,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         isTextOnly: options?.isTextOnly,
         filter: options?.filter,
         thumbnailDataUrl: options?.thumbnailDataUrl,
+        thumbnailDataUrls: options?.thumbnailDataUrls,
       });
 
       const mediaUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
         ? dbPost.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
         : (dbPost.thumbnailUrl ? [dbPost.thumbnailUrl] : []);
+
+      const thumbnailUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
+        ? dbPost.mediaUrls.map((m: any) => (typeof m === 'string' ? '' : m.thumbnailUrl || ''))
+        : [];
 
       const newPost: MockPost = {
         id: dbPost.id,
@@ -787,6 +810,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         },
         img: dbPost.thumbnailUrl || mediaUrls[0] || "",
         imgs: mediaUrls,
+        thumbnailUrls,
         caption: finalCaption || "New post! 📸",
         likes: 0,
         comments: [],
