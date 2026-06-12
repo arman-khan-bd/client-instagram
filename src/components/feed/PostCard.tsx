@@ -252,11 +252,12 @@ export default function PostCard({ post }: PostCardProps) {
   useEffect(() => {
     api.getPostReaction(post.id).then((r) => {
       if (r) { setCurrentReaction(r as ReactionType); setHasReacted(true); }
+      else { setCurrentReaction(null); setHasReacted(false); }
     }).catch(() => {});
     api.getPostReactionsDetails(post.id).then((list) => {
       setReactionsList(list as any[]);
     }).catch(() => {});
-  }, [post.id]);
+  }, [post.id, currentUser?.id]);
 
   // ── Commit a reaction ──────────────────────────────────────────────────────
   const commitReaction = useCallback((type: string) => {

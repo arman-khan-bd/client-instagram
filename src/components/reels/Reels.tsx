@@ -30,7 +30,9 @@ export default function Reels() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [activeVideoIdx, setActiveVideoIdx] = useState(0);
   const [showMenuId, setShowMenuId] = useState<number | null>(null);
-  const [muted, setMuted] = useState(true);
+  
+  // Auto unmute in reels page by default
+  const [muted, setMuted] = useState(false);
   
   // Track play/pause state for each video card locally
   const [isPlaying, setIsPlaying] = useState<Record<number, boolean>>({});
@@ -41,11 +43,37 @@ export default function Reels() {
 
   // Reactions state for reels
   const [reelsReactions, setReelsReactions] = useState<Record<number, { type: string; list: any[] }>>({});
-  const [hoveredReelIdx, setHoveredReelIdx] = useState<number | null>(null);
   const [showPickerForReelId, setShowPickerForReelId] = useState<number | null>(null);
   
   // Reactors modal
   const [reactorPostId, setReactorPostId] = useState<number | null>(null);
+
+  // Auto-hide overlays after 5s play inactivity
+  const [showOverlays, setShowOverlays] = useState(true);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetHideTimer = useCallback(() => {
+    setShowOverlays(true);
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = setTimeout(() => {
+      setShowOverlays(false);
+    }, 5000);
+  }, []);
+
+  // Run on mount
+  useEffect(() => {
+    resetHideTimer();
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [resetHideTimer]);
+
+  // Reset hide timer when active video changes
+  useEffect(() => {
+    resetHideTimer();
+  }, [activeVideoIdx, resetHideTimer]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
@@ -111,7 +139,7 @@ export default function Reels() {
         }).catch(() => {});
       }).catch(() => {});
     });
-  }, [reelsList]);
+  }, [reelsList, currentUser?.id]);
 
   // Handle active video autoplay when in view
   useEffect(() => {
@@ -161,6 +189,7 @@ export default function Reels() {
       video.pause();
       setIsPlaying((prev) => ({ ...prev, [idx]: false }));
     }
+    resetHideTimer();
   };
 
   const handleReelClick = (idx: number, post: MockPost) => {
@@ -177,6 +206,7 @@ export default function Reels() {
         handleReact(post.id, origId, "love");
       }
       lastReelClickTime.current[idx] = 0;
+      resetHideTimer();
     } else {
       lastReelClickTime.current[idx] = now;
       setTimeout(() => {
@@ -244,6 +274,7 @@ export default function Reels() {
       .catch((err) => {
         console.error("Reel reaction failed:", err);
       });
+    resetHideTimer();
   };
 
   // Submit new comment inside drawer
@@ -256,13 +287,39 @@ export default function Reels() {
     setNewCommentText("");
   };
 
+  // Long-press reaction button picker trigger
+  const longPressReactTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePointerDownReact = (postId: number) => {
+    resetHideTimer();
+    if (longPressReactTimer.current) clearTimeout(longPressReactTimer.current);
+    longPressReactTimer.current = setTimeout(() => {
+      setShowPickerForReelId(postId);
+    }, 450);
+  };
+
+  const handlePointerUpReact = () => {
+    if (longPressReactTimer.current) {
+      clearTimeout(longPressReactTimer.current);
+      longPressReactTimer.current = null;
+    }
+  };
+
+  // Dynamic opacity class helper for overlays
+  const overlayClass = `transition-opacity duration-500 ${
+    showOverlays ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+  }`;
+
   return (
     <div className="flex-1 bg-black h-full w-full relative flex items-center justify-center">
       {/* Floating Glassmorphic Auto-Scroll Toggle */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 select-none flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg transition hover:bg-white/15">
+      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 select-none flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg ${overlayClass}`}>
         <span className="text-[12px] font-bold tracking-wide text-white/95">Auto Scroll</span>
         <button
-          onClick={() => setAutoScroll(!autoScroll)}
+          onClick={() => {
+            setAutoScroll(!autoScroll);
+            resetHideTimer();
+          }}
           className={`w-9 h-5 rounded-full relative transition-colors ${
             autoScroll ? "bg-white" : "bg-white/30"
           }`}
@@ -277,8 +334,11 @@ export default function Reels() {
 
       {/* Floating Volume Indicator Toggle */}
       <button
-        onClick={() => setMuted(!muted)}
-        className="absolute top-4 right-4 z-30 w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition shadow-lg"
+        onClick={() => {
+          setMuted(!muted);
+          resetHideTimer();
+        }}
+        className={`absolute top-4 right-4 z-30 w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition shadow-lg ${overlayClass}`}
       >
         {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
       </button>
@@ -337,7 +397,7 @@ export default function Reels() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none z-10" />
 
               {/* Reels Sidebar (Right Action Panel) */}
-              <div className="absolute right-3.5 bottom-24 flex flex-col gap-5 items-center z-20 text-white select-none">
+              <div className={`absolute right-3.5 bottom-24 flex flex-col gap-5 items-center z-20 text-white select-none ${overlayClass}`}>
                 {/* React Button & Picker */}
                 <div 
                   className="relative"
@@ -345,6 +405,10 @@ export default function Reels() {
                   onMouseLeave={() => setShowPickerForReelId(null)}
                 >
                   <button
+                    onPointerDown={() => handlePointerDownReact(post.id)}
+                    onPointerUp={handlePointerUpReact}
+                    onPointerCancel={handlePointerUpReact}
+                    onPointerLeave={handlePointerUpReact}
                     onClick={() => handleReact(post.id, origId, activeReaction ? activeReaction : "love")}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -364,16 +428,16 @@ export default function Reels() {
                     </span>
                   </button>
 
-                  {/* Reaction Picker on hover */}
+                  {/* Reaction Picker on hover / long-press: Left-aligned! */}
                   <AnimatePresence>
                     {showPickerForReelId === post.id && (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.7, x: -160 }}
-                        animate={{ opacity: 1, scale: 1, x: -160 }}
+                        initial={{ opacity: 0, scale: 0.7, x: 20 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
                         exit={{ opacity: 0, scale: 0.7 }}
-                        className="absolute bottom-12 left-1/2 flex items-center gap-1 bg-[#111]/95 backdrop-blur-xl border border-white/10 rounded-full px-2.5 py-1.5 shadow-2xl z-50 select-none"
+                        className="absolute right-[calc(100%+12px)] top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-[#111]/95 backdrop-blur-xl border border-white/10 rounded-full px-3 py-2 shadow-2xl z-50 select-none whitespace-nowrap"
                       >
-                        {REACTIONS.map((r, rIdx) => (
+                        {REACTIONS.map((r) => (
                           <button
                             key={r.type}
                             onClick={() => handleReact(post.id, origId, r.type)}
@@ -389,7 +453,10 @@ export default function Reels() {
 
                 {/* Comment Drawer Trigger */}
                 <button
-                  onClick={() => setDrawerPost(post)}
+                  onClick={() => {
+                    setDrawerPost(post);
+                    resetHideTimer();
+                  }}
                   className="flex flex-col items-center gap-1 cursor-pointer hover:scale-110 active:scale-90 transition"
                 >
                   <MessageCircle size={26} />
@@ -400,7 +467,10 @@ export default function Reels() {
 
                 {/* Share */}
                 <button
-                  onClick={() => copyReelLink(post)}
+                  onClick={() => {
+                    copyReelLink(post);
+                    resetHideTimer();
+                  }}
                   className="flex flex-col items-center gap-1 cursor-pointer hover:scale-110 active:scale-90 transition"
                 >
                   <Send size={26} />
@@ -409,7 +479,10 @@ export default function Reels() {
 
                 {/* Menu options */}
                 <button
-                  onClick={() => setShowMenuId(showMenuId === post.id ? null : post.id)}
+                  onClick={() => {
+                    setShowMenuId(showMenuId === post.id ? null : post.id);
+                    resetHideTimer();
+                  }}
                   className="flex flex-col items-center gap-1 cursor-pointer hover:scale-110 active:scale-90 transition p-1 bg-black/20 hover:bg-black/40 rounded-full"
                 >
                   <MoreHorizontal size={24} />
@@ -417,7 +490,7 @@ export default function Reels() {
               </div>
 
               {/* Reels Info Details (Bottom Left) */}
-              <div className="absolute left-4.5 bottom-6 max-w-[calc(100%-75px)] z-20 text-white select-none">
+              <div className={`absolute left-4.5 bottom-6 max-w-[calc(100%-75px)] z-20 text-white select-none ${overlayClass}`}>
                 {/* User Info Row */}
                 <div className="flex items-center gap-3 mb-2.5">
                   <img
@@ -429,7 +502,10 @@ export default function Reels() {
                   {post.user.verified && <span className="text-insta-blue text-xs">✓</span>}
                   
                   <button
-                    onClick={() => toggleFollow(post.user.id)}
+                    onClick={() => {
+                      toggleFollow(post.user.id);
+                      resetHideTimer();
+                    }}
                     className={`px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition select-none ${
                       isFollowing
                         ? "border border-white/30 bg-transparent hover:bg-white/10"
@@ -457,7 +533,10 @@ export default function Reels() {
               {/* Three-Dot Option Menu Overlay */}
               {showMenuId === post.id && (
                 <div
-                  onClick={() => setShowMenuId(null)}
+                  onClick={() => {
+                    setShowMenuId(null);
+                    resetHideTimer();
+                  }}
                   className="absolute inset-0 bg-black/60 z-40 flex items-center justify-center p-6 backdrop-blur-sm transition-all"
                 >
                   <div
@@ -465,25 +544,38 @@ export default function Reels() {
                     className="w-full max-w-[280px] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col text-center text-sm shadow-2xl scale-100"
                   >
                     <button
-                      onClick={() => setShowMenuId(null)}
+                      onClick={() => {
+                        setShowMenuId(null);
+                        resetHideTimer();
+                      }}
                       className="py-3.5 text-red-500 font-bold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
                     >
                       Report
                     </button>
                     <button
-                      onClick={() => setShowMenuId(null)}
+                      onClick={() => {
+                        setShowMenuId(null);
+                        resetHideTimer();
+                      }}
                       className="py-3.5 font-semibold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
                     >
                       Not Interested
                     </button>
                     <button
-                      onClick={() => { setShowMenuId(null); copyReelLink(post); }}
+                      onClick={() => {
+                        setShowMenuId(null);
+                        copyReelLink(post);
+                        resetHideTimer();
+                      }}
                       className="py-3.5 font-semibold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
                     >
                       Copy Link
                     </button>
                     <button
-                      onClick={() => setShowMenuId(null)}
+                      onClick={() => {
+                        setShowMenuId(null);
+                        resetHideTimer();
+                      }}
                       className="py-3.5 text-zinc-400 hover:bg-zinc-800 transition cursor-pointer"
                     >
                       Cancel

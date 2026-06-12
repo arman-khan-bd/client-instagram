@@ -90,24 +90,13 @@ class ApiClient {
 
   // Posts
   async getFeed(page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
-    const { data: posts, error } = await supabase
-      .from('Post')
-      .select(`
-        *,
-        user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
-      `)
-      .order('createdAt', { ascending: false })
-      .range(skip, skip + limit - 1);
-
-    if (error) throw error;
+    const res = await fetch(`/api/feed?page=${page}&limit=${limit}`);
+    if (!res.ok) throw new Error("Failed to fetch feed API");
+    const { posts, page: returnedPage } = await res.json();
 
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
     const postsWithDetails = await Promise.all((posts || []).map(async (p: any) => {
-      const { count: likesCount } = await supabase.from('Like').select('id', { count: 'exact', head: true }).eq('postId', p.id);
-      const { count: commentsCount } = await supabase.from('Comment').select('id', { count: 'exact', head: true }).eq('postId', p.id);
-      
       let isLiked = false;
       if (authUser) {
         const { data: likeRecord } = await supabase
@@ -118,18 +107,13 @@ class ApiClient {
           .maybeSingle();
         isLiked = !!likeRecord;
       }
-
       return {
         ...p,
-        isLiked,
-        _count: {
-          likes: likesCount || 0,
-          comments: commentsCount || 0,
-        }
+        isLiked
       };
     }));
 
-    return { posts: postsWithDetails, page };
+    return { posts: postsWithDetails, page: returnedPage };
   }
 
   async createPost(data: {
@@ -219,6 +203,9 @@ class ApiClient {
       .single();
 
     if (dbError || !post) throw new Error(dbError?.message || 'Failed to create post');
+
+    // Invalidate Redis feed cache
+    await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
 
     return {
       ...post,
