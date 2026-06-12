@@ -23,7 +23,7 @@ export function loadNSFWJSLibraries(): Promise<{ tf: any; nsfwjs: any }> {
     tfScript.onload = () => {
       // Load NSFWJS next
       const nsfwScript = document.createElement("script");
-      nsfwScript.src = "https://cdn.jsdelivr.net/npm/nsfwjs@3.0.1/dist/nsfwjs.min.js";
+      nsfwScript.src = "https://cdn.jsdelivr.net/npm/nsfwjs@4.3.0/dist/browser/nsfwjs.min.js";
       nsfwScript.async = true;
       nsfwScript.onload = () => {
         if (win.nsfwjs && win.tf) {
