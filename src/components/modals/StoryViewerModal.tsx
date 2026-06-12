@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useApp } from "../AppContext";
-import { X, Trash2, Send } from "lucide-react";
+import { X, Trash2, Send, Heart, Eye, Music, Award, MessageSquare } from "lucide-react";
 import { api } from "../../lib/api";
 
 interface EmojiParticle {
@@ -12,6 +12,15 @@ interface EmojiParticle {
   rotate: number;
   duration: number;
 }
+
+const FILTERS = [
+  { name: "Normal", class: "", style: {} },
+  { name: "Vintage Sepia", class: "", style: { filter: "sepia(0.8) contrast(1.2) brightness(0.9)" } },
+  { name: "Grayscale Noir", class: "", style: { filter: "grayscale(1) contrast(1.4)" } },
+  { name: "Warm Sun", class: "", style: { filter: "saturate(1.5) sepia(0.15) contrast(1.05)" } },
+  { name: "Cool Breeze", class: "", style: { filter: "hue-rotate(15deg) saturate(1.1) brightness(1.05)" } },
+  { name: "Retro Haze", class: "", style: { filter: "contrast(0.9) brightness(1.1) sepia(0.1)" } },
+];
 
 export default function StoryViewerModal() {
   const {
@@ -28,7 +37,14 @@ export default function StoryViewerModal() {
   const [isPaused, setIsPaused] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [particles, setParticles] = useState<EmojiParticle[]>([]);
+  
+  // Creator analytics panel
+  const [interactions, setInteractions] = useState<any[]>([]);
+  const [loadingInteractions, setLoadingInteractions] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const groupIndex = storyViewerIndex ?? 0;
   const currentGroup = storyGroups[groupIndex];
@@ -40,11 +56,69 @@ export default function StoryViewerModal() {
     setActiveStoryIndex(0);
     setProgress(0);
     setReplyText("");
+    setShowAnalytics(false);
   }, [storyViewerIndex]);
+
+  // Load interactions for the creator
+  const loadInteractions = () => {
+    if (!activeStory || !currentUser || currentUser.id !== activeStory.userId) {
+      setInteractions([]);
+      return;
+    }
+    setLoadingInteractions(true);
+    api.getStoryInteractions(activeStory.id)
+      .then((data) => {
+        setInteractions(data || []);
+      })
+      .catch((err) => console.warn("Interactions load error:", err))
+      .finally(() => setLoadingInteractions(false));
+  };
+
+  useEffect(() => {
+    loadInteractions();
+  }, [activeStory?.id, currentUser?.id]);
+
+  // Record visit/view interaction
+  useEffect(() => {
+    if (!activeStory || !currentUser) return;
+    if (activeStory.userId === currentUser.id) return;
+    api.recordStoryInteraction(activeStory.id, 'view')
+      .then(() => {
+        loadInteractions();
+      })
+      .catch(() => {});
+  }, [activeStory?.id, currentUser?.id]);
+
+  // Background Audio Handler
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (activeStory?.audioUrl) {
+      audio.src = activeStory.audioUrl;
+      audio.load();
+      if (!isPaused) {
+        audio.play().catch(() => {});
+      }
+    } else {
+      audio.src = "";
+    }
+  }, [activeStory?.audioUrl, safeActiveStoryIndex]);
+
+  // Pause audio when isPaused changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPaused) {
+      audio.pause();
+    } else if (activeStory?.audioUrl && audio.paused) {
+      audio.play().catch(() => {});
+    }
+  }, [isPaused, activeStory?.audioUrl]);
 
   // Story Timer handler
   useEffect(() => {
-    if (storyViewerIndex === null || !currentGroup || isPaused) return;
+    if (storyViewerIndex === null || !currentGroup || isPaused || showAnalytics) return;
 
     setProgress(0);
     const duration = 5000; // 5 seconds per story
@@ -64,7 +138,7 @@ export default function StoryViewerModal() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [storyViewerIndex, isPaused, groupIndex, activeStoryIndex, currentGroup]);
+  }, [storyViewerIndex, isPaused, groupIndex, activeStoryIndex, currentGroup, showAnalytics]);
 
   if (storyViewerIndex === null || !currentGroup || !activeStory) return null;
 
@@ -100,6 +174,7 @@ export default function StoryViewerModal() {
     setActiveStoryIndex(0);
     setReplyText("");
     setParticles([]);
+    setShowAnalytics(false);
   };
 
   const handleDelete = async () => {
@@ -137,16 +212,31 @@ export default function StoryViewerModal() {
     showToast("Story reply sent! ✉️", "success");
 
     try {
+      await api.recordStoryInteraction(activeStory.id, 'message', text);
       if (currentGroup?.userId && currentUser?.id && currentGroup.userId !== currentUser.id) {
         await api.sendMessage(currentGroup.userId, `Replied to your story: "${text}" 📸`);
       }
+      loadInteractions();
     } catch (err) {
       console.error("Failed to send story reply:", err);
     }
   };
 
+  const handleLikeToggle = async () => {
+    try {
+      const result = await api.recordStoryInteraction(activeStory.id, 'like');
+      if (result && (result as any).status === 'unliked') {
+        showToast("Story unliked 🤍", "info");
+      } else {
+        showToast("Story liked ❤️", "success");
+      }
+      loadInteractions();
+    } catch (err) {
+      console.error("Failed to toggle story like:", err);
+    }
+  };
+
   const triggerReaction = async (emoji: string) => {
-    // Generate floating emoji particles
     const newParticles: EmojiParticle[] = Array.from({ length: 15 }).map((_, i) => ({
       id: Date.now() + i + Math.random(),
       emoji,
@@ -157,15 +247,16 @@ export default function StoryViewerModal() {
 
     setParticles((prev) => [...prev, ...newParticles]);
 
-    // Clean up particles
     setTimeout(() => {
       setParticles((prev) => prev.filter((p) => !newParticles.find((np) => np.id === p.id)));
     }, 3000);
 
     try {
+      await api.recordStoryInteraction(activeStory.id, 'reaction', emoji);
       if (currentGroup?.userId && currentUser?.id && currentGroup.userId !== currentUser.id) {
         await api.sendMessage(currentGroup.userId, `Reacted ${emoji} to your story 📸`);
       }
+      loadInteractions();
     } catch (err) {
       console.error("Failed to send story reaction:", err);
     }
@@ -184,11 +275,28 @@ export default function StoryViewerModal() {
     }
   };
 
+  // Extract filter styles from metadata
+  const getFilterStyle = () => {
+    if (!activeStory.metadata) return {};
+    const meta = typeof activeStory.metadata === 'string' ? JSON.parse(activeStory.metadata) : activeStory.metadata;
+    const filterClass = meta.filterClass || "";
+    const found = FILTERS.find(f => f.name === filterClass);
+    return found ? found.style : {};
+  };
+
   const facebookReactions = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+
+  // Compute viewer states
+  const viewerList = interactions.filter((item) => item.type === "view");
+  const likeList = interactions.filter((item) => item.type === "like");
+  const hasUserLiked = currentUser && interactions.some((item) => item.type === "like" && item.userId === currentUser.id);
 
   return (
     <div className="fixed inset-0 bg-black z-[200] flex items-center justify-center select-none text-white">
-      {/* Dynamic Keyframes injected locally */}
+      {/* Background Audio soundtrack */}
+      <audio ref={audioRef} loop className="hidden" />
+
+      {/* Floating Emojis Animation Styles */}
       <style>{`
         @keyframes float-emoji {
           0% {
@@ -232,7 +340,7 @@ export default function StoryViewerModal() {
           </div>
         ))}
 
-        {/* Top Segment Bars for current group stories */}
+        {/* Top Segment Bars */}
         <div className="absolute top-3 left-0 right-0 z-30 px-3 flex gap-1">
           {currentGroup.stories.map((_, idx) => {
             let width = "0%";
@@ -258,20 +366,39 @@ export default function StoryViewerModal() {
               alt={currentGroup.username}
               className="w-9 h-9 rounded-full object-cover border border-white/40"
             />
-            <span className="font-bold text-[14px] drop-shadow-md">{currentGroup.username}</span>
+            <div className="flex flex-col">
+              <span className="font-bold text-[14px] drop-shadow-md">{currentGroup.username}</span>
+              {activeStory.musicName && (
+                <span className="text-[10px] text-zinc-300 flex items-center gap-1 mt-0.5 truncate max-w-[150px]">
+                  <Music size={9} className="animate-spin" /> {activeStory.musicName}
+                </span>
+              )}
+            </div>
             <span className="text-[12px] text-white/80 drop-shadow-md">
               {getTimeString(activeStory.createdAt)}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {currentUser && currentUser.id === activeStory.userId && (
-              <button
-                onClick={handleDelete}
-                className="text-white hover:text-red-400 p-1 cursor-pointer bg-black/20 hover:bg-black/40 rounded-full transition"
-                title="Delete Story"
-              >
-                <Trash2 size={18} />
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    setIsPaused(true);
+                    setShowAnalytics(true);
+                  }}
+                  className="text-white hover:text-zinc-300 p-1 bg-black/20 hover:bg-black/40 rounded-full transition cursor-pointer flex items-center justify-center"
+                  title="Story Views & Analytics"
+                >
+                  <Eye size={18} />
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="text-white hover:text-red-400 p-1 cursor-pointer bg-black/20 hover:bg-black/40 rounded-full transition"
+                  title="Delete Story"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </>
             )}
             <button
               onClick={handleClose}
@@ -282,9 +409,9 @@ export default function StoryViewerModal() {
           </div>
         </div>
 
-        {/* Story content / Media viewer */}
+        {/* Story Content Viewport */}
         <div 
-          className="flex-1 relative flex items-center justify-center overflow-hidden"
+          className="flex-1 relative flex items-center justify-center overflow-hidden bg-black"
           onTouchStart={() => setIsPaused(true)}
           onTouchEnd={() => setIsPaused(false)}
           onTouchCancel={() => setIsPaused(false)}
@@ -299,20 +426,68 @@ export default function StoryViewerModal() {
               muted
               playsInline
               loop
-              className="w-full h-full object-cover"
+              style={getFilterStyle()}
+              className="w-full h-full object-contain"
             />
           ) : (
             <img
               src={activeStory.mediaUrl}
               alt="Story content"
-              className="w-full h-full object-cover"
+              style={getFilterStyle()}
+              className="w-full h-full object-contain"
             />
           )}
+
+          {/* Dynamic Metadata Stickers / Texts Overlays */}
+          {activeStory.metadata && (() => {
+            const meta = typeof activeStory.metadata === 'string' ? JSON.parse(activeStory.metadata) : activeStory.metadata;
+            const stickers = meta.stickers || [];
+            const texts = meta.texts || [];
+            const tags = meta.tags || [];
+            const feeling = meta.feeling || "";
+
+            return (
+              <>
+                {stickers.map((s: any, idx: number) => (
+                  <div 
+                    key={`s-${idx}`} 
+                    style={{ left: `${s.x}%`, top: `${s.y}%` }} 
+                    className="absolute -translate-x-1/2 -translate-y-1/2 text-[36px] drop-shadow-md z-20 pointer-events-none select-none"
+                  >
+                    {s.emoji}
+                  </div>
+                ))}
+                {texts.map((t: any, idx: number) => (
+                  <div 
+                    key={`t-${idx}`} 
+                    style={{ left: `${t.x}%`, top: `${t.y}%`, color: t.color }} 
+                    className="absolute -translate-x-1/2 -translate-y-1/2 font-extrabold text-[15px] bg-black/60 px-2.5 py-0.5 rounded-lg drop-shadow-md z-20 pointer-events-none select-none text-center whitespace-nowrap"
+                  >
+                    {t.text}
+                  </div>
+                ))}
+                {tags.map((tg: any, idx: number) => (
+                  <div 
+                    key={`tg-${idx}`} 
+                    style={{ left: `${tg.x}%`, top: `${tg.y}%` }} 
+                    className="absolute -translate-x-1/2 -translate-y-1/2 font-bold text-[11px] bg-sky-500/90 text-white px-2 py-0.5 rounded-full border border-sky-400 drop-shadow-md z-20 pointer-events-none select-none text-center whitespace-nowrap"
+                  >
+                    {tg.username}
+                  </div>
+                ))}
+                {feeling && (
+                  <div className="absolute top-20 left-4 bg-zinc-950/75 border border-white/10 px-2.5 py-0.5 rounded-full text-[10px] font-bold z-20 shadow">
+                    Feeling {feeling}
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Caption Overlay */}
           {activeStory.caption && (
             <div className="absolute bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-center">
-              <p className="text-[15px] font-medium text-white drop-shadow-md leading-relaxed px-4">
+              <p className="text-[14px] font-medium text-white drop-shadow-md leading-relaxed px-4">
                 {activeStory.caption}
               </p>
             </div>
@@ -321,30 +496,30 @@ export default function StoryViewerModal() {
           {/* Left/Right click targets */}
           <div
             onClick={handlePrev}
-            className="absolute left-0 top-0 bottom-0 w-[40%] cursor-pointer z-20"
+            className="absolute left-0 top-0 bottom-0 w-[30%] cursor-pointer z-20"
             title="Previous Story"
           />
           <div
             onClick={handleNext}
-            className="absolute right-0 top-0 bottom-0 w-[40%] cursor-pointer z-20"
+            className="absolute right-0 top-0 bottom-0 w-[30%] cursor-pointer z-20"
             title="Next Story"
           />
         </div>
 
         {/* Facebook-like Story reactions & reply panel */}
-        <div className="bg-black/90 p-4 flex flex-col gap-3.5 z-30 select-none border-t border-zinc-900 backdrop-blur-md">
+        <div className="bg-black/90 p-4 flex flex-col gap-3 z-30 select-none border-t border-zinc-900 backdrop-blur-md">
           {/* Reaction Emojis Panel (Facebook Style) */}
           <div 
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
-            className="flex items-center justify-around px-2 py-1 bg-zinc-900/50 rounded-full border border-zinc-800/60 backdrop-blur-sm"
+            className="flex items-center justify-around px-2 py-1 bg-zinc-900/50 rounded-full border border-zinc-850/60 backdrop-blur-sm"
           >
             {facebookReactions.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => triggerReaction(emoji)}
-                className="text-[26px] hover:scale-130 active:scale-95 transition-transform duration-200 cursor-pointer p-1"
+                className="text-[24px] hover:scale-130 active:scale-95 transition-transform duration-200 cursor-pointer p-1"
                 title={`React with ${emoji}`}
               >
                 {emoji}
@@ -353,7 +528,7 @@ export default function StoryViewerModal() {
           </div>
 
           {/* Message input field */}
-          <form onSubmit={handleReplySubmit} className="flex items-center gap-3">
+          <form onSubmit={handleReplySubmit} className="flex items-center gap-2.5">
             <input
               type="text"
               value={replyText}
@@ -361,20 +536,137 @@ export default function StoryViewerModal() {
               placeholder={`Reply to ${currentGroup.username}…`}
               onFocus={() => setIsPaused(true)}
               onBlur={() => {
-                // Keep paused momentarily so form submit has time to execute
                 setTimeout(() => setIsPaused(false), 200);
               }}
-              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-full px-4.5 py-2.5 text-[14px] text-white outline-none focus:border-zinc-700 placeholder-white/50 transition"
+              className="flex-1 bg-zinc-900 border border-zinc-850 rounded-full px-4 py-2.5 text-[13px] text-white outline-none focus:border-zinc-700 placeholder-white/40 transition"
             />
+            {currentUser && (
+              <button
+                type="button"
+                onClick={handleLikeToggle}
+                className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center hover:scale-105 active:scale-95 transition cursor-pointer text-white shrink-0"
+              >
+                <Heart size={16} fill={hasUserLiked ? "red" : "transparent"} className={hasUserLiked ? "text-red-500 scale-110" : "text-white"} />
+              </button>
+            )}
             <button
               type="submit"
               disabled={!replyText.trim()}
               className="w-10 h-10 rounded-full bg-white hover:bg-zinc-200 text-black flex items-center justify-center transition disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer shrink-0"
             >
-              <Send size={16} />
+              <Send size={15} />
             </button>
           </form>
         </div>
+
+        {/* Creator Analytics Panel Sheet (Only Creator can see) */}
+        {showAnalytics && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] flex flex-col justify-end">
+            <div className="bg-zinc-950 border-t border-zinc-900 rounded-t-3xl max-h-[60vh] flex flex-col overflow-hidden animate-slide-up text-white select-text">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900 shrink-0">
+                <div className="flex items-center gap-2 font-extrabold text-[15px]">
+                  <Award size={18} className="text-amber-500" />
+                  <span>Story Activity & Analytics</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAnalytics(false);
+                    setIsPaused(false);
+                  }}
+                  className="p-1.5 hover:bg-zinc-900 rounded-full transition text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Data list */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scroll text-sm">
+                <div className="grid grid-cols-2 gap-3 text-center mb-2">
+                  <div className="bg-zinc-900/40 p-3 rounded-2xl border border-zinc-900">
+                    <div className="text-zinc-500 text-xs font-semibold">Total Views</div>
+                    <div className="text-xl font-black mt-1 text-white">{viewerList.length}</div>
+                  </div>
+                  <div className="bg-zinc-900/40 p-3 rounded-2xl border border-zinc-900">
+                    <div className="text-zinc-500 text-xs font-semibold">Total Likes</div>
+                    <div className="text-xl font-black mt-1 text-red-500">{likeList.length}</div>
+                  </div>
+                </div>
+
+                <div className="h-[1px] bg-zinc-900 my-2" />
+
+                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
+                  Visits & Reactions
+                </label>
+
+                {loadingInteractions ? (
+                  <div className="text-center py-6 text-zinc-600 text-xs animate-pulse">
+                    Loading analytics data...
+                  </div>
+                ) : interactions.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-600 text-xs">
+                    No story interactions yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {interactions.map((item, idx) => {
+                      const user = item.user;
+                      const avatar = user?.avatarUrl || `https://i.pravatar.cc/80?u=${user?.id || idx}`;
+                      const username = user?.username || "anonymous";
+
+                      return (
+                        <div key={item.id || idx} className="flex items-center justify-between bg-zinc-900/20 p-2.5 rounded-xl border border-zinc-900/60">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={avatar}
+                              alt={username}
+                              className="w-8 h-8 rounded-full object-cover border border-[#222]"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-xs text-white">{username}</span>
+                              <span className="text-[10px] text-zinc-500">
+                                {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-xs font-semibold px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 flex items-center gap-1.5">
+                            {item.type === "view" && (
+                              <>
+                                <Eye size={11} />
+                                <span>Viewed</span>
+                              </>
+                            )}
+                            {item.type === "like" && (
+                              <>
+                                <Heart size={11} className="text-red-500" fill="red" />
+                                <span className="text-red-400">Liked</span>
+                              </>
+                            )}
+                            {item.type === "reaction" && (
+                              <>
+                                <span>Reacted</span>
+                                <span className="text-[14px]">{item.value}</span>
+                              </>
+                            )}
+                            {item.type === "message" && (
+                              <>
+                                <MessageSquare size={11} className="text-sky-400" />
+                                <span className="text-sky-400 truncate max-w-[100px]" title={item.value}>
+                                  "{item.value}"
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

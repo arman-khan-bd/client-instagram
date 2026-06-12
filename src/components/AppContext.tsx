@@ -86,6 +86,9 @@ export interface DbStory {
   bgColor: string;
   expiresAt: string;
   createdAt: string;
+  audioUrl?: string;
+  musicName?: string;
+  metadata?: any;
   user: { id: string; username: string; fullName: string; avatarUrl: string };
 }
 
@@ -160,7 +163,7 @@ interface AppContextType {
   // Stories
   storyGroups: StoryGroup[];
   loadStories: () => Promise<void>;
-  createStory: (file: File, opts?: { caption?: string }) => Promise<void>;
+  createStory: (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => Promise<void>;
 
   // Toast notifications
   toasts: ToastMessage[];
@@ -347,7 +350,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const createStory = async (file: File, opts?: { caption?: string }) => {
+  const createStory = async (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => {
     try {
       showToast("Uploading story... ⚡", "info");
       await api.createStory(file, opts);

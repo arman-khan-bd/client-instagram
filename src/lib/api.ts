@@ -641,8 +641,8 @@ class ApiClient {
     return data || [];
   }
 
-  async createStory(file: File, options?: { caption?: string; bgColor?: string }) {
-    // Upload to Cloudinary
+  async createStory(file: File, options?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) {
+    // Upload media file to Cloudinary
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', 'auragram');
@@ -655,6 +655,24 @@ class ApiClient {
     const cloudData = await cloudRes.json();
     if (!cloudData.secure_url) throw new Error('Story upload failed');
 
+    // Upload custom audio file if provided
+    let audioUrl = options?.audioUrl || '';
+    if (options?.audioFile) {
+      const audioFormData = new FormData();
+      audioFormData.append('file', options.audioFile);
+      audioFormData.append('upload_preset', 'auragram');
+      audioFormData.append('folder', 'auragram/stories/audio');
+
+      const cloudAudioRes = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/video/upload', {
+        method: 'POST',
+        body: audioFormData,
+      });
+      const cloudAudioData = await cloudAudioRes.json();
+      if (cloudAudioData.secure_url) {
+        audioUrl = cloudAudioData.secure_url;
+      }
+    }
+
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
@@ -666,6 +684,9 @@ class ApiClient {
         mediaType: file.type.startsWith('video') ? 'video' : 'image',
         caption: options?.caption || '',
         bgColor: options?.bgColor || '',
+        audioUrl,
+        musicName: options?.musicName || '',
+        metadata: options?.metadata || {},
       })
       .select('*, user:User(id, username, fullName, avatarUrl)')
       .single();
@@ -677,6 +698,57 @@ class ApiClient {
   async deleteStory(storyId: number) {
     const { error } = await supabase.from('Story').delete().eq('id', storyId);
     if (error) throw new Error(error.message);
+  }
+
+  async recordStoryInteraction(storyId: number, type: 'view' | 'like' | 'message' | 'reaction', value?: string) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return null;
+
+    if (type === 'view' || type === 'like') {
+      const { data: existing } = await supabase
+        .from('StoryInteraction')
+        .select('id')
+        .eq('storyId', storyId)
+        .eq('userId', authUser.id)
+        .eq('type', type)
+        .maybeSingle();
+
+      if (existing) {
+        if (type === 'like') {
+          await supabase.from('StoryInteraction').delete().eq('id', existing.id);
+          return { status: 'unliked' };
+        }
+        return { status: 'already_exists' };
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('StoryInteraction')
+      .insert({
+        storyId,
+        userId: authUser.id,
+        type,
+        value: value || '',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getStoryInteractions(storyId: number) {
+    const { data, error } = await supabase
+      .from('StoryInteraction')
+      .select(`
+        *,
+        user:User!StoryInteraction_userId_fkey(id, username, avatarUrl)
+      `)
+      .eq('storyId', storyId)
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   }
 
   async updateProfile(data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) {

@@ -203,6 +203,21 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
+
+-- ── Story Custom Updates ──────────────────────────────────────────────────────
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "audioUrl" TEXT;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "musicName" TEXT;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "metadata" JSONB DEFAULT '{}'::jsonb;
+
+-- ── StoryInteraction ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "StoryInteraction" (
+  "id"        SERIAL      PRIMARY KEY,
+  "storyId"   INTEGER     NOT NULL CONSTRAINT "StoryInteraction_storyId_fkey" REFERENCES "Story"("id") ON DELETE CASCADE,
+  "userId"    UUID        NOT NULL CONSTRAINT "StoryInteraction_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "type"      TEXT        NOT NULL, -- 'view', 'like', 'message', 'reaction'
+  "value"     TEXT,                 -- emoji sticker / custom message / reaction
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -507,6 +522,21 @@ const rlsStatements = [
   `CREATE POLICY "Story: owner delete"
      ON "Story" FOR DELETE
      USING (auth.uid() = "userId")`,
+
+  // ── StoryInteraction Table RLS ──────────────────────────────────────────────
+  `ALTER TABLE "StoryInteraction" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "StoryInteraction" FORCE ROW LEVEL SECURITY`,
+
+  `DROP POLICY IF EXISTS "StoryInteraction: select" ON "StoryInteraction"`,
+  `DROP POLICY IF EXISTS "StoryInteraction: insert" ON "StoryInteraction"`,
+
+  `CREATE POLICY "StoryInteraction: select"
+     ON "StoryInteraction" FOR SELECT
+     USING ("userId" = auth.uid() OR EXISTS (SELECT 1 FROM "Story" WHERE "Story".id = "StoryInteraction"."storyId" AND "Story"."userId" = auth.uid()))`,
+
+  `CREATE POLICY "StoryInteraction: insert"
+     ON "StoryInteraction" FOR INSERT
+     WITH CHECK (auth.uid() = "userId")`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
