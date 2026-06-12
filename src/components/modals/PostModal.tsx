@@ -187,17 +187,6 @@ export default function PostModal() {
     [activePostId, toggleLike, showToast]
   );
 
-  if (!activePost) {
-    if (loadingPost) {
-      return (
-        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center">
-          <div className="text-white">Loading post...</div>
-        </div>
-      );
-    }
-    return null;
-  }
-
   const allComments = (() => {
     const pending = activePostId ? (pendingComments[activePostId] || []) : [];
     const pendingAsDb: DbComment[] = pending.map((c) => ({
@@ -232,6 +221,17 @@ export default function PostModal() {
     });
     return map;
   }, [allComments]);
+
+  if (!activePost) {
+    if (loadingPost) {
+      return (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center">
+          <div className="text-white">Loading post...</div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const handleClose = () => setActivePostId(null);
 

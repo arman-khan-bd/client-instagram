@@ -272,7 +272,7 @@ export default function StoryCreateModal() {
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-full max-w-[420px] aspect-[9/16] overflow-hidden flex flex-col text-white h-[90vh] md:h-[750px] shadow-2xl relative animate-scale-up">
+      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-auto max-w-[420px] aspect-[9/16] overflow-hidden flex flex-col text-white h-[90vh] max-h-[750px] shadow-2xl relative animate-scale-up">
         
         {/* Left Side: Drag-and-Drop Viewport Editor */}
         <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative p-0 overflow-hidden">

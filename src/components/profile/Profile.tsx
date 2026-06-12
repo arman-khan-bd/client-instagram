@@ -29,6 +29,7 @@ export default function Profile() {
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
   const [dbProfile, setDbProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const isSelf = viewingUserId === null || (currentUser && viewingUserId === currentUser.id);
 
@@ -65,24 +66,49 @@ export default function Profile() {
     }
 
     const found = users.find((u) => u.id === viewingUserId || u.name === viewingUserId);
-    return found ? { ...found, id: found.id.toString(), web: "myport.io" } : null;
+    if (found) {
+      return { ...found, id: found.id.toString(), web: "myport.io" };
+    }
+
+    // Fallback: If it's a string username, return a placeholder so we can query the DB.
+    if (viewingUserId) {
+      return {
+        id: viewingUserId.toString(),
+        name: viewingUserId.toString(),
+        full: viewingUserId.toString(),
+        img: "https://i.pravatar.cc/80?img=1",
+        followers: 0,
+        following: 0,
+        bio: "",
+        verified: false,
+        web: "",
+      };
+    }
+
+    return null;
   }, [viewingUserId, users, currentUser, posts, isSelf]);
 
   // Fetch real profile details from Supabase
   useEffect(() => {
     if (!profileUser?.name) return;
     setLoading(true);
+    setNotFound(false);
     api.getProfile(profileUser.name)
       .then((data) => {
         setDbProfile(data);
       })
       .catch((err) => {
         console.error("Failed to load profile from database:", err);
+        // If it's not a mock user or in feed, it's not found
+        const isMockOrInFeed = users.some(u => u.name === profileUser.name) || posts.some(p => p.user.name === profileUser.name);
+        if (!isMockOrInFeed) {
+          setNotFound(true);
+        }
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [profileUser?.name, viewingUserId]);
+  }, [profileUser?.name, viewingUserId, users, posts]);
 
   // Handle follow / follow back
   const handleFollowToggle = async () => {
@@ -187,16 +213,19 @@ export default function Profile() {
     return tabPosts;
   }, [dbProfile, tabPosts, activeTabName, profileUser]);
 
-  if (!profileUser) {
-    return <div className="text-center p-12 text-white">User not found</div>;
+  if (notFound || !profileUser) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-white p-12 select-none h-full w-full">
+        <h2 className="text-xl font-bold mb-2">Sorry, this page isn't available.</h2>
+        <p className="text-gray-400 text-sm text-center max-w-[400px]">
+          The link you followed may be broken, or the page may have been removed. Go back to AuraGram.
+        </p>
+      </div>
+    );
   }
 
-  const highlights = [
-    { name: "Travel", img: "https://picsum.photos/seed/h1/64/64" },
-    { name: "Food", img: "https://picsum.photos/seed/h2/64/64" },
-    { name: "Work", img: "https://picsum.photos/seed/h3/64/64" },
-    { name: "Friends", img: "https://picsum.photos/seed/h4/64/64" },
-  ];
+  const userStoryGroup = storyGroups.find(g => g.userId.toString() === profileUser.id.toString());
+  const activeStories = userStoryGroup?.stories || [];
 
   const handleMessageUser = () => {
     setChats((prevChats) => {
@@ -354,35 +383,47 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Highlights List */}
-        <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[#222]/80">
-          {highlights.map((h, idx) => (
-            <div
-              key={`highlight-${idx}`}
-              className="flex flex-col items-center gap-1.5 shrink-0"
-            >
-              <div className="w-[64px] h-[64px] rounded-full border-2 border-[#222] overflow-hidden p-[2px] hover:border-gray-500 transition">
-                <img src={h.img} alt={h.name} className="w-full h-full rounded-full object-cover" />
+        {/* Highlights / Day List */}
+        {activeStories.length > 0 && (
+          <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[#222]/80">
+            {activeStories.map((story, idx) => (
+              <div
+                key={`profile-story-${story.id}`}
+                onClick={() => {
+                  const storyGroupIdx = storyGroups.findIndex(g => g.userId.toString() === profileUser.id.toString());
+                  if (storyGroupIdx !== -1) {
+                    setStoryViewerIndex(storyGroupIdx);
+                  }
+                }}
+                className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <div className="w-[64px] h-[64px] rounded-full border-2 border-insta-blue overflow-hidden p-[2px] hover:border-white transition bg-zinc-800">
+                  {story.mediaType === "video" ? (
+                    <video src={story.mediaUrl} className="w-full h-full rounded-full object-cover" muted />
+                  ) : (
+                    <img src={story.mediaUrl} alt="Day" className="w-full h-full rounded-full object-cover" />
+                  )}
+                </div>
+                <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+                  {story.caption || `Day ${idx + 1}`}
+                </span>
               </div>
-              <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
-                {h.name}
-              </span>
-            </div>
-          ))}
-          {isSelf && (
-            <div
-              onClick={() => setShowStoryCreate(true)}
-              className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <div className="w-[64px] h-[64px] rounded-full border-2 border-dashed border-[#222] flex items-center justify-center text-[28px] hover:border-gray-500 text-gray-400 hover:text-white transition">
-                ➕
+            ))}
+            {isSelf && (
+              <div
+                onClick={() => setShowStoryCreate(true)}
+                className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <div className="w-[64px] h-[64px] rounded-full border-2 border-dashed border-[#222] flex items-center justify-center text-[28px] hover:border-gray-500 text-gray-400 hover:text-white transition">
+                  ➕
+                </div>
+                <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+                  Add Day
+                </span>
               </div>
-              <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
-                Add Day
-              </span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Profile Tabs */}
         <div className="flex border-t border-[#222] select-none text-[12px] uppercase font-bold tracking-widest mt-4">

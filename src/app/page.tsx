@@ -25,7 +25,7 @@ import ShareModal from "../components/modals/ShareModal";
 import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-function AppContent() {
+export function AppContent() {
   const {
     currentUser,
     activeTab,

@@ -923,11 +923,31 @@ class ApiClient {
 
     const { data: followings, error } = await supabase
       .from('Follow')
-      .select('followingId, User:User!Follow_followingId_fkey(id, username, fullName, avatarUrl)')
+      .select('followingId, User:User!Follow_followingId_fkey(id, username, fullName, avatarUrl, isVerified)')
       .eq('followerId', authUser.id);
 
     if (error) throw error;
     return (followings || []).map((f: any) => f.User).filter(Boolean);
+  }
+
+  async getFollowersList(userId: string) {
+    const { data, error } = await supabase
+      .from('Follow')
+      .select('followerId, User:User!Follow_followerId_fkey(id, username, fullName, avatarUrl, isVerified)')
+      .eq('followingId', userId);
+
+    if (error) throw error;
+    return (data || []).map((f: any) => f.User).filter(Boolean);
+  }
+
+  async getFollowingListForUser(userId: string) {
+    const { data, error } = await supabase
+      .from('Follow')
+      .select('followingId, User:User!Follow_followingId_fkey(id, username, fullName, avatarUrl, isVerified)')
+      .eq('followerId', userId);
+
+    if (error) throw error;
+    return (data || []).map((f: any) => f.User).filter(Boolean);
   }
 
   async createNotification(data: { type: string; receiverId: string; postId?: number; storyId?: number; text?: string }) {
