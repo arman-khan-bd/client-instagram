@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApp } from "../AppContext";
-import { Home, Search, Film, MessageCircle } from "lucide-react";
+import { Home, Search, Film, MessageCircle, ShieldAlert } from "lucide-react";
 
 export default function BottomNav() {
   const { activeTab, setActiveTab, setViewingUserId, currentUser, chats } = useApp();
@@ -57,6 +57,15 @@ export default function BottomNav() {
             {unreadMessages}
           </span>
         )}
+      </button>
+
+      <button
+        onClick={() => handleNav("admin")}
+        className={`flex flex-col items-center p-2 rounded-xl transition ${
+          activeTab === "admin" ? "text-white" : "text-[#a8a8a8]"
+        }`}
+      >
+        <ShieldAlert size={24} />
       </button>
 
       <button

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useApp } from "../AppContext";
 import { X, Upload, Music, Smile, Type, Tag, Palette, Sparkles, SmilePlus, Plus } from "lucide-react";
+import { scanFileForAdultContent } from "../../lib/nsfwDetector";
 
 interface Sticker {
   id: string;
@@ -65,6 +66,16 @@ export default function StoryCreateModal() {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [caption, setCaption] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Warm up NSFW model when story modal becomes visible
+  useEffect(() => {
+    if (showStoryCreate) {
+      import("../../lib/nsfwDetector")
+        .then((m) => m.getOrLoadNSFWModel())
+        .catch((err) => console.error("Error preloading NSFW model:", err));
+    }
+  }, [showStoryCreate]);
   
   // Placed Overlays States
   const [stickers, setStickers] = useState<Sticker[]>([]);
@@ -105,11 +116,26 @@ export default function StoryCreateModal() {
 
   if (!showStoryCreate) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
-      setFile(selected);
-      setPreviewUrl(URL.createObjectURL(selected));
+      setIsScanning(true);
+      try {
+        const scan = await scanFileForAdultContent(selected);
+        if (scan.isAdult) {
+          showToast(`⚠️ WARNING: Adult content detected (${(scan.probability * 100).toFixed(1)}%). If you upload adult content, you will be banned automatically.`, "info");
+          alert(`WARNING: Nude or adult content detected! If you proceed to upload adult content, your account will be banned automatically. The file "${selected.name}" has been rejected.`);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
+
+        setFile(selected);
+        setPreviewUrl(URL.createObjectURL(selected));
+      } catch (err: any) {
+        console.error("Safety scan failed", err);
+      } finally {
+        setIsScanning(false);
+      }
     }
   };
 
@@ -273,6 +299,18 @@ export default function StoryCreateModal() {
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-4 select-none animate-fade-in">
       <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-auto max-w-[420px] aspect-[9/16] overflow-hidden flex flex-col text-white h-[90vh] max-h-[750px] shadow-2xl relative animate-scale-up">
+        {isScanning && (
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-10 h-10 border-4 border-t-insta-blue border-[#333] rounded-full animate-spin mb-4" />
+            <h4 className="text-[16px] font-bold mb-1 text-white">Running Safety Scanner</h4>
+            <p className="text-[12px] text-gray-400 max-w-[260px] leading-relaxed">
+              Scanning your story file for safety. Please wait.
+            </p>
+            <p className="text-[10px] text-[#ff4a4a] mt-4 font-semibold max-w-[240px]">
+              ⚠️ WARNING: Uploading adult or nude content will result in an automatic account ban.
+            </p>
+          </div>
+        )}
         
         {/* Left Side: Drag-and-Drop Viewport Editor */}
         <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative p-0 overflow-hidden">

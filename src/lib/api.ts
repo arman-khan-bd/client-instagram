@@ -1002,6 +1002,108 @@ class ApiClient {
       .eq('id', id);
     if (error) throw error;
   }
+
+  // ── Administrative Dashboard and Reporting Methods ──
+  async getAllUsers() {
+    const { data, error } = await supabase
+      .from('User')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async deleteUser(userId: string) {
+    const { error } = await supabase
+      .from('User')
+      .delete()
+      .eq('id', userId);
+    if (error) throw error;
+  }
+
+  async updateUserVerified(userId: string, isVerified: boolean) {
+    const { error } = await supabase
+      .from('User')
+      .update({ isVerified })
+      .eq('id', userId);
+    if (error) throw error;
+  }
+
+  async getAllPosts() {
+    const { data, error } = await supabase
+      .from('Post')
+      .select('*, User:User!Post_userId_fkey(id, username, fullName, avatarUrl)')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async deletePost(postId: number) {
+    const { error } = await supabase
+      .from('Post')
+      .delete()
+      .eq('id', postId);
+    if (error) throw error;
+  }
+
+  async getAllComments() {
+    const { data, error } = await supabase
+      .from('Comment')
+      .select('*, User:User!Comment_userId_fkey(id, username, fullName, avatarUrl), Post:Post!Comment_postId_fkey(id, caption)')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async deleteComment(commentId: number) {
+    const { error } = await supabase
+      .from('Comment')
+      .delete()
+      .eq('id', commentId);
+    if (error) throw error;
+  }
+
+  async getReports() {
+    const { data, error } = await supabase
+      .from('Report')
+      .select(`
+        *,
+        reporter:User!Report_reporterId_fkey(id, username, fullName, avatarUrl),
+        post:Post!Report_postId_fkey(id, mediaUrls, caption, userId, User:User!Post_userId_fkey(id, username)),
+        comment:Comment!Report_commentId_fkey(id, text, userId, User:User!Comment_userId_fkey(id, username))
+      `)
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async createReport(data: { postId?: number; commentId?: number; reason: string }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error("Must be logged in to file a report");
+
+    const { data: report, error } = await supabase
+      .from('Report')
+      .insert({
+        reporterId: authUser.id,
+        postId: data.postId || null,
+        commentId: data.commentId || null,
+        reason: data.reason,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return report;
+  }
+
+  async updateReportStatus(reportId: number, status: string) {
+    const { error } = await supabase
+      .from('Report')
+      .update({ status })
+      .eq('id', reportId);
+    if (error) throw error;
+  }
 }
 
 export const api = new ApiClient();

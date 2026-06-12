@@ -233,6 +233,7 @@ const PATHNAME_TO_TAB: Record<string, string> = {
   "/messages": "messages",
   "/notifications": "notifications",
   "/profile": "profile",
+  "/admin": "admin",
 };
 const TAB_TO_PATHNAME: Record<string, string> = {
   home: "/",
@@ -242,6 +243,7 @@ const TAB_TO_PATHNAME: Record<string, string> = {
   messages: "/messages",
   notifications: "/notifications",
   profile: "/profile",
+  admin: "/admin",
 };
 
 // Cache variables outside the React lifecycle to persist across route transitions
@@ -345,6 +347,48 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Dynamic document title update based on active tab/viewing user
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (activeTab === "home") {
+      document.title = "AuraGram";
+    } else if (activeTab === "reels") {
+      if (pathname.startsWith("/reels/r/")) {
+        const parts = pathname.split("/");
+        const id = parts[parts.length - 1];
+        const post = posts.find(p => p.id.toString() === id);
+        if (post) {
+          document.title = `Reel by @${post.user.name} • AuraGram`;
+        } else {
+          document.title = "Watch Reels • AuraGram";
+        }
+      } else {
+        document.title = "Reels • AuraGram";
+      }
+    } else if (activeTab === "explore") {
+      document.title = "Explore • AuraGram";
+    } else if (activeTab === "search") {
+      document.title = "Search • AuraGram";
+    } else if (activeTab === "messages") {
+      document.title = "Inbox • Chats";
+    } else if (activeTab === "notifications") {
+      document.title = "Notifications • AuraGram";
+    } else if (activeTab === "profile") {
+      if (viewingUserId) {
+        document.title = `@${viewingUserId} • AuraGram photos and videos`;
+      } else if (currentUser) {
+        document.title = `@${currentUser.name} • AuraGram photos and videos`;
+      } else {
+        document.title = "Profile • AuraGram";
+      }
+    } else if (activeTab === "admin") {
+      document.title = "Admin Panel • AuraGram Dashboard";
+    } else {
+      document.title = "AuraGram";
+    }
+  }, [activeTab, viewingUserId, pathname, posts, currentUser]);
 
   // Stories helpers
   const loadStories = async () => {

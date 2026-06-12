@@ -118,7 +118,7 @@ export default function FollowersModal() {
                         className="text-[13px] font-semibold hover:underline cursor-pointer truncate flex items-center gap-1"
                       >
                         {u.name}
-                        {u.verified && <span className="text-insta-blue text-[10px]">✓</span>}
+                        {u.verified && <span className="verified-badge" title="Verified" />}
                       </div>
                       <div className="text-[11px] text-[#a8a8a8] truncate">{u.full}</div>
                     </div>

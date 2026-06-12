@@ -303,7 +303,7 @@ export default function Profile() {
             <div className="flex items-center gap-3.5 flex-wrap mb-4 select-none">
               <h2 className="text-[22px] font-light truncate">{dbProfile?.username || profileUser.name}</h2>
               {(dbProfile?.isVerified || profileUser.verified) && (
-                <span className="text-insta-blue text-lg" title="Verified">✓</span>
+                <span className="verified-badge" title="Verified" />
               )}
 
               {isSelf ? (

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApp } from "../AppContext";
-import { Home, Search, Compass, Film, MessageCircle, Heart, PlusSquare, Menu, LogOut } from "lucide-react";
+import { Home, Search, Compass, Film, MessageCircle, Heart, PlusSquare, Menu, LogOut, ShieldAlert } from "lucide-react";
 
 export default function Sidebar() {
   const {
@@ -123,6 +123,16 @@ export default function Sidebar() {
         >
           <PlusSquare size={22} className="min-w-[22px]" />
           <span className="hidden lg:inline text-[15px]">Create</span>
+        </button>
+
+        <button
+          onClick={() => handleNav("admin")}
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
+            activeTab === "admin" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          }`}
+        >
+          <ShieldAlert size={22} className="min-w-[22px]" />
+          <span className="hidden lg:inline text-[15px]">Admin</span>
         </button>
 
         <div className="h-[1px] bg-[#222] my-2 mx-1" />

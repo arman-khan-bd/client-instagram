@@ -123,7 +123,7 @@ export default function Search() {
                   <div>
                     <div className="text-[14px] font-semibold flex items-center gap-1.5">
                       {u.username}
-                      {u.isVerified && <span className="text-insta-blue text-[12px]">✓</span>}
+                      {u.isVerified && <span className="verified-badge" title="Verified" />}
                     </div>
                     <div className="text-[12px] text-[#a8a8a8]">
                       {u.fullName}

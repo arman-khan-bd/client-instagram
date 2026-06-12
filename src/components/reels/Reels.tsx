@@ -839,7 +839,7 @@ export default function Reels() {
                     className="w-9 h-9 rounded-full border border-white/40 object-cover"
                   />
                   <span className="font-bold text-[14px] drop-shadow-md truncate">{post.user.name}</span>
-                  {post.user.verified && <span className="text-insta-blue text-xs">✓</span>}
+                  {post.user.verified && <span className="verified-badge" title="Verified" />}
                   
                   <button
                     onClick={() => {

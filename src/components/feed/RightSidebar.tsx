@@ -102,7 +102,7 @@ export default function RightSidebar() {
                   className="text-[13px] font-semibold cursor-pointer hover:underline truncate flex items-center gap-1"
                 >
                   {u.username}
-                  {u.isVerified && <span className="text-[#3897f0] text-[10px]">✓</span>}
+                  {u.isVerified && <span className="verified-badge" title="Verified" />}
                 </div>
                 <div className="text-[11px] text-[#a8a8a8] truncate">
                   {u.fullName || u.username}

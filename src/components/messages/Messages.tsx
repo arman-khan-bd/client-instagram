@@ -104,7 +104,7 @@ export default function Messages() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-semibold truncate flex items-center gap-1.5">
                     {dm.user.name}
-                    {dm.user.verified && <span className="text-[#3897f0] text-[10px]">✓</span>}
+                    {dm.user.verified && <span className="verified-badge" title="Verified" />}
                   </div>
                   <div className={`text-[12px] truncate ${dm.unread > 0 ? "text-white font-semibold" : "text-[#a8a8a8]"}`}>
                     {dm.preview}

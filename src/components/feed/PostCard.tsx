@@ -563,7 +563,7 @@ export default function PostCard({ post }: PostCardProps) {
         <div className="flex-1">
           <span onClick={() => handleUserClick(post.user.id)} className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1">
             {post.user.name}
-            {post.user.verified && <span className="text-[#3897f0] text-[11px]">✓</span>}
+            {post.user.verified && <span className="verified-badge" title="Verified" />}
           </span>
           {post.location && <div className="text-[11px] text-[#a8a8a8]">{post.location}</div>}
         </div>

@@ -12,6 +12,7 @@ import Reels from "../components/reels/Reels";
 import Messages from "../components/messages/Messages";
 import Notifications from "../components/notifications/Notifications";
 import Profile from "../components/profile/Profile";
+import Admin from "../components/admin/Admin";
 
 // Modals
 import StoryViewerModal from "../components/modals/StoryViewerModal";
@@ -62,6 +63,8 @@ export function AppContent() {
         return <Notifications />;
       case "profile":
         return <Profile />;
+      case "admin":
+        return <Admin />;
       default:
         return <Feed />;
     }

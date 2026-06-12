@@ -231,6 +231,17 @@ CREATE TABLE IF NOT EXISTS "Notification" (
   "unread"       BOOLEAN     DEFAULT TRUE,
   "createdAt"    TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── Report ────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "Report" (
+  "id"           SERIAL      PRIMARY KEY,
+  "reporterId"   UUID        NOT NULL CONSTRAINT "Report_reporterId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "postId"       INTEGER     CONSTRAINT "Report_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
+  "commentId"    INTEGER     CONSTRAINT "Report_commentId_fkey" REFERENCES "Comment"("id") ON DELETE CASCADE,
+  "reason"       TEXT        NOT NULL,
+  "status"       TEXT        DEFAULT 'pending',
+  "createdAt"    TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,6 +263,7 @@ const rlsStatements = [
   `ALTER TABLE "Message"     ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Reaction"    ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Notification" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Report"       ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"        FORCE ROW LEVEL SECURITY`,
@@ -265,6 +277,7 @@ const rlsStatements = [
   `ALTER TABLE "Message"     FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "Reaction"    FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "Notification" FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Report"       FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -570,6 +583,24 @@ const rlsStatements = [
      ON "Notification" FOR UPDATE
      USING (auth.uid() = "receiverId")
      WITH CHECK (auth.uid() = "receiverId")`,
+
+  // ── Report Table RLS ────────────────────────────────────────────────────────
+  `DROP POLICY IF EXISTS "Report: select" ON "Report"`,
+  `DROP POLICY IF EXISTS "Report: insert" ON "Report"`,
+  `DROP POLICY IF EXISTS "Report: update" ON "Report"`,
+
+  `CREATE POLICY "Report: select"
+     ON "Report" FOR SELECT
+     USING (true)`,
+
+  `CREATE POLICY "Report: insert"
+     ON "Report" FOR INSERT
+     WITH CHECK (auth.uid() = "reporterId")`,
+
+  `CREATE POLICY "Report: update"
+     ON "Report" FOR UPDATE
+     USING (true)
+     WITH CHECK (true)`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

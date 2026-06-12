@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useApp } from "../AppContext";
 import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image, Film } from "lucide-react";
+import { scanFileForAdultContent } from "../../lib/nsfwDetector";
 
 // ── VideoThumbnailPicker ──────────────────────────────────────────────────────
 interface VideoThumbnailPickerProps {
@@ -134,7 +135,17 @@ export default function CreatePostModal() {
   const [activePreviewIdx, setActivePreviewIdx] = useState(0);
   const [caption, setCaption] = useState("");
   const [isSharing, setIsSharing] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Warm up NSFW model when modal becomes visible
+  useEffect(() => {
+    if (showCreatePostModal) {
+      import("../../lib/nsfwDetector")
+        .then((m) => m.getOrLoadNSFWModel())
+        .catch((err) => console.error("Error preloading NSFW model:", err));
+    }
+  }, [showCreatePostModal]);
 
   // Thumbnail picker states for multiple videos
   const [videoThumbnails, setVideoThumbnails] = useState<Record<number, { dataUrl: string; idx: number; frames: string[] }>>({});
@@ -183,52 +194,70 @@ export default function CreatePostModal() {
     const validUrls: string[] = [];
     const validTypes: ("image" | "video")[] = [];
 
-    for (const file of rawFiles) {
-      const isVideo = file.type.startsWith("video/");
+    setIsScanning(true);
+    try {
+      for (const file of rawFiles) {
+        const isVideo = file.type.startsWith("video/");
 
-      // File size check for videos
-      if (isVideo && file.size > VIDEO_MAX_SIZE) {
-        showToast(`"${file.name}" exceeds 10MB limit. Please compress the video.`, "info");
-        continue;
-      }
-
-      if (isVideo) {
-        // Duration check
-        const duration = await new Promise<number>((resolve) => {
-          const vid = document.createElement("video");
-          vid.preload = "metadata";
-          const url = URL.createObjectURL(file);
-          vid.onloadedmetadata = () => { resolve(vid.duration); URL.revokeObjectURL(url); };
-          vid.onerror = () => { resolve(0); URL.revokeObjectURL(url); };
-          vid.src = url;
-        });
-
-        if (duration > VIDEO_MAX_DURATION) {
-          showToast(`"${file.name}" exceeds 5-minute limit (${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s).`, "info");
+        // File size check for videos
+        if (isVideo && file.size > VIDEO_MAX_SIZE) {
+          showToast(`"${file.name}" exceeds 10MB limit. Please compress the video.`, "info");
           continue;
         }
 
-        validFiles.push(file);
-        validUrls.push(URL.createObjectURL(file));
-        validTypes.push("video");
-        // Reset thumbnail data for this video slot
-        setVideoThumbnails((prev) => {
-          const copy = { ...prev };
-          delete copy[validFiles.length - 1];
-          return copy;
-        });
-      } else {
-        validFiles.push(file);
-        validUrls.push(URL.createObjectURL(file));
-        validTypes.push("image");
-      }
-    }
+        if (isVideo) {
+          // Duration check
+          const duration = await new Promise<number>((resolve) => {
+            const vid = document.createElement("video");
+            vid.preload = "metadata";
+            const url = URL.createObjectURL(file);
+            vid.onloadedmetadata = () => { resolve(vid.duration); URL.revokeObjectURL(url); };
+            vid.onerror = () => { resolve(0); URL.revokeObjectURL(url); };
+            vid.src = url;
+          });
 
-    if (validFiles.length > 0) {
-      setImagePreviews((prev) => [...prev, ...validUrls]);
-      setSelectedFiles((prev) => [...prev, ...validFiles]);
-      setFileTypes((prev) => [...prev, ...validTypes]);
-      setSelectedBgIdx(null);
+          if (duration > VIDEO_MAX_DURATION) {
+            showToast(`"${file.name}" exceeds 5-minute limit (${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s).`, "info");
+            continue;
+          }
+        }
+
+        // Run Adult content check
+        const scan = await scanFileForAdultContent(file);
+        if (scan.isAdult) {
+          showToast(`⚠️ WARNING: Adult content detected in "${file.name}" (${(scan.probability * 100).toFixed(1)}%). If you upload adult content, you will be banned automatically.`, "info");
+          alert(`WARNING: Nude or adult content detected! If you proceed to upload adult content, your account will be banned automatically. The file "${file.name}" has been rejected.`);
+          continue;
+        }
+
+        if (isVideo) {
+          validFiles.push(file);
+          validUrls.push(URL.createObjectURL(file));
+          validTypes.push("video");
+          // Reset thumbnail data for this video slot
+          setVideoThumbnails((prev) => {
+            const copy = { ...prev };
+            delete copy[validFiles.length - 1];
+            return copy;
+          });
+        } else {
+          validFiles.push(file);
+          validUrls.push(URL.createObjectURL(file));
+          validTypes.push("image");
+        }
+      }
+
+      if (validFiles.length > 0) {
+        setImagePreviews((prev) => [...prev, ...validUrls]);
+        setSelectedFiles((prev) => [...prev, ...validFiles]);
+        setFileTypes((prev) => [...prev, ...validTypes]);
+        setSelectedBgIdx(null);
+      }
+    } catch (err: any) {
+      console.error("Scanning failed", err);
+      showToast("Error validation scanning files", "info");
+    } finally {
+      setIsScanning(false);
     }
 
     // Reset input so same file can be re-selected
@@ -353,8 +382,20 @@ export default function CreatePostModal() {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[550px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-2xl flex flex-col"
+        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[550px] max-h-[90vh] overflow-y-auto overflow-x-hidden shadow-2xl flex flex-col relative"
       >
+        {isScanning && (
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-12 h-12 border-4 border-t-insta-blue border-[#333] rounded-full animate-spin mb-4" />
+            <h4 className="text-[17px] font-bold mb-2 text-white">Running Safety Scanner</h4>
+            <p className="text-[13px] text-gray-400 max-w-[320px] leading-relaxed">
+              We are scanning your selected content for safety. Please wait.
+            </p>
+            <p className="text-[11px] text-[#ff4a4a] mt-4 font-semibold max-w-[280px]">
+              ⚠️ WARNING: Uploading adult or nude content will result in an automatic account ban.
+            </p>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[#222] sticky top-0 bg-[#111] z-30">
           <button
