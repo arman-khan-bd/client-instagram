@@ -1,60 +1,24 @@
-let loadPromise: Promise<{ tf: any; nsfwjs: any }> | null = null;
+import * as tf from "@tensorflow/tfjs";
+import * as nsfwjs from "nsfwjs";
+
 let loadedModel: any = null;
 
-// Dynamically load TensorFlow.js and NSFWJS from CDN
-export function loadNSFWJSLibraries(): Promise<{ tf: any; nsfwjs: any }> {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Browser environment required"));
-  }
-
-  if (loadPromise) return loadPromise;
-
-  loadPromise = new Promise((resolve, reject) => {
-    const win = window as any;
-    if (win.nsfwjs && win.tf) {
-      resolve({ tf: win.tf, nsfwjs: win.nsfwjs });
-      return;
-    }
-
-    // Load TensorFlow.js first
-    const tfScript = document.createElement("script");
-    tfScript.src = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js";
-    tfScript.async = true;
-    tfScript.onload = () => {
-      // Load NSFWJS next
-      const nsfwScript = document.createElement("script");
-      nsfwScript.src = "https://cdn.jsdelivr.net/npm/nsfwjs@4.3.0/dist/browser/nsfwjs.min.js";
-      nsfwScript.async = true;
-      nsfwScript.onload = () => {
-        if (win.nsfwjs && win.tf) {
-          // Enable production mode for tfjs to optimize speed
-          try {
-            win.tf.enableProdMode();
-          } catch (e) {
-            console.warn("Failed to enable tfjs prod mode", e);
-          }
-          resolve({ tf: win.tf, nsfwjs: win.nsfwjs });
-        } else {
-          reject(new Error("NSFWJS or TFJS not attached to window object"));
-        }
-      };
-      nsfwScript.onerror = () => reject(new Error("Failed to load NSFWJS library"));
-      document.head.appendChild(nsfwScript);
-    };
-    tfScript.onerror = () => reject(new Error("Failed to load TensorFlow.js library"));
-    document.head.appendChild(tfScript);
-  });
-
-  return loadPromise;
+// Backward compatible loader helper
+export async function loadNSFWJSLibraries(): Promise<{ tf: any; nsfwjs: any }> {
+  return { tf, nsfwjs };
 }
 
 // Pre-load and warm up the NSFWJS model
 export async function getOrLoadNSFWModel(): Promise<any> {
   if (loadedModel) return loadedModel;
 
-  const { nsfwjs } = await loadNSFWJSLibraries();
-  // Load the model. You can specify a type like 'mobilenet_v2' (default) or 'inception_v3' (more accurate, larger)
-  // By default load() fetches mobilenet_v2
+  try {
+    tf.enableProdMode();
+  } catch (e) {
+    console.warn("Failed to enable tfjs prod mode", e);
+  }
+
+  // Load the model.
   loadedModel = await nsfwjs.load();
   return loadedModel;
 }
