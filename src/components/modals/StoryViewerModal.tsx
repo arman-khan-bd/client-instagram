@@ -283,7 +283,15 @@ export default function StoryViewerModal() {
         </div>
 
         {/* Story content / Media viewer */}
-        <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+        <div 
+          className="flex-1 relative flex items-center justify-center overflow-hidden"
+          onTouchStart={() => setIsPaused(true)}
+          onTouchEnd={() => setIsPaused(false)}
+          onTouchCancel={() => setIsPaused(false)}
+          onMouseDown={() => setIsPaused(true)}
+          onMouseUp={() => setIsPaused(false)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
           {activeStory.mediaType === "video" ? (
             <video
               src={activeStory.mediaUrl}

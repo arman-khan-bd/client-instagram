@@ -41,6 +41,7 @@ export interface MockPost {
   isTextOnly?: boolean;
   isReel?: boolean;
   mediaType?: "image" | "video" | "text";
+  originalPostId?: number;
 }
 
 export interface MockMessage {
@@ -521,11 +522,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Toasts helpers
   const showToast = (text: string, type: ToastMessage["type"] = "info") => {
-    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    setToasts((prev) => [...prev, { id, text, type }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 2800);
+    // Toast notifications disabled
   };
 
   const removeToast = (id: string) => {
