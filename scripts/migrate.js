@@ -204,6 +204,10 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 
+-- ── Post Custom Updates ───────────────────────────────────────────────────────
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdult" BOOLEAN DEFAULT FALSE;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdultUnmarked" BOOLEAN DEFAULT FALSE;
+
 -- ── Story Custom Updates ──────────────────────────────────────────────────────
 ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "audioUrl" TEXT;
 ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "musicName" TEXT;

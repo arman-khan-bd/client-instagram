@@ -220,6 +220,17 @@ class ApiClient {
     };
   }
 
+  async flagPostNSFW(postId: number | string, isAdult: boolean, isAdultUnmarked: boolean = false) {
+    const { error } = await supabase
+      .from('Post')
+      .update({ isAdult, isAdultUnmarked })
+      .eq('id', postId);
+    if (error) throw error;
+    // Invalidate Redis feed cache
+    await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
+    return { success: true };
+  }
+
   async likePost(postId: string | number) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');

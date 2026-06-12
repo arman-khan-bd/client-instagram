@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter, usePathname } from "next/navigation";
 import { api } from "../lib/api";
 import { supabase } from "../lib/supabase";
+import { scanFileForAdultContent } from "../lib/nsfwDetector";
 
 // Types
 export interface MockUser {
@@ -43,6 +44,8 @@ export interface MockPost {
   isReel?: boolean;
   mediaType?: "image" | "video" | "text";
   originalPostId?: number;
+  isAdult?: boolean;
+  isAdultUnmarked?: boolean;
 }
 
 export interface MockMessage {
@@ -578,6 +581,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             isTextOnly,
             isReel: isVideo,
             mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
+            isAdult: p.isAdult || false,
+            isAdultUnmarked: p.isAdultUnmarked || false,
           };
         });
 
@@ -1005,6 +1010,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       globalCachedPosts = null;
       globalLastFetchTime = 0;
       showToast("Post shared! 🎉", "success");
+
+      // Run background NSFW/adult check on the files
+      if (files.length > 0) {
+        (async () => {
+          try {
+            console.log("Background NSFW check started for post:", dbPost.id);
+            let containsAdult = false;
+            for (const file of files) {
+              const scan = await scanFileForAdultContent(file);
+              if (scan.isAdult) {
+                containsAdult = true;
+                break;
+              }
+            }
+            if (containsAdult) {
+              console.log(`NSFW content detected in post ${dbPost.id}! Updating DB...`);
+              await api.flagPostNSFW(dbPost.id, true);
+              setPosts((current) =>
+                current.map((p) => (p.id === dbPost.id ? { ...p, isAdult: true } : p))
+              );
+            }
+          } catch (err) {
+            console.error("Background NSFW check failed:", err);
+          }
+        })();
+      }
     } catch (err: any) {
       console.error("Create post error:", err);
       showToast(err.message || "Failed to share post", "info");

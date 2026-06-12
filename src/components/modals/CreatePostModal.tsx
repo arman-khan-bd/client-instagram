@@ -194,10 +194,8 @@ export default function CreatePostModal() {
   };
 
   const validateAndAddFiles = async (rawFiles: File[]) => {
-    setIsScanning(true);
-    
     // Prepare temporary preview URLs and metadata for valid files
-    const filesToScan: { file: File; url: string; type: "image" | "video" }[] = [];
+    const filesToAdd: { file: File; url: string; type: "image" | "video" }[] = [];
     
     for (const file of rawFiles) {
       const isVideo = file.type.startsWith("video/");
@@ -208,15 +206,14 @@ export default function CreatePostModal() {
         continue;
       }
 
-      filesToScan.push({
+      filesToAdd.push({
         file,
         url: URL.createObjectURL(file),
         type: isVideo ? "video" : "image"
       });
     }
 
-    if (filesToScan.length === 0) {
-      setIsScanning(false);
+    if (filesToAdd.length === 0) {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -224,82 +221,36 @@ export default function CreatePostModal() {
     // Capture the initial length of previews before appending
     const initialPreviewsLength = imagePreviews.length;
 
-    // Immediately add files to states to show previews on the screen
-    const newUrls = filesToScan.map((f) => f.url);
-    const newFiles = filesToScan.map((f) => f.file);
-    const newTypes = filesToScan.map((f) => f.type);
+    // Check duration for videos
+    const finalFilesToAdd: typeof filesToAdd = [];
+    for (const item of filesToAdd) {
+      if (item.type === "video") {
+        const duration = await new Promise<number>((resolve) => {
+          const vid = document.createElement("video");
+          vid.preload = "metadata";
+          vid.onloadedmetadata = () => { resolve(vid.duration); };
+          vid.onerror = () => { resolve(0); };
+          vid.src = item.url;
+        });
 
-    setImagePreviews((prev) => [...prev, ...newUrls]);
-    setSelectedFiles((prev) => [...prev, ...newFiles]);
-    setFileTypes((prev) => [...prev, ...newTypes]);
-    setScanningUrls((prev) => [...prev, ...newUrls]);
-    setSelectedBgIdx(null);
-    setActivePreviewIdx(initialPreviewsLength); // Focus on the first newly added item
-
-    // Scan each file sequentially
-    try {
-      for (const item of filesToScan) {
-        if (item.type === "video") {
-          // Duration check
-          const duration = await new Promise<number>((resolve) => {
-            const vid = document.createElement("video");
-            vid.preload = "metadata";
-            vid.onloadedmetadata = () => { resolve(vid.duration); };
-            vid.onerror = () => { resolve(0); };
-            vid.src = item.url;
-          });
-
-          if (duration > VIDEO_MAX_DURATION) {
-            showToast(`"${item.file.name}" exceeds 5-minute limit (${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s).`, "info");
-            
-            // Remove the video because it exceeds duration
-            setImagePreviews((prev) => {
-              const idx = prev.indexOf(item.url);
-              if (idx > -1) {
-                setSelectedFiles((sf) => sf.filter((_, i) => i !== idx));
-                setFileTypes((ft) => ft.filter((_, i) => i !== idx));
-                setActivePreviewIdx((activeIdx) => {
-                  return activeIdx >= prev.length - 1 ? Math.max(0, prev.length - 2) : activeIdx;
-                });
-                return prev.filter((_, i) => i !== idx);
-              }
-              return prev;
-            });
-            setScanningUrls((prev) => prev.filter((u) => u !== item.url));
-            continue;
-          }
-        }
-
-        // Run Adult content check
-        const scan = await scanFileForAdultContent(item.file);
-        
-        // Remove from scanning list
-        setScanningUrls((prev) => prev.filter((u) => u !== item.url));
-
-        if (scan.isAdult) {
-          showToast(`⚠️ WARNING: Adult content detected in "${item.file.name}" (${(scan.probability * 100).toFixed(1)}%). If you upload adult content, you will be banned automatically.`, "info");
-          alert(`WARNING: Nude or adult content detected! If you proceed to upload adult content, your account will be banned automatically. The file "${item.file.name}" has been rejected.`);
-          
-          // Remove the failed file
-          setImagePreviews((prev) => {
-            const idx = prev.indexOf(item.url);
-            if (idx > -1) {
-              setSelectedFiles((sf) => sf.filter((_, i) => i !== idx));
-              setFileTypes((ft) => ft.filter((_, i) => i !== idx));
-              setActivePreviewIdx((activeIdx) => {
-                return activeIdx >= prev.length - 1 ? Math.max(0, prev.length - 2) : activeIdx;
-              });
-              return prev.filter((_, i) => i !== idx);
-            }
-            return prev;
-          });
+        if (duration > VIDEO_MAX_DURATION) {
+          showToast(`"${item.file.name}" exceeds 5-minute limit (${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s).`, "info");
+          continue;
         }
       }
-    } catch (err: any) {
-      console.error("Scanning failed", err);
-      showToast("Error validation scanning files", "info");
-    } finally {
-      setIsScanning(false);
+      finalFilesToAdd.push(item);
+    }
+
+    if (finalFilesToAdd.length > 0) {
+      const urls = finalFilesToAdd.map((f) => f.url);
+      const files = finalFilesToAdd.map((f) => f.file);
+      const types = finalFilesToAdd.map((f) => f.type);
+
+      setImagePreviews((prev) => [...prev, ...urls]);
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setFileTypes((prev) => [...prev, ...types]);
+      setSelectedBgIdx(null);
+      setActivePreviewIdx(initialPreviewsLength);
     }
 
     // Reset input so same file can be re-selected

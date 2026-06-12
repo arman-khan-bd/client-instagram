@@ -362,6 +362,7 @@ export default function PostCard({ post }: PostCardProps) {
     toggleSave, toggleFollow,
     addComment, setViewingUserId, setActiveTab,
     setActivePostId, showToast, setSharePostId,
+    setPosts,
   } = useApp();
 
   const [commentText, setCommentText] = useState("");
@@ -376,6 +377,25 @@ export default function PostCard({ post }: PostCardProps) {
   const [reactionsList, setReactionsList] = useState<{ type: string; userId: string }[]>([]);
   const [showReactionsModal, setShowReactionsModal] = useState(false);
   const { currentUser } = useApp();
+
+  const [revealed, setRevealed] = useState(false);
+  const isOwner = currentUser && String(currentUser.id) === String(post.user.id);
+
+  const handleUnflag = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await api.flagPostNSFW(post.id, false, true);
+      setPosts((current) =>
+        current.map((p) => (p.id === post.id ? { ...p, isAdult: false, isAdultUnmarked: true } : p))
+      );
+      showToast("Post unmarked from NSFW", "success");
+    } catch (err) {
+      console.error("Failed to unflag post:", err);
+      showToast("Failed to unflag post", "info");
+    }
+  };
+
+  const showNsfwOverlay = post.isAdult && !post.isAdultUnmarked && !revealed;
 
   // Hover-on-button picker
   const [showHoverPicker, setShowHoverPicker] = useState(false);
@@ -752,6 +772,35 @@ export default function PostCard({ post }: PostCardProps) {
             </>
           )}
         </AnimatePresence>
+
+        {/* NSFW Blurred Overlay */}
+        {showNsfwOverlay && (
+          <div className="absolute inset-0 bg-[#0a0a0af2] backdrop-blur-3xl z-30 flex flex-col items-center justify-center p-6 text-center select-text">
+            <span className="text-[36px] mb-3">🔞</span>
+            <h4 className="text-[17px] font-bold text-white mb-1">Sensitive Content</h4>
+            <p className="text-[12px] text-gray-400 max-w-[240px] mb-6 leading-relaxed">
+              This post may contain adult or sensitive content.
+            </p>
+            <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
+              <button
+                type="button"
+                onClick={() => setRevealed(true)}
+                className="w-full py-2.5 rounded-full bg-white text-black font-extrabold text-[12px] hover:bg-gray-200 transition active:scale-95 cursor-pointer shadow-md"
+              >
+                See NSFW Post
+              </button>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={handleUnflag}
+                  className="w-full py-2.5 rounded-full bg-transparent hover:bg-white/5 border border-white/20 text-white font-bold text-[11px] transition active:scale-95 cursor-pointer"
+                >
+                  This is not NSFW Post
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Actions bar ────────────────────────────────────────────────────── */}
