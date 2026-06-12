@@ -52,6 +52,14 @@ export default function Reels() {
   const [showOverlays, setShowOverlays] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Custom Seekbar States
+  const [videoDurations, setVideoDurations] = useState<Record<number, number>>({});
+  const [videoCurrentTimes, setVideoCurrentTimes] = useState<Record<number, number>>({});
+
+  // Loop Button configuration (infinite, 1, 2, 3)
+  const [loopLimit, setLoopLimit] = useState<"infinite" | 1 | 2 | 3>("infinite");
+  const [reelPlayCounts, setReelPlayCounts] = useState<Record<number, number>>({});
+
   const resetHideTimer = useCallback(() => {
     setShowOverlays(true);
     if (hideTimerRef.current) {
@@ -73,6 +81,8 @@ export default function Reels() {
   // Reset hide timer when active video changes
   useEffect(() => {
     resetHideTimer();
+    // Reset play count for next video
+    setReelPlayCounts({});
   }, [activeVideoIdx, resetHideTimer]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -201,10 +211,8 @@ export default function Reels() {
     const origId = post.originalPostId || post.id;
 
     if (now - prevClick < 300) {
-      const activeReaction = reelsReactions[post.id]?.type || "";
-      if (!activeReaction) {
-        handleReact(post.id, origId, "love");
-      }
+      // Double click -> Always React/Like "love"
+      handleReact(post.id, origId, "love");
       lastReelClickTime.current[idx] = 0;
       resetHideTimer();
     } else {
@@ -217,14 +225,34 @@ export default function Reels() {
     }
   };
 
-  // Auto Scroll after reel ends
-  const handleVideoEnded = (idx: number) => {
-    if (!autoScroll) return;
+  // Auto Scroll after reel ends / Loop verification
+  const handleVideoEnded = (idx: number, post: MockPost) => {
+    const video = videoRefs.current[idx];
+    if (!video) return;
 
-    const cards = containerRef.current?.querySelectorAll("[data-reel-card]");
-    if (cards && idx < cards.length - 1) {
-      const nextCard = cards[idx + 1];
-      nextCard.scrollIntoView({ behavior: "smooth" });
+    // Increment manual play count
+    const currentPlays = (reelPlayCounts[post.id] || 0) + 1;
+    setReelPlayCounts((prev) => ({ ...prev, [post.id]: currentPlays }));
+
+    const limit = loopLimit === "infinite" ? Infinity : loopLimit;
+
+    if (currentPlays < limit) {
+      // Loop again manually
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      // Limit reached -> Auto scroll if enabled, otherwise stop
+      setReelPlayCounts((prev) => ({ ...prev, [post.id]: 0 }));
+      if (autoScroll) {
+        const cards = containerRef.current?.querySelectorAll("[data-reel-card]");
+        if (cards && idx < cards.length - 1) {
+          const nextCard = cards[idx + 1];
+          nextCard.scrollIntoView({ behavior: "smooth" });
+        }
+      } else {
+        video.pause();
+        setIsPlaying((prev) => ({ ...prev, [idx]: false }));
+      }
     }
   };
 
@@ -305,6 +333,62 @@ export default function Reels() {
     }
   };
 
+  // Long press directly on Video Card container
+  const longPressVideoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handlePointerDownVideo = (postId: number) => {
+    resetHideTimer();
+    if (longPressVideoTimer.current) clearTimeout(longPressVideoTimer.current);
+    longPressVideoTimer.current = setTimeout(() => {
+      setShowPickerForReelId(postId);
+    }, 450);
+  };
+
+  const handlePointerUpVideo = () => {
+    if (longPressVideoTimer.current) {
+      clearTimeout(longPressVideoTimer.current);
+      longPressVideoTimer.current = null;
+    }
+  };
+
+  // Custom Seekbar Handlers
+  const handleTimeUpdate = (idx: number, el: HTMLVideoElement) => {
+    setVideoCurrentTimes((prev) => ({ ...prev, [idx]: el.currentTime }));
+  };
+
+  const handleLoadedMetadata = (idx: number, el: HTMLVideoElement) => {
+    setVideoDurations((prev) => ({ ...prev, [idx]: el.duration }));
+  };
+
+  const handleSeek = (idx: number, e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = clickX / rect.width;
+    const video = videoRefs.current[idx];
+    if (video) {
+      video.currentTime = percentage * video.duration;
+    }
+    resetHideTimer();
+  };
+
+  const formatTime = (secs: number) => {
+    if (isNaN(secs)) return "0:00";
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
+  const toggleLoopLimit = () => {
+    setLoopLimit((prev) => {
+      if (prev === "infinite") return 1;
+      if (prev === 1) return 2;
+      if (prev === 2) return 3;
+      return "infinite";
+    });
+    resetHideTimer();
+  };
+
   // Dynamic opacity class helper for overlays
   const overlayClass = `transition-opacity duration-500 ${
     showOverlays ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
@@ -312,6 +396,14 @@ export default function Reels() {
 
   return (
     <div className="flex-1 bg-black h-full w-full relative flex items-center justify-center">
+      {/* Loop Cycle Toggle Button (Top-Left) */}
+      <button
+        onClick={toggleLoopLimit}
+        className={`absolute top-4 left-4 z-30 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-bold text-white hover:bg-white/15 transition shadow-lg ${overlayClass}`}
+      >
+        Loop: {loopLimit === "infinite" ? "Infinite" : `${loopLimit}x`}
+      </button>
+
       {/* Floating Glassmorphic Auto-Scroll Toggle */}
       <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 select-none flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg ${overlayClass}`}>
         <span className="text-[12px] font-bold tracking-wide text-white/95">Auto Scroll</span>
@@ -359,27 +451,53 @@ export default function Reels() {
           
           const matchingReaction = REACTIONS.find((r) => r.type === activeReaction);
 
+          const duration = videoDurations[idx] || 0;
+          const currentTime = videoCurrentTimes[idx] || 0;
+
           return (
             <div
               key={`reel-${post.id}`}
               data-idx={idx}
               data-reel-card
+              onPointerDown={() => handlePointerDownVideo(post.id)}
+              onPointerUp={handlePointerUpVideo}
+              onPointerCancel={handlePointerUpVideo}
+              onPointerLeave={handlePointerUpVideo}
               className="w-full h-full snap-start snap-always relative flex items-center justify-center overflow-hidden select-none bg-black"
               style={{ height: "100%" }}
             >
-              {/* Video Element */}
+              {/* Video Element - Changed styling to object-contain bg-black to stop zooming */}
               <video
                 ref={(el) => {
                   videoRefs.current[idx] = el;
                 }}
                 src={post.img}
-                loop={!autoScroll}
                 muted={muted}
                 playsInline
                 onClick={() => handleReelClick(idx, post)}
-                onEnded={() => handleVideoEnded(idx)}
-                className="w-full h-full object-cover cursor-pointer"
+                onEnded={() => handleVideoEnded(idx, post)}
+                onTimeUpdate={(e) => handleTimeUpdate(idx, e.currentTarget)}
+                onLoadedMetadata={(e) => handleLoadedMetadata(idx, e.currentTarget)}
+                className="w-full h-full object-contain bg-black cursor-pointer"
               />
+
+              {/* Custom Seekbar - Only renders if duration > 60s */}
+              {duration > 60 && (
+                <div className={`absolute bottom-3 left-4 right-14 z-20 flex items-center gap-2 ${overlayClass}`}>
+                  <span className="text-[10px] font-semibold text-white/95 select-none drop-shadow-md">{formatTime(currentTime)}</span>
+                  <div 
+                    onClick={(e) => handleSeek(idx, e)}
+                    className="flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer relative group py-2"
+                  >
+                    <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 bg-white/25 rounded-full" />
+                    <div 
+                      style={{ width: `${(currentTime / duration) * 100}%` }}
+                      className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-white rounded-full"
+                    />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/95 select-none drop-shadow-md">{formatTime(duration)}</span>
+                </div>
+              )}
 
               {/* Centered Play/Pause Overlay Animation */}
               {!playing && (
@@ -650,7 +768,7 @@ export default function Reels() {
                         <img
                           src={comment.user?.img || "https://i.pravatar.cc/80?img=1"}
                           alt={comment.user?.name || "user"}
-                          className="w-8 h-8 rounded-full object-cover shrink-0 border border-zinc-900"
+                          className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#222]"
                         />
                         <div className="flex-1 text-[13px] leading-relaxed">
                           <span className="font-bold text-white mr-1.5">{comment.user?.name}</span>

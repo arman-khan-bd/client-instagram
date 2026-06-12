@@ -77,11 +77,12 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
 }
 
 // ── Video Player in Feed ──────────────────────────────────────────────────────
-function FeedVideo({ src, poster, onDoubleTap }: { src: string; poster?: string; onDoubleTap?: () => void }) {
+function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
   const lastClickTime = useRef<number>(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-pause when scrolled out of view
   useEffect(() => {
@@ -99,6 +100,20 @@ function FeedVideo({ src, poster, onDoubleTap }: { src: string; poster?: string;
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  const handlePointerDown = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      if (onLongPress) onLongPress();
+    }, 450);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -136,7 +151,14 @@ function FeedVideo({ src, poster, onDoubleTap }: { src: string; poster?: string;
   };
 
   return (
-    <div className="relative w-full h-full bg-black cursor-pointer" onClick={handleClick}>
+    <div
+      className="relative w-full h-full bg-black cursor-pointer"
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+    >
       <video
         ref={videoRef}
         src={src}
@@ -450,6 +472,9 @@ export default function PostCard({ post }: PostCardProps) {
                       setShowHeartPop(true);
                       setTimeout(() => setShowHeartPop(false), 850);
                       commitReaction("love");
+                    }}
+                    onLongPress={() => {
+                      setShowLongPicker(true);
                     }}
                   />
                 );
