@@ -2,64 +2,110 @@
 
 import React, { useMemo } from "react";
 import { useApp } from "../AppContext";
-import { Heart, MessageCircle } from "lucide-react";
+import { Heart, MessageCircle, Film, Layers } from "lucide-react";
 
 export default function Explore() {
   const { posts, setActivePostId } = useApp();
 
-  // Create a randomized/shuffled grid list from posts
   const explorePosts = useMemo(() => {
-    // Generate enough seeds matching length of IMG_SEEDS (25)
-    return Array.from({ length: 25 }, (_, i) => {
+    if (posts.length === 0) return [];
+
+    // Ensure we have at least 24 items for a full premium grid
+    const count = Math.max(posts.length, 24);
+    return Array.from({ length: count }, (_, i) => {
       const post = posts[i % posts.length];
       if (!post) return null;
-      // create a pseudo-random seed to vary images slightly
-      const seed = 10 + i * 15;
-      const height = i % 5 === 0 ? 800 : 400;
+
+      // Define grid properties for Instagram-style dense layout
+      const isTall = i % 10 === 2 || i % 10 === 5;
+      
+      const seed = 100 + i * 27;
+      const height = isTall ? 600 : 300;
+      const fallbackImg = `https://picsum.photos/seed/${seed}/400/${height}`;
+      
+      const likesCount = post.likes ?? (Math.floor(Math.random() * 800) + 50);
+      const commentsCount = post.comments?.length ?? (Math.floor(Math.random() * 80) + 5);
+
       return {
         ...post,
         uniqueId: `${post.id}-explore-${i}`,
-        img: `https://picsum.photos/seed/${seed}/400/${height}`,
-        isTall: i % 5 === 0,
-        mockLikes: Math.floor(Math.random() * 9000) + 100,
-        mockCommentsCount: Math.floor(Math.random() * 500) + 10,
+        img: post.isTextOnly ? "" : (post.img || fallbackImg),
+        isTall,
+        likesCount,
+        commentsCount,
       };
     }).filter(Boolean);
   }, [posts]);
 
   return (
-    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">
-      <div className="max-w-[900px] mx-auto px-4 py-8">
-        <h2 className="text-[18px] font-bold mb-6">Explore</h2>
+    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none bg-black">
+      <div className="max-w-[935px] mx-auto px-4 py-6 sm:py-8">
+        <h2 className="text-[20px] font-bold mb-6 tracking-wide text-gray-100 hidden sm:block">Explore</h2>
         
         {/* Explore Grid */}
-        <div className="grid grid-cols-3 gap-1 md:gap-2 auto-rows-fr">
+        <div className="grid grid-cols-3 grid-flow-dense gap-1 md:gap-2 auto-rows-[110px] sm:auto-rows-[160px] md:auto-rows-[220px]">
           {explorePosts.map((item, i) => {
             if (!item) return null;
+
+            const hasMultipleImages = item.imgs && item.imgs.length > 1;
+            const isVideo = item.isReel || item.mediaType === "video";
+
             return (
               <div
                 key={item.uniqueId}
                 onClick={() => setActivePostId(item.id)}
-                className={`relative aspect-square overflow-hidden cursor-pointer group select-none ${
-                  item.isTall ? "row-span-2 aspect-auto h-full" : ""
+                className={`relative overflow-hidden cursor-pointer group select-none rounded-sm sm:rounded-md border border-[#111] ${
+                  item.isTall ? "row-span-2" : ""
                 }`}
               >
-                <img
-                  src={item.img}
-                  alt="Explore"
-                  className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
+                {/* Visual Content */}
+                {item.isTextOnly ? (
+                  <div
+                    style={{ background: item.bgGradient || "linear-gradient(45deg, #12c2e9, #c471ed, #f64f59)" }}
+                    className="w-full h-full flex items-center justify-center p-3 text-center font-bold text-[10px] sm:text-xs md:text-sm break-words text-white select-none"
+                  >
+                    <span className="line-clamp-4 px-1">{item.caption}</span>
+                  </div>
+                ) : isVideo ? (
+                  <div className="w-full h-full relative">
+                    <video
+                      src={item.img || item.imgs?.[0]}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                    />
+                    {/* Shadow overlay at bottom */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                  </div>
+                ) : (
+                  <img
+                    src={item.img}
+                    alt="Explore item"
+                    className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                )}
 
-                {/* Overlay stats */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-6 text-[14px] font-bold text-white">
-                  <span className="flex items-center gap-1.5">
-                    <Heart size={18} fill="currentColor" />
-                    {item.mockLikes >= 1000 ? (item.mockLikes / 1000).toFixed(1) + "K" : item.mockLikes}
+                {/* Media Indicator Overlay (Top Right) */}
+                {!item.isTextOnly && (
+                  <div className="absolute top-2 right-2 z-10 text-white drop-shadow-md opacity-90">
+                    {isVideo ? (
+                      <Film size={16} className="fill-white/10" />
+                    ) : hasMultipleImages ? (
+                      <Layers size={16} className="rotate-90" />
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Hover stats overlay */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm md:text-base font-bold text-white z-20">
+                  <span className="flex items-center gap-1.5 hover:scale-110 transition">
+                    <Heart size={18} className="fill-white" />
+                    {item.likesCount >= 1000 ? (item.likesCount / 1000).toFixed(1) + "K" : item.likesCount}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <MessageCircle size={18} fill="currentColor" />
-                    {item.mockCommentsCount}
+                  <span className="flex items-center gap-1.5 hover:scale-110 transition">
+                    <MessageCircle size={18} className="fill-white" />
+                    {item.commentsCount}
                   </span>
                 </div>
               </div>

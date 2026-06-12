@@ -300,17 +300,17 @@ export default function StoryViewerModal() {
       <style>{`
         @keyframes float-emoji {
           0% {
-            transform: translateY(100vh) scale(0.6);
+            transform: translateY(10vh) scale(0.6);
             opacity: 0;
           }
           10% {
             opacity: 1;
           }
           90% {
-            opacity: 1;
+            opacity: 0.9;
           }
           100% {
-            transform: translateY(-10vh) scale(1.6) rotate(var(--rotate-angle));
+            transform: translateY(-105vh) scale(1.6) rotate(var(--rotate-angle));
             opacity: 0;
           }
         }
@@ -320,7 +320,7 @@ export default function StoryViewerModal() {
           pointer-events: none;
           z-index: 50;
           animation: float-emoji var(--duration) ease-out forwards;
-          font-size: 28px;
+          font-size: 32px;
         }
       `}</style>
 
