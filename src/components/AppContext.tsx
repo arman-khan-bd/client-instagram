@@ -258,6 +258,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (pathname.startsWith("/reels/r/")) {
       return "reels";
     }
+    if (pathname.startsWith("/profile/") && pathname !== "/profile") {
+      return "profile";
+    }
     return PATHNAME_TO_TAB[pathname] || "home";
   });
   const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(() => {
@@ -277,7 +280,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync activeTab when pathname changes externally (back/forward)
   useEffect(() => {
-    const tab = pathname.startsWith("/reels/r/") ? "reels" : (PATHNAME_TO_TAB[pathname] || "home");
+    const isProfileUser = pathname.startsWith("/profile/") && pathname !== "/profile";
+    const tab = pathname.startsWith("/reels/r/") 
+      ? "reels" 
+      : isProfileUser 
+        ? "profile" 
+        : (PATHNAME_TO_TAB[pathname] || "home");
     setActiveTabState(tab);
 
     if (pathname.startsWith("/reels/r/")) {
@@ -286,17 +294,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (id) {
         localStorage.setItem("activeReelId", id);
       }
+    } else if (isProfileUser) {
+      const parts = pathname.split("/");
+      const username = decodeURIComponent(parts[parts.length - 1]);
+      setViewingUserId(username);
+    } else if (pathname === "/profile") {
+      setViewingUserId(null);
     }
   }, [pathname]);
 
   // setActiveTab pushes to router AND updates local state
   const setActiveTab = useCallback((tab: string) => {
     setActiveTabState(tab);
-    const target = TAB_TO_PATHNAME[tab] || "/";
+    let target = TAB_TO_PATHNAME[tab] || "/";
+    if (tab === "profile" && viewingUserId && currentUser && viewingUserId.toString() !== currentUser.id.toString() && viewingUserId.toString() !== currentUser.name.toString()) {
+      target = `/profile/${viewingUserId}`;
+    }
     if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
       router.push(target);
     }
-  }, [router, pathname]);
+  }, [router, pathname, viewingUserId, currentUser]);
 
   // Core Arrays
   const [posts, setPosts] = useState<MockPost[]>([]);
