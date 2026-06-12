@@ -1,8 +1,95 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useApp } from "../AppContext";
-import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image } from "lucide-react";
+import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image, Film } from "lucide-react";
+
+// ── VideoThumbnailPicker ──────────────────────────────────────────────────────
+interface VideoThumbnailPickerProps {
+  videoSrc: string; // object URL for the video file
+  onSelect: (dataUrl: string) => void;
+  selectedIdx: number | null;
+  onSelectIdx: (idx: number) => void;
+  frames: string[]; // dataURLs
+  onFramesReady: (frames: string[]) => void;
+}
+
+function VideoThumbnailPicker({ videoSrc, onSelect, selectedIdx, onSelectIdx, frames, onFramesReady }: VideoThumbnailPickerProps) {
+  const extracting = frames.length === 0;
+
+  useEffect(() => {
+    if (!videoSrc || frames.length > 0) return;
+    const video = document.createElement("video");
+    video.src = videoSrc;
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.preload = "auto";
+
+    const FRAME_COUNT = 6;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const results: string[] = [];
+
+    video.onloadedmetadata = async () => {
+      const duration = video.duration;
+      canvas.width = 160;
+      canvas.height = 160;
+
+      for (let i = 0; i < FRAME_COUNT; i++) {
+        const t = (i / (FRAME_COUNT - 1)) * (duration - 0.1);
+        await new Promise<void>((resolve) => {
+          video.currentTime = t;
+          const handler = () => {
+            try {
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                results.push(canvas.toDataURL("image/jpeg", 0.85));
+              }
+            } catch {}
+            video.removeEventListener("seeked", handler);
+            resolve();
+          };
+          video.addEventListener("seeked", handler, { once: true });
+        });
+      }
+      onFramesReady(results);
+      if (results.length > 0) { onSelectIdx(0); onSelect(results[0]); }
+    };
+  }, [videoSrc]);
+
+  return (
+    <div className="px-3 py-3 border-t border-[#1e1e1e]">
+      <p className="text-[11px] font-semibold text-[#a8a8a8] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+        <Film size={12} className="text-[#FF2E93]" /> Choose thumbnail
+      </p>
+      {extracting ? (
+        <div className="flex gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="w-14 h-14 rounded-lg bg-[#1a1a1a] animate-pulse shrink-0" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {frames.map((frame, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { onSelectIdx(i); onSelect(frame); }}
+              className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition cursor-pointer ${
+                selectedIdx === i
+                  ? "border-[#FF2E93] ring-2 ring-[#FF2E93]/30"
+                  : "border-transparent hover:border-white/40"
+              }`}
+            >
+              <img src={frame} alt={`frame ${i}`} className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 const EMOJIS = ["😊", "😂", "❤️", "🔥", "👍", "😭", "😍", "✨", "🎉", "🚀", "💀", "👀"];
 const SUGGESTED_LOCATIONS = ["New York, USA", "Tokyo, Japan", "Paris, France", "London, UK", "Aura Space 🌌", "Silicon Valley, CA"];
@@ -49,6 +136,11 @@ export default function CreatePostModal() {
   const [isSharing, setIsSharing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Thumbnail picker state (for video files)
+  const [thumbnailFrames, setThumbnailFrames] = useState<string[]>([]); // extracted frames
+  const [selectedThumbnailIdx, setSelectedThumbnailIdx] = useState<number | null>(null);
+  const [selectedThumbnailDataUrl, setSelectedThumbnailDataUrl] = useState<string | null>(null);
+
   // Advanced metadata fields
   const [selectedFilter, setSelectedFilter] = useState("none");
   const [location, setLocation] = useState("");
@@ -85,6 +177,9 @@ export default function CreatePostModal() {
     setSelectedBgIdx(null);
     setActivePanel(null);
     setIsSharing(false);
+    setThumbnailFrames([]);
+    setSelectedThumbnailIdx(null);
+    setSelectedThumbnailDataUrl(null);
   };
 
   const validateAndAddFiles = async (rawFiles: File[]) => {
@@ -107,10 +202,7 @@ export default function CreatePostModal() {
           const vid = document.createElement("video");
           vid.preload = "metadata";
           const url = URL.createObjectURL(file);
-          vid.onloadedmetadata = () => {
-            resolve(vid.duration);
-            URL.revokeObjectURL(url);
-          };
+          vid.onloadedmetadata = () => { resolve(vid.duration); URL.revokeObjectURL(url); };
           vid.onerror = () => { resolve(0); URL.revokeObjectURL(url); };
           vid.src = url;
         });
@@ -123,6 +215,10 @@ export default function CreatePostModal() {
         validFiles.push(file);
         validUrls.push(URL.createObjectURL(file));
         validTypes.push("video");
+        // Reset thumbnail frames for new video
+        setThumbnailFrames([]);
+        setSelectedThumbnailIdx(null);
+        setSelectedThumbnailDataUrl(null);
       } else {
         validFiles.push(file);
         validUrls.push(URL.createObjectURL(file));
@@ -229,6 +325,7 @@ export default function CreatePostModal() {
           feelings: feeling,
           tags: userTags,
           music: music ? `${music} 🎶` : undefined,
+          thumbnailDataUrl: selectedThumbnailDataUrl || undefined,
         });
       }
       handleClose();
@@ -347,6 +444,18 @@ export default function CreatePostModal() {
                   </div>
                 )}
               </div>
+
+              {/* Video Thumbnail Picker — only shown when current preview is a video */}
+              {!isTextOnlyPost && imagePreviews.length > 0 && fileTypes[activePreviewIdx] === "video" && (
+                <VideoThumbnailPicker
+                  videoSrc={imagePreviews[activePreviewIdx]}
+                  frames={thumbnailFrames}
+                  onFramesReady={setThumbnailFrames}
+                  selectedIdx={selectedThumbnailIdx}
+                  onSelectIdx={setSelectedThumbnailIdx}
+                  onSelect={setSelectedThumbnailDataUrl}
+                />
+              )}
 
               {/* Photos Filters Carousel (Only if showing images, not videos) */}
               {!isTextOnlyPost && imagePreviews.length > 0 && fileTypes[activePreviewIdx] !== "video" && (

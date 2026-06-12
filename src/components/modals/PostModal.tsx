@@ -25,7 +25,8 @@ export default function PostModal() {
     posts, likedPosts, savedPosts,
     toggleLike, toggleSave,
     setViewingUserId, setActiveTab,
-    showToast,
+    showToast, pendingComments, clearPendingComments,
+    setSharePostId,
   } = useApp();
 
   // ── ALL hooks must come before any early return ───────────────────────────
@@ -70,10 +71,12 @@ export default function PostModal() {
         if (reaction) setCurrentReaction(reaction as ReactionType);
         else setCurrentReaction(null);
         setReactionsList(reactionsDetails as any[]);
+        // Clear pending now that we have fresh DB data
+        clearPendingComments(activePostId);
       })
       .catch(() => {})
       .finally(() => setLoadingComments(false));
-  }, [activePostId]);
+  }, [activePostId, clearPendingComments]);
 
   // Auto-scroll to newest comment
   useEffect(() => {
@@ -124,6 +127,29 @@ export default function PostModal() {
 
   // ── Early return after ALL hooks ──────────────────────────────────────────
   if (!activePost) return null;
+
+  // Merge DB comments with optimistic pending comments (from feed card)
+  const allComments = (() => {
+    const pending = activePostId ? (pendingComments[activePostId] || []) : [];
+    // Map pending MockComment → DbComment shape
+    const pendingAsDb: DbComment[] = pending.map((c) => ({
+      id: c.id,
+      text: c.text,
+      createdAt: new Date().toISOString(),
+      likeCount: 0,
+      isLiked: false,
+      user: {
+        id: String(c.user.id),
+        username: c.user.name,
+        fullName: c.user.name,
+        avatarUrl: c.user.img,
+      },
+    }));
+    // Deduplicate: filter out pending whose text already exists in dbComments
+    const dbTexts = new Set(dbComments.map((c) => c.text));
+    const uniquePending = pendingAsDb.filter((c) => !dbTexts.has(c.text));
+    return [...dbComments, ...uniquePending];
+  })();
 
   const isLiked      = !!likedPosts[activePost.id] || !!currentReaction;
   const isSaved      = savedPosts.has(activePost.id);
@@ -250,50 +276,48 @@ export default function PostModal() {
             >
               {activePost.caption}
             </div>
-          ) : (
-            <>
-              <img
-                src={images[activeImgIdx] || ""}
-                alt="post"
-                className="w-full h-full object-contain max-h-[88vh]"
-                style={{
-                  filter: activePost.filter && activePost.filter !== "none"
-                    ? activePost.filter
-                    : undefined,
-                }}
-              />
-              {images.length > 1 && (
-                <>
-                  {activeImgIdx > 0 && (
-                    <button
-                      onClick={() => setActiveImgIdx((p) => p - 1)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 cursor-pointer"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-                  )}
-                  {activeImgIdx < images.length - 1 && (
-                    <button
-                      onClick={() => setActiveImgIdx((p) => p + 1)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 cursor-pointer"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  )}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
-                    {images.map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
-                          idx === activeImgIdx ? "bg-white scale-125" : "bg-white/40"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )}
+          ) : (() => {
+            const isVideoPost = activePost.isReel || activePost.mediaType === "video" ||
+              images.some((u) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/"));
+            const videoSrc = isVideoPost
+              ? (images.find((u) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/")) || images[0])
+              : null;
+            if (isVideoPost && videoSrc) {
+              return (
+                <video src={videoSrc} poster={activePost.img || undefined}
+                  className="w-full h-full object-contain max-h-[88vh]" controls playsInline />
+              );
+            }
+            return (
+              <>
+                <img src={images[activeImgIdx] || ""} alt="post"
+                  className="w-full h-full object-contain max-h-[88vh]"
+                  style={{ filter: activePost.filter && activePost.filter !== "none" ? activePost.filter : undefined }}
+                />
+                {images.length > 1 && (
+                  <>
+                    {activeImgIdx > 0 && (
+                      <button onClick={() => setActiveImgIdx((p) => p - 1)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 cursor-pointer">
+                        <ChevronLeft size={18} />
+                      </button>
+                    )}
+                    {activeImgIdx < images.length - 1 && (
+                      <button onClick={() => setActiveImgIdx((p) => p + 1)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 cursor-pointer">
+                        <ChevronRight size={18} />
+                      </button>
+                    )}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
+                      {images.map((_, idx) => (
+                        <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${idx === activeImgIdx ? "bg-white scale-125" : "bg-white/40"}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* ── RIGHT: header + comments + actions ──────────────────────────── */}
@@ -357,19 +381,19 @@ export default function PostModal() {
 
             <div className="border-t border-[#1a1a1a]" />
 
-            {/* DB comments */}
-            {loadingComments ? (
+            {/* DB comments + pending optimistic comments */}
+            {loadingComments && dbComments.length === 0 ? (
               <div className="text-center text-[12px] text-[#555] py-6 animate-pulse">
                 Loading comments…
               </div>
-            ) : dbComments.length === 0 ? (
+            ) : allComments.length === 0 ? (
               <div className="text-center text-[12px] text-[#444] py-8">
                 No comments yet.
                 <br />
                 <span className="text-[#666]">Be the first!</span>
               </div>
             ) : (
-              dbComments.map((c) => (
+              allComments.map((c) => (
                 <div key={c.id} className="flex gap-3 items-start group">
                   <img
                     src={c.user.avatarUrl || `https://i.pravatar.cc/80?u=${c.user.id}`}
@@ -475,7 +499,7 @@ export default function PostModal() {
               </button>
 
               <button
-                onClick={() => showToast("Link copied! 📋", "share")}
+                onClick={() => setSharePostId(activePost.id)}
                 className="text-white hover:scale-105 active:scale-95 transition cursor-pointer"
               >
                 <Send size={22} />

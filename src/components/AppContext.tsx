@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { api } from "../lib/api";
 import { supabase } from "../lib/supabase";
 
@@ -122,15 +123,23 @@ interface AppContextType {
   savedPosts: Set<number>;
   followStates: Record<string | number, boolean>;
 
+  // Pending (optimistic) comments — keyed by postId
+  pendingComments: Record<number, MockComment[]>;
+
   // Interaction handlers
   toggleLike: (postId: number) => void;
   toggleSave: (postId: number) => void;
   toggleFollow: (userId: string | number) => void;
   addComment: (postId: number, text: string) => void;
+  clearPendingComments: (postId: number) => void;
   sendMessage: (chatId: number, text: string) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
-  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean }) => Promise<void>;
+  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => Promise<void>;
+
+  // Share dialog
+  sharePostId: number | null;
+  setSharePostId: (id: number | null) => void;
 
   // Modals state
   storyViewerIndex: number | null;
@@ -207,16 +216,63 @@ const INITIAL_DM_MESSAGES: Record<number, MockMessage[]> = {
   ],
 };
 
+// Map URL pathname → tab name
+const PATHNAME_TO_TAB: Record<string, string> = {
+  "/": "home",
+  "/search": "search",
+  "/explore": "explore",
+  "/reels": "reels",
+  "/messages": "messages",
+  "/notifications": "notifications",
+  "/profile": "profile",
+};
+const TAB_TO_PATHNAME: Record<string, string> = {
+  home: "/",
+  search: "/search",
+  explore: "/explore",
+  reels: "/reels",
+  messages: "/messages",
+  notifications: "/notifications",
+  profile: "/profile",
+};
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [activeTab, setActiveTab] = useState<string>("home");
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Derive initial tab from URL
+  const [activeTab, setActiveTabState] = useState<string>(
+    PATHNAME_TO_TAB[pathname] || "home"
+  );
   const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(null);
   const [viewingUserId, setViewingUserId] = useState<string | number | null>(null);
+
+  // Sync activeTab when pathname changes externally (back/forward)
+  useEffect(() => {
+    const tab = PATHNAME_TO_TAB[pathname] || "home";
+    setActiveTabState(tab);
+  }, [pathname]);
+
+  // setActiveTab pushes to router AND updates local state
+  const setActiveTab = useCallback((tab: string) => {
+    setActiveTabState(tab);
+    const target = TAB_TO_PATHNAME[tab] || "/";
+    if (pathname !== target) {
+      router.push(target);
+    }
+  }, [router, pathname]);
 
   // Core Arrays
   const [posts, setPosts] = useState<MockPost[]>([]);
   const [chats, setChats] = useState<MockChatSession[]>(INITIAL_DM_DATA);
   const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>(INITIAL_DM_MESSAGES);
   const [notifications, setNotifications] = useState<MockNotification[]>([]);
+
+  // Pending (optimistic) comments — bridge between feed inline comment and PostModal
+  const [pendingComments, setPendingComments] = useState<Record<number, MockComment[]>>({});
+
+  // Share dialog
+  const [sharePostId, setSharePostId] = useState<number | null>(null);
 
   // User states
   const [likedPosts, setLikedPosts] = useState<Record<number, boolean>>({});
@@ -570,25 +626,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addComment = (postId: number, text: string) => {
     if (!text.trim()) return;
+    const newComment: MockComment = {
+      id: Date.now(),
+      user: { id: 0, name: currentUser?.name || "alex_dev", img: currentUser?.img || "https://i.pravatar.cc/80?img=1" },
+      text: text,
+      time: "now",
+      liked: false,
+    };
+    // Update post.comments in feed
     setPosts((prevPosts) =>
       prevPosts.map((p) => {
         if (p.id === postId) {
-          const newComment: MockComment = {
-            id: Date.now(),
-            user: { id: 0, name: currentUser?.name || "alex_dev", img: currentUser?.img || "https://i.pravatar.cc/80?img=1" },
-            text: text,
-            time: "now",
-            liked: false,
-          };
-          return {
-            ...p,
-            comments: [...p.comments, newComment],
-          };
+          return { ...p, comments: [...p.comments, newComment] };
         }
         return p;
       })
     );
+    // Also push to pendingComments so PostModal can pick it up immediately
+    setPendingComments((prev) => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), newComment],
+    }));
     showToast("Comment posted!", "comment");
+  };
+
+  // Called by PostModal after it loads fresh DB comments, so we don't show duplicates
+  const clearPendingComments = (postId: number) => {
+    setPendingComments((prev) => {
+      const next = { ...prev };
+      delete next[postId];
+      return next;
+    });
   };
 
   const sendMessage = (chatId: number, text: string) => {
@@ -664,7 +732,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const createPost = async (
     files: File[],
     caption: string,
-    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean }
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string }
   ) => {
     let finalCaption = caption;
     if (options?.feelings) {
@@ -686,6 +754,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         bgGradient: options?.bgGradient,
         isTextOnly: options?.isTextOnly,
         filter: options?.filter,
+        thumbnailDataUrl: options?.thumbnailDataUrl,
       });
 
       const mediaUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
@@ -797,14 +866,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         likedPosts,
         savedPosts,
         followStates,
+        pendingComments,
         toggleLike,
         toggleSave,
         toggleFollow,
         addComment,
+        clearPendingComments,
         sendMessage,
         sendEmojiMessage,
         createPost,
         saveProfileChanges,
+        sharePostId,
+        setSharePostId,
         storyViewerIndex,
         setStoryViewerIndex,
         activePostId,

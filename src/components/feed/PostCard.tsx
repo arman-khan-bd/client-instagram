@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useApp, MockPost } from "../AppContext";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import ReactionsModal from "../modals/ReactionsModal";
@@ -26,10 +26,9 @@ function getReactionInfo(reaction: ReactionType) {
   return REACTIONS.find((r) => r.type === reaction) ?? null;
 }
 
-// ── Inline Reaction Picker (used by both hover-on-button and long-press) ──────
+// ── Inline Reaction Picker ────────────────────────────────────────────────────
 interface ReactionPickerProps {
   visible: boolean;
-  /** Element that anchors the picker above (used for hover) */
   anchorBottom?: boolean;
   hoveredIdx: number | null;
   onHover: (idx: number | null) => void;
@@ -37,14 +36,7 @@ interface ReactionPickerProps {
   onMouseLeave?: () => void;
 }
 
-function ReactionPicker({
-  visible,
-  anchorBottom = true,
-  hoveredIdx,
-  onHover,
-  onSelect,
-  onMouseLeave,
-}: ReactionPickerProps) {
+function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onSelect, onMouseLeave }: ReactionPickerProps) {
   return (
     <AnimatePresence>
       {visible && (
@@ -84,6 +76,94 @@ function ReactionPicker({
   );
 }
 
+// ── Video Player in Feed ──────────────────────────────────────────────────────
+function FeedVideo({ src, poster }: { src: string; poster?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+
+  // Auto-pause when scrolled out of view
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) {
+          el.pause();
+          setPlaying(false);
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.paused) {
+      el.play();
+      setPlaying(true);
+    } else {
+      el.pause();
+      setPlaying(false);
+    }
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const el = videoRef.current;
+    if (!el) return;
+    el.muted = !el.muted;
+    setMuted(el.muted);
+  };
+
+  return (
+    <div className="relative w-full h-full bg-black" onClick={togglePlay}>
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        className="w-full h-full object-cover"
+        playsInline
+        muted={muted}
+        loop
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+      />
+      {/* Play/pause overlay */}
+      <AnimatePresence>
+        {!playing && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <div className="w-16 h-16 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
+              <Play size={28} className="text-white ml-1" fill="white" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Mute / unmute button */}
+      <button
+        onClick={toggleMute}
+        className="absolute bottom-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition z-10"
+      >
+        {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+      </button>
+      {/* Reel badge */}
+      <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10">
+        🎬 REEL
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 interface PostCardProps { post: MockPost }
 
@@ -92,7 +172,7 @@ export default function PostCard({ post }: PostCardProps) {
     savedPosts,
     toggleSave, toggleFollow,
     addComment, setViewingUserId, setActiveTab,
-    setActivePostId, showToast,
+    setActivePostId, showToast, setSharePostId,
   } = useApp();
 
   const [commentText, setCommentText] = useState("");
@@ -102,8 +182,8 @@ export default function PostCard({ post }: PostCardProps) {
 
   // ── Reaction state ─────────────────────────────────────────────────────────
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
-  const [hasReacted, setHasReacted] = useState(false);     // DB-confirmed reaction exists
-  const [localLikes, setLocalLikes]   = useState(post.likes); // local like count, avoids broken toggleLike
+  const [hasReacted, setHasReacted] = useState(false);
+  const [localLikes, setLocalLikes]   = useState(post.likes);
   const [reactionsList, setReactionsList] = useState<{ type: string; userId: string }[]>([]);
   const [showReactionsModal, setShowReactionsModal] = useState(false);
   const { currentUser } = useApp();
@@ -126,50 +206,46 @@ export default function PostCard({ post }: PostCardProps) {
   const isSaved     = savedPosts.has(post.id);
   const reactionInfo = getReactionInfo(currentReaction);
 
-  // Load existing reaction from DB — also initialise hasReacted + like count + reactions details
+  // Detect if this post is a video/reel
+  const isVideo = post.isReel || post.mediaType === "video" ||
+    (post.imgs && post.imgs.some((u) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/")));
+
+  // The video src (first video media url)
+  const videoSrc = isVideo
+    ? (post.imgs?.find((u) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/")) || post.img)
+    : "";
+
+  // Load existing reaction from DB
   useEffect(() => {
     api.getPostReaction(post.id).then((r) => {
-      if (r) {
-        setCurrentReaction(r as ReactionType);
-        setHasReacted(true);
-      }
+      if (r) { setCurrentReaction(r as ReactionType); setHasReacted(true); }
     }).catch(() => {});
-
     api.getPostReactionsDetails(post.id).then((list) => {
       setReactionsList(list as any[]);
     }).catch(() => {});
   }, [post.id]);
 
-  // ── Shared: commit a reaction ──────────────────────────────────────────────
+  // ── Commit a reaction ──────────────────────────────────────────────────────
   const commitReaction = useCallback((type: string) => {
     setShowHoverPicker(false);
     setShowLongPicker(false);
     setHoverPickerHovIdx(null);
     setLongPickerHovIdx(null);
 
-    // Save previous state for rollback
     const prevReaction = currentReaction;
     const prevHasReacted = hasReacted;
     const prevLocalLikes = localLikes;
     const prevReactionsList = reactionsList;
-
-    // Instant/optimistic update
     const isTogglingOff = currentReaction === type;
     const currentUserId = currentUser?.id;
 
     if (isTogglingOff) {
-      setCurrentReaction(null);
-      setHasReacted(false);
+      setCurrentReaction(null); setHasReacted(false);
       setLocalLikes((l) => Math.max(0, l - 1));
-      if (currentUserId) {
-        setReactionsList((prev) => prev.filter((r) => r.userId !== currentUserId));
-      }
+      if (currentUserId) setReactionsList((prev) => prev.filter((r) => r.userId !== currentUserId));
     } else {
-      setCurrentReaction(type as ReactionType);
-      setHasReacted(true);
-      if (!prevHasReacted) {
-        setLocalLikes((l) => l + 1);
-      }
+      setCurrentReaction(type as ReactionType); setHasReacted(true);
+      if (!prevHasReacted) setLocalLikes((l) => l + 1);
       if (currentUserId) {
         setReactionsList((prev) => {
           const filtered = prev.filter((r) => r.userId !== currentUserId);
@@ -180,87 +256,56 @@ export default function PostCard({ post }: PostCardProps) {
       if (r) showToast(`${r.emoji} ${r.label}`, "notification");
     }
 
-    // Call API in the background
     api.reactToPost(post.id, type)
       .then((result) => {
-        if (result.reaction === null) {
-          setCurrentReaction(null);
-          setHasReacted(false);
-        } else {
-          setCurrentReaction(result.reaction as ReactionType);
-          setHasReacted(true);
-        }
-        api.getPostReactionsDetails(post.id).then((list) => {
-          setReactionsList(list as any[]);
-        }).catch(() => {});
+        if (result.reaction === null) { setCurrentReaction(null); setHasReacted(false); }
+        else { setCurrentReaction(result.reaction as ReactionType); setHasReacted(true); }
+        api.getPostReactionsDetails(post.id).then((list) => setReactionsList(list as any[])).catch(() => {});
       })
       .catch((err) => {
-        console.error("Optimistic reaction commit failed, rolling back:", err);
-        setCurrentReaction(prevReaction);
-        setHasReacted(prevHasReacted);
-        setLocalLikes(prevLocalLikes);
-        setReactionsList(prevReactionsList);
+        console.error("Optimistic reaction commit failed:", err);
+        setCurrentReaction(prevReaction); setHasReacted(prevHasReacted);
+        setLocalLikes(prevLocalLikes); setReactionsList(prevReactionsList);
         showToast("Log in to react", "info");
       });
   }, [post.id, currentReaction, hasReacted, localLikes, reactionsList, currentUser, showToast]);
 
-  // ── Simple click on reaction button (no picker) ─────────────────────────────
   const handleSimpleLike = useCallback(() => {
-    if (showHoverPicker) return; // picker open — let user pick from it
-    commitReaction(currentReaction ?? "love"); // toggles if same, un-reacts if null
+    if (showHoverPicker) return;
+    commitReaction(currentReaction ?? "love");
   }, [showHoverPicker, currentReaction, commitReaction]);
 
-  // ── HOVER PICKER (desktop heart button): hover shows, click commits ─────────
   const startHoverShow = () => {
     if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
     hoverShowTimer.current = setTimeout(() => setShowHoverPicker(true), 340);
   };
   const startHoverHide = () => {
     if (hoverShowTimer.current) clearTimeout(hoverShowTimer.current);
-    // No auto-commit on leave — user must click a reaction
-    hoverHideTimer.current = setTimeout(() => {
-      setShowHoverPicker(false);
-      setHoverPickerHovIdx(null);
-    }, 220);
+    hoverHideTimer.current = setTimeout(() => { setShowHoverPicker(false); setHoverPickerHovIdx(null); }, 220);
   };
-  const cancelHoverHide = () => {
-    if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
-  };
+  const cancelHoverHide = () => { if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current); };
 
-  // ── LONG-PRESS PICKER (image): hold shows, click reaction to commit ──────────
   const onImagePointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     isLongPress.current = false;
-    longPressTimer.current = setTimeout(() => {
-      isLongPress.current = true;
-      setShowLongPicker(true);
-    }, 480);
+    longPressTimer.current = setTimeout(() => { isLongPress.current = true; setShowLongPicker(true); }, 480);
   };
-
   const onImagePointerUp = (e: React.PointerEvent) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    // If picker is open, just close it — user clicks a reaction emoji to commit
     if (showLongPicker) return;
-    // Double-tap detection
     if (!isLongPress.current) {
       const now = Date.now();
       if (now - lastTap.current < 300) {
-        setShowHeartPop(true);
-        setTimeout(() => setShowHeartPop(false), 850);
-        commitReaction("love"); // Force a "love" reaction on double-tap
-        lastTap.current = 0;
-      } else {
-        lastTap.current = now;
-      }
+        setShowHeartPop(true); setTimeout(() => setShowHeartPop(false), 850);
+        commitReaction("love"); lastTap.current = 0;
+      } else { lastTap.current = now; }
     }
   };
-
   const onImagePointerCancel = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     if (!showLongPicker) isLongPress.current = false;
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   const handlePostComment = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!commentText.trim()) return;
@@ -269,8 +314,7 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   const handleUserClick = (userId: number) => {
-    setViewingUserId(userId);
-    setActiveTab("profile");
+    setViewingUserId(userId); setActiveTab("profile");
   };
 
   const formatCaption = (text: string) =>
@@ -287,18 +331,11 @@ export default function PostCard({ post }: PostCardProps) {
 
   const getDisplayEmojis = () => {
     const counts: Record<string, number> = {};
-    reactionsList.forEach((r) => {
-      counts[r.type] = (counts[r.type] || 0) + 1;
-    });
-
+    reactionsList.forEach((r) => { counts[r.type] = (counts[r.type] || 0) + 1; });
     const sortedTypes = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     const top2 = sortedTypes.slice(0, 2);
     const emojisToShow = [...top2];
-
-    if (currentReaction && !top2.includes(currentReaction)) {
-      emojisToShow.push(currentReaction);
-    }
-
+    if (currentReaction && !top2.includes(currentReaction)) emojisToShow.push(currentReaction);
     return emojisToShow.map((type) => REACTIONS.find((r) => r.type === type)?.emoji).filter(Boolean);
   };
 
@@ -310,25 +347,18 @@ export default function PostCard({ post }: PostCardProps) {
         <img
           src={post.user.img}
           className={`w-[38px] h-[38px] rounded-full object-cover cursor-pointer ${
-            post.hasStory
-              ? "p-[2px] bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
-              : "border border-[#222]"
+            post.hasStory ? "p-[2px] bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]" : "border border-[#222]"
           }`}
           alt={post.user.name}
           onClick={() => handleUserClick(post.user.id)}
         />
         <div className="flex-1">
-          <span
-            onClick={() => handleUserClick(post.user.id)}
-            className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1"
-          >
+          <span onClick={() => handleUserClick(post.user.id)} className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1">
             {post.user.name}
             {post.user.verified && <span className="text-[#3897f0] text-[11px]">✓</span>}
           </span>
           {post.location && <div className="text-[11px] text-[#a8a8a8]">{post.location}</div>}
         </div>
-
-        {/* Context menu */}
         <div className="relative">
           <button onClick={() => setShowMenu(!showMenu)} className="text-[#a8a8a8] hover:text-white p-1 cursor-pointer">
             <MoreHorizontal size={18} />
@@ -345,7 +375,7 @@ export default function PostCard({ post }: PostCardProps) {
                   <div onClick={() => setShowMenu(false)} className="p-3 text-red-500 hover:bg-[#222] cursor-pointer">🚩 Report</div>
                   <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🚫 Not interested</div>
                   <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">➕ Follow</div>
-                  <div onClick={() => { showToast("Link copied! 📋", "share"); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🔗 Copy link</div>
+                  <div onClick={() => { setSharePostId(post.id); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🔗 Share</div>
                 </motion.div>
               </>
             )}
@@ -356,27 +386,24 @@ export default function PostCard({ post }: PostCardProps) {
       {/* ── Post Media ─────────────────────────────────────────────────────── */}
       <div
         className="relative aspect-square overflow-hidden select-none"
-        style={{ cursor: showLongPicker ? "default" : "default" }}
-        onPointerDown={onImagePointerDown}
-        onPointerUp={onImagePointerUp}
-        onPointerCancel={onImagePointerCancel}
-        onPointerLeave={onImagePointerCancel}
+        onPointerDown={isVideo ? undefined : onImagePointerDown}
+        onPointerUp={isVideo ? undefined : onImagePointerUp}
+        onPointerCancel={isVideo ? undefined : onImagePointerCancel}
+        onPointerLeave={isVideo ? undefined : onImagePointerCancel}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* ── Color / Text-only post ──────────────────────────────────────── */}
         {post.isTextOnly ? (
           <div
             className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words"
-            style={{
-              background: post.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)",
-              fontSize: "clamp(18px, 5vw, 30px)",
-              textShadow: "0 2px 12px rgba(0,0,0,0.35)",
-            }}
+            style={{ background: post.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)", fontSize: "clamp(18px, 5vw, 30px)", textShadow: "0 2px 12px rgba(0,0,0,0.35)" }}
           >
             {post.caption}
           </div>
+        ) : isVideo ? (
+          // ── Video / Reel ──────────────────────────────────────────────────
+          <FeedVideo src={videoSrc} poster={post.img || undefined} />
         ) : (
-          /* ── Image carousel ──────────────────────────────────────────── */
+          // ── Image carousel ────────────────────────────────────────────────
           <div className="relative w-full h-full">
             <img
               src={post.imgs && post.imgs.length > 0 ? post.imgs[activeImgIndex] : post.img}
@@ -388,33 +415,22 @@ export default function PostCard({ post }: PostCardProps) {
             {post.imgs && post.imgs.length > 1 && (
               <>
                 {activeImgIndex > 0 && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
+                  <button type="button" onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setActiveImgIndex((p) => p - 1); }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 text-white border-none cursor-pointer"
-                  >
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 text-white border-none cursor-pointer">
                     <ChevronLeft size={16} />
                   </button>
                 )}
                 {activeImgIndex < post.imgs.length - 1 && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
+                  <button type="button" onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setActiveImgIndex((p) => p + 1); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 text-white border-none cursor-pointer"
-                  >
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 text-white border-none cursor-pointer">
                     <ChevronRight size={16} />
                   </button>
                 )}
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
                   {post.imgs.map((_, idx) => (
-                    <div
-                      key={idx}
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
-                        idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"
-                      }`}
-                    />
+                    <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"}`} />
                   ))}
                 </div>
               </>
@@ -422,82 +438,57 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         )}
 
-        {/* Double-tap heart pop */}
-        <AnimatePresence>
-          {showHeartPop && (
-            <motion.div
-              initial={{ scale: 0.3, opacity: 0 }}
-              animate={{ scale: [0.3, 1.4, 1], opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.42 }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 text-[90px] drop-shadow-2xl"
-            >
-              ❤️
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Long-press reaction picker — anchored at center-bottom of image */}
-        <AnimatePresence>
-          {showLongPicker && (
-            <>
-              {/* Dim overlay so tap outside dismisses */}
-              <div
-                className="absolute inset-0 z-30 bg-black/30"
-                onPointerUp={(e) => { e.stopPropagation(); setShowLongPicker(false); setLongPickerHovIdx(null); }}
-              />
+        {/* Double-tap heart pop (only for non-video) */}
+        {!isVideo && (
+          <AnimatePresence>
+            {showHeartPop && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.7, y: 12 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.7, y: 12 }}
-                transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
-                onPointerUp={(e) => e.stopPropagation()}
-              >
-                {REACTIONS.map((r, idx) => (
-                  <motion.button
-                    key={r.type}
-                    animate={{
-                      scale: longPickerHovIdx === idx ? 1.55 : 1,
-                      y: longPickerHovIdx === idx ? -12 : 0,
-                    }}
-                    transition={{ type: "spring", stiffness: 480, damping: 22 }}
-                    className="text-[28px] leading-none cursor-pointer relative"
-                    onPointerEnter={() => setLongPickerHovIdx(idx)}
-                    onPointerLeave={() => setLongPickerHovIdx(null)}
-                    onPointerUp={(e) => {
-                      e.stopPropagation();
-                      commitReaction(r.type);
-                    }}
-                  >
-                    {r.emoji}
-                    {longPickerHovIdx === idx && (
-                      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">
-                        {r.label}
-                      </span>
-                    )}
-                  </motion.button>
-                ))}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+                initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: [0.3, 1.4, 1], opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.42 }}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 text-[90px] drop-shadow-2xl"
+              >❤️</motion.div>
+            )}
+          </AnimatePresence>
+        )}
+
+        {/* Long-press reaction picker (only for non-video) */}
+        {!isVideo && (
+          <AnimatePresence>
+            {showLongPicker && (
+              <>
+                <div className="absolute inset-0 z-30 bg-black/30"
+                  onPointerUp={(e) => { e.stopPropagation(); setShowLongPicker(false); setLongPickerHovIdx(null); }} />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.7, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.7, y: 12 }} transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                  className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
+                  onPointerUp={(e) => e.stopPropagation()}
+                >
+                  {REACTIONS.map((r, idx) => (
+                    <motion.button key={r.type}
+                      animate={{ scale: longPickerHovIdx === idx ? 1.55 : 1, y: longPickerHovIdx === idx ? -12 : 0 }}
+                      transition={{ type: "spring", stiffness: 480, damping: 22 }}
+                      className="text-[28px] leading-none cursor-pointer relative"
+                      onPointerEnter={() => setLongPickerHovIdx(idx)} onPointerLeave={() => setLongPickerHovIdx(null)}
+                      onPointerUp={(e) => { e.stopPropagation(); commitReaction(r.type); }}
+                    >
+                      {r.emoji}
+                      {longPickerHovIdx === idx && (
+                        <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">{r.label}</span>
+                      )}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        )}
       </div>
 
       {/* ── Actions bar ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3.5 p-3.5 pb-1 select-none">
-
-        {/* Like / reaction button with hover picker */}
-        <div
-          className="relative"
-          onMouseEnter={startHoverShow}
-          onMouseLeave={startHoverHide}
-        >
-          <button
-            onClick={handleSimpleLike}
-            className="cursor-pointer transition hover:scale-105 active:scale-95 flex items-center gap-1"
-            style={{ color: reactionInfo?.color }}
-          >
+        <div className="relative" onMouseEnter={startHoverShow} onMouseLeave={startHoverHide}>
+          <button onClick={handleSimpleLike} className="cursor-pointer transition hover:scale-105 active:scale-95 flex items-center gap-1" style={{ color: reactionInfo?.color }}>
             {currentReaction ? (
               <span className="text-[22px] leading-none">{reactionInfo?.emoji}</span>
             ) : hasReacted && reactionInfo ? (
@@ -506,13 +497,8 @@ export default function PostCard({ post }: PostCardProps) {
               <Heart size={24} fill="none" className="text-white" />
             )}
           </button>
-
-          {/* Hover picker — appears above heart button: hover shows, click commits */}
           <div onMouseEnter={cancelHoverHide} onMouseLeave={startHoverHide}>
-            <ReactionPicker
-              visible={showHoverPicker}
-              anchorBottom
-              hoveredIdx={hoverPickerHovIdx}
+            <ReactionPicker visible={showHoverPicker} anchorBottom hoveredIdx={hoverPickerHovIdx}
               onHover={setHoverPickerHovIdx}
               onSelect={(type) => { commitReaction(type); setShowHoverPicker(false); }}
               onMouseLeave={startHoverHide}
@@ -520,72 +506,46 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         </div>
 
-        <button
-          onClick={() => setActivePostId(post.id)}
-          className="text-white cursor-pointer hover:scale-105 active:scale-95 transition"
-        >
+        <button onClick={() => setActivePostId(post.id)} className="text-white cursor-pointer hover:scale-105 active:scale-95 transition">
           <MessageCircle size={24} />
         </button>
 
-        <button
-          onClick={() => showToast("Link copied! 📋", "share")}
-          className="text-white cursor-pointer hover:scale-105 active:scale-95 transition"
-        >
+        <button onClick={() => setSharePostId(post.id)} className="text-white cursor-pointer hover:scale-105 active:scale-95 transition">
           <Send size={24} />
         </button>
 
-        <button
-          onClick={() => toggleSave(post.id)}
-          className="ml-auto cursor-pointer transition hover:scale-105 active:scale-95 text-white"
-        >
+        <button onClick={() => toggleSave(post.id)} className="ml-auto cursor-pointer transition hover:scale-105 active:scale-95 text-white">
           <Bookmark size={24} fill={isSaved ? "currentColor" : "none"} />
         </button>
       </div>
 
-      {/* Reactions bar — show emoji + count, replace plain "X likes" */}
-      <div
-        onClick={() => setShowReactionsModal(true)}
-        className="px-3.5 py-1 flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer hover:underline w-fit select-none"
-      >
+      {/* Reactions bar */}
+      <div onClick={() => setShowReactionsModal(true)} className="px-3.5 py-1 flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer hover:underline w-fit select-none">
         <div className="flex items-center -space-x-1.5 mr-0.5">
           {getDisplayEmojis().map((emoji, i) => (
-            <span key={i} className="text-[15px] leading-none drop-shadow-sm select-none">
-              {emoji}
-            </span>
+            <span key={i} className="text-[15px] leading-none drop-shadow-sm select-none">{emoji}</span>
           ))}
         </div>
         <span>{formatLikes(localLikes)}</span>
-        <span className="font-normal text-[#a8a8a8]">
-          {localLikes === 1 ? 'reaction' : 'reactions'}
-        </span>
+        <span className="font-normal text-[#a8a8a8]">{localLikes === 1 ? 'reaction' : 'reactions'}</span>
       </div>
 
-      {/* Caption (hidden for text-only posts — caption is shown in the gradient) */}
+      {/* Caption */}
       {!post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] leading-relaxed">
-          <span
-            onClick={() => handleUserClick(post.user.id)}
-            className="font-bold mr-2 cursor-pointer hover:underline"
-          >
-            {post.user.name}
-          </span>
+          <span onClick={() => handleUserClick(post.user.id)} className="font-bold mr-2 cursor-pointer hover:underline">{post.user.name}</span>
           {formatCaption(post.caption)}
         </div>
       )}
       {post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] text-[#a8a8a8]">
-          <span onClick={() => handleUserClick(post.user.id)} className="font-bold mr-2 cursor-pointer hover:underline text-white">
-            {post.user.name}
-          </span>
+          <span onClick={() => handleUserClick(post.user.id)} className="font-bold mr-2 cursor-pointer hover:underline text-white">{post.user.name}</span>
           Text post
         </div>
       )}
 
       {/* Comments link */}
-      <div
-        onClick={() => setActivePostId(post.id)}
-        className="px-3.5 py-1 text-[12px] text-[#a8a8a8] cursor-pointer hover:text-white transition"
-      >
+      <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[#a8a8a8] cursor-pointer hover:text-white transition">
         {post.comments.length > 0 ? `View all ${post.comments.length} comments` : "Add a comment…"}
       </div>
 
@@ -604,20 +564,12 @@ export default function PostCard({ post }: PostCardProps) {
           onChange={(e) => setCommentText(e.target.value)}
           className="flex-1 bg-transparent border-none text-[13px] text-white outline-none placeholder-[#666]"
         />
-        <button
-          type="submit"
-          disabled={!commentText.trim()}
-          className="text-[#3897f0] font-bold text-[13px] disabled:opacity-40 disabled:cursor-default"
-        >
+        <button type="submit" disabled={!commentText.trim()} className="text-[#3897f0] font-bold text-[13px] disabled:opacity-40 disabled:cursor-default">
           Post
         </button>
       </form>
-      
-      <ReactionsModal
-        isOpen={showReactionsModal}
-        onClose={() => setShowReactionsModal(false)}
-        postId={post.id}
-      />
+
+      <ReactionsModal isOpen={showReactionsModal} onClose={() => setShowReactionsModal(false)} postId={post.id} />
     </div>
   );
 }
