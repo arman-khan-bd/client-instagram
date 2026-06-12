@@ -151,22 +151,28 @@ class ApiClient {
     } else if (data.files && data.files.length > 0) {
       mediaUrls = await Promise.all(
         data.files.map(async (file) => {
+          const isVideo = file.type.startsWith('video/');
           const uploadData = new FormData();
           uploadData.append('file', file);
           uploadData.append('upload_preset', 'auragram');
 
-          const res = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
+          // Use the correct Cloudinary endpoint: video/upload for videos, image/upload for images
+          const cloudinaryEndpoint = isVideo
+            ? 'https://api.cloudinary.com/v1_1/dj7pg5slk/video/upload'
+            : 'https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload';
+
+          const res = await fetch(cloudinaryEndpoint, {
             method: 'POST',
             body: uploadData,
           });
 
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error?.message || 'Image upload to Cloudinary failed');
+            throw new Error(errData.error?.message || `${isVideo ? 'Video' : 'Image'} upload to Cloudinary failed`);
           }
 
           const { secure_url } = await res.json();
-          return { url: secure_url, type: 'image' };
+          return { url: secure_url, type: isVideo ? 'video' : 'image' };
         })
       );
       thumbnailUrl = mediaUrls[0]?.url || '';

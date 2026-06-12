@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useApp } from "../AppContext";
-import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image } from "lucide-react";
 
 const EMOJIS = ["😊", "😂", "❤️", "🔥", "👍", "😭", "😍", "✨", "🎉", "🚀", "💀", "👀"];
 const SUGGESTED_LOCATIONS = ["New York, USA", "Tokyo, Japan", "Paris, France", "London, UK", "Aura Space 🌌", "Silicon Valley, CA"];
@@ -36,10 +36,14 @@ const BG_GRADIENTS = [
   { name: "Lime Energy", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)" },
 ];
 
+const VIDEO_MAX_DURATION = 5 * 60; // 5 minutes in seconds
+const VIDEO_MAX_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+
 export default function CreatePostModal() {
   const { showCreatePostModal, setShowCreatePostModal, createPost, showToast } = useApp();
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileTypes, setFileTypes] = useState<("image" | "video")[]>([]);
   const [activePreviewIdx, setActivePreviewIdx] = useState(0);
   const [caption, setCaption] = useState("");
   const [isSharing, setIsSharing] = useState(false);
@@ -53,7 +57,7 @@ export default function CreatePostModal() {
   const [feeling, setFeeling] = useState("");
   const [audience, setAudience] = useState("Public");
   const [music, setMusic] = useState("");
-  const [postType, setPostType] = useState<"post" | "reel">("post");
+  // postType is auto-detected: video = reel, image/text = post
 
   // Text gradient background posting
   const [selectedBgIdx, setSelectedBgIdx] = useState<number | null>(null);
@@ -63,10 +67,14 @@ export default function CreatePostModal() {
 
   if (!showCreatePostModal) return null;
 
+  // Derive postType from files: any video => reel, else post
+  const isReel = fileTypes.some((t) => t === "video");
+
   const handleClose = () => {
     setShowCreatePostModal(false);
     setImagePreviews([]);
     setSelectedFiles([]);
+    setFileTypes([]);
     setActivePreviewIdx(0);
     setCaption("");
     setSelectedFilter("none");
@@ -76,18 +84,67 @@ export default function CreatePostModal() {
     setMusic("");
     setSelectedBgIdx(null);
     setActivePanel(null);
-    setPostType("post");
     setIsSharing(false);
+  };
+
+  const validateAndAddFiles = async (rawFiles: File[]) => {
+    const validFiles: File[] = [];
+    const validUrls: string[] = [];
+    const validTypes: ("image" | "video")[] = [];
+
+    for (const file of rawFiles) {
+      const isVideo = file.type.startsWith("video/");
+
+      // File size check for videos
+      if (isVideo && file.size > VIDEO_MAX_SIZE) {
+        showToast(`"${file.name}" exceeds 10MB limit. Please compress the video.`, "info");
+        continue;
+      }
+
+      if (isVideo) {
+        // Duration check
+        const duration = await new Promise<number>((resolve) => {
+          const vid = document.createElement("video");
+          vid.preload = "metadata";
+          const url = URL.createObjectURL(file);
+          vid.onloadedmetadata = () => {
+            resolve(vid.duration);
+            URL.revokeObjectURL(url);
+          };
+          vid.onerror = () => { resolve(0); URL.revokeObjectURL(url); };
+          vid.src = url;
+        });
+
+        if (duration > VIDEO_MAX_DURATION) {
+          showToast(`"${file.name}" exceeds 5-minute limit (${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s).`, "info");
+          continue;
+        }
+
+        validFiles.push(file);
+        validUrls.push(URL.createObjectURL(file));
+        validTypes.push("video");
+      } else {
+        validFiles.push(file);
+        validUrls.push(URL.createObjectURL(file));
+        validTypes.push("image");
+      }
+    }
+
+    if (validFiles.length > 0) {
+      setImagePreviews((prev) => [...prev, ...validUrls]);
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+      setFileTypes((prev) => [...prev, ...validTypes]);
+      setSelectedBgIdx(null);
+    }
+
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const newFiles = Array.from(files);
-      const urls: string[] = newFiles.map((f) => URL.createObjectURL(f));
-      setImagePreviews((prev) => [...prev, ...urls]);
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
-      setSelectedBgIdx(null); // Disable color BG if files added
+      validateAndAddFiles(Array.from(files));
     }
   };
 
@@ -99,11 +156,7 @@ export default function CreatePostModal() {
     e.preventDefault();
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      const newFiles = Array.from(files);
-      const urls: string[] = newFiles.map((f) => URL.createObjectURL(f));
-      setImagePreviews((prev) => [...prev, ...urls]);
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
-      setSelectedBgIdx(null); // Disable color BG if files added
+      validateAndAddFiles(Array.from(files));
     }
   };
 
@@ -139,6 +192,7 @@ export default function CreatePostModal() {
       return updated;
     });
     setSelectedFiles((prev) => prev.filter((_, i) => i !== idxToRemove));
+    setFileTypes((prev) => prev.filter((_, i) => i !== idxToRemove));
   };
 
   const handleShare = async (e: React.FormEvent) => {
@@ -207,7 +261,10 @@ export default function CreatePostModal() {
           >
             Cancel
           </button>
-          <h3 className="font-bold text-[15px]">Create {postType}</h3>
+          <h3 className="font-bold text-[15px] flex items-center gap-1.5">
+            {isReel ? <Video size={15} className="text-[#FF2E93]" /> : <Image size={15} className="text-insta-blue" />}
+            {isReel ? "Create Reel" : "Create Post"}
+          </h3>
           <button
             onClick={handleShare}
             disabled={isSharing || (imagePreviews.length === 0 && selectedBgIdx === null)}
@@ -232,19 +289,29 @@ export default function CreatePostModal() {
                     {caption || "Your text will appear here..."}
                   </div>
                 ) : (
-                  /* Standard Image Preview with carousel */
+                  /* Standard Image/Video Preview with carousel */
                   <div className="relative w-full h-full">
-                    <img
-                      src={imagePreviews[activePreviewIdx]}
-                      alt="Post preview"
-                      className="w-full h-full object-cover transition-all duration-300"
-                      style={{ filter: selectedFilter }}
-                    />
+                    {fileTypes[activePreviewIdx] === "video" ? (
+                      <video
+                        src={imagePreviews[activePreviewIdx]}
+                        className="w-full h-full object-cover transition-all duration-300"
+                        controls
+                        playsInline
+                        muted
+                      />
+                    ) : (
+                      <img
+                        src={imagePreviews[activePreviewIdx]}
+                        alt="Post preview"
+                        className="w-full h-full object-cover transition-all duration-300"
+                        style={{ filter: selectedFilter }}
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={() => handleRemovePreview(activePreviewIdx)}
                       className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 rounded-full p-1.5 transition text-white z-10"
-                      title="Remove this image"
+                      title="Remove this file"
                     >
                       <X size={16} />
                     </button>
@@ -281,8 +348,8 @@ export default function CreatePostModal() {
                 )}
               </div>
 
-              {/* Photos Filters Carousel (Only if showing images) */}
-              {!isTextOnlyPost && imagePreviews.length > 0 && (
+              {/* Photos Filters Carousel (Only if showing images, not videos) */}
+              {!isTextOnlyPost && imagePreviews.length > 0 && fileTypes[activePreviewIdx] !== "video" && (
                 <div className="p-4 bg-[#161616] border-b border-[#222]">
                   <p className="text-[11px] font-semibold text-gray-400 mb-2.5 select-none">
                     Apply Filter:
@@ -317,28 +384,24 @@ export default function CreatePostModal() {
                 </div>
               )}
 
+              {/* Video info banner */}
+              {!isTextOnlyPost && imagePreviews.length > 0 && fileTypes[activePreviewIdx] === "video" && (
+                <div className="px-4 py-2.5 bg-[#161616] border-b border-[#222] flex items-center gap-2 text-[11px] text-[#FF2E93]">
+                  <Video size={13} />
+                  <span>Reel · Max 5 min · Max 10 MB</span>
+                </div>
+              )}
+
               {/* Rich Form Details */}
               <div className="p-4.5 flex flex-col gap-4">
-                {/* Post Type Selector */}
-                <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-white/[0.05]">
-                  <button
-                    type="button"
-                    onClick={() => setPostType("post")}
-                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition ${
-                      postType === "post" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    Post 📸
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPostType("reel")}
-                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition ${
-                      postType === "reel" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    Reel 🎥
-                  </button>
+                {/* Auto-detected type badge */}
+                <div className="flex items-center gap-1.5">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold ${
+                    isReel ? "bg-[#FF2E93]/10 text-[#FF2E93] border border-[#FF2E93]/30" : "bg-insta-blue/10 text-insta-blue border border-insta-blue/30"
+                  }`}>
+                    {isReel ? <><Video size={11} /> Reel</> : <><Image size={11} /> Post</>}
+                  </span>
+                  <span className="text-[10px] text-gray-500">{isReel ? "Video detected — will be posted as a Reel" : "Will be posted as a Photo Post"}</span>
                 </div>
 
                 {/* Caption textbox */}
@@ -629,7 +692,7 @@ export default function CreatePostModal() {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept="image/*"
+                  accept="image/*,video/mp4,video/webm,video/quicktime,video/mov"
                   multiple
                   className="hidden"
                 />
@@ -637,12 +700,15 @@ export default function CreatePostModal() {
                 <span className="text-[18px] text-gray-300 group-hover:text-white transition">
                   Drag photos and videos here
                 </span>
-                <button
-                  type="button"
-                  className="mt-2 px-5 py-2.5 rounded-lg bg-insta-blue hover:bg-insta-blue/95 font-bold text-[13px] active:scale-95 transition"
-                >
-                  Select from computer
-                </button>
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    className="mt-2 px-5 py-2.5 rounded-lg bg-insta-blue hover:bg-insta-blue/95 font-bold text-[13px] active:scale-95 transition"
+                  >
+                    Select from computer
+                  </button>
+                  <p className="text-[10px] text-gray-500 mt-1">Videos: max 5 min · max 10 MB</p>
+                </div>
               </div>
 
               {/* Quick Background select circles on landing upload state */}

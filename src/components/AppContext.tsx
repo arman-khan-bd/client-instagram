@@ -368,7 +368,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 || (meta.email as string)?.split('@')[0]
                 || session.user.email?.split('@')[0]
                 || `user_${Date.now()}`;
-              const username = rawUsername.replace(/[^a-zA-Z0-9_.]/g, '_').toLowerCase();
+              // Sanitize: only alphanumeric, dots, underscores
+              let username = rawUsername.replace(/[^a-zA-Z0-9_.]/g, '_').toLowerCase();
               const fullName  = (meta.full_name as string) || (meta.fullName as string) || username;
               const avatarUrl = (meta.avatar_url as string) || (meta.picture as string) || '';
 
@@ -379,11 +380,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 .eq('id', session.user.id)
                 .maybeSingle();
 
-              // If not found, insert a new profile
+              // If not found, upsert a new profile (handles duplicate username conflicts gracefully)
               if (!dbUser) {
-                const { data: newUser } = await supabase
+                // Check if username is already taken by another user, and suffix if needed
+                const { data: existingUser } = await supabase
                   .from('User')
-                  .insert({
+                  .select('id')
+                  .eq('username', username)
+                  .neq('id', session.user.id)
+                  .maybeSingle();
+                if (existingUser) {
+                  username = `${username}_${Math.floor(Math.random() * 9000 + 1000)}`;
+                }
+
+                const { data: newUser, error: insertErr } = await supabase
+                  .from('User')
+                  .upsert({
                     id: session.user.id,
                     username,
                     email: session.user.email || '',
@@ -392,10 +404,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     passwordHash: '',
                     bio: 'Welcome to AuraGram! ✨',
                     isVerified: false,
-                  })
+                  }, { onConflict: 'id' })
                   .select('id, username, fullName, bio, avatarUrl, isVerified')
                   .maybeSingle();
-                dbUser = newUser;
+
+                if (insertErr) {
+                  console.error('User upsert error:', insertErr);
+                  // Last resort: try to fetch again in case of race condition
+                  const { data: retryUser } = await supabase
+                    .from('User')
+                    .select('id, username, fullName, bio, avatarUrl, isVerified')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+                  dbUser = retryUser;
+                } else {
+                  dbUser = newUser;
+                }
               }
 
               if (dbUser) {
@@ -413,10 +437,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   localStorage.setItem('insta_me', JSON.stringify(user));
                   localStorage.setItem('token', session.access_token);
                 }
-                // Route to home after any sign-in
-                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                // Only redirect to home on explicit sign-in (not on token refresh or initial session restore)
+                if (event === 'SIGNED_IN') {
                   setActiveTab('home');
                 }
+              } else {
+                console.error('Could not load or create User profile for:', session.user.id);
               }
             } catch (err) {
               console.error('onAuthStateChange error:', err);
