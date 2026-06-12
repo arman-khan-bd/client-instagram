@@ -188,6 +188,9 @@ export default function CreatePostModal() {
     setActivePanel(null);
     setIsSharing(false);
     setVideoThumbnails({});
+    setIsScanning(false);
+    setScanningUrls([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const validateAndAddFiles = async (rawFiles: File[]) => {

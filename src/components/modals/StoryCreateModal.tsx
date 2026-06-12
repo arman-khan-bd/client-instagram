@@ -139,6 +139,7 @@ export default function StoryCreateModal() {
         setPreviewUrl("");
       } finally {
         setIsScanning(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     }
   };
@@ -171,6 +172,8 @@ export default function StoryCreateModal() {
     setCustomAudioName("");
     setAudioCardShape("card");
     setIsUploading(false);
+    setIsScanning(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setShowStoryCreate(false);
   };
 
