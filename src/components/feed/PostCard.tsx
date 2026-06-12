@@ -78,13 +78,29 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
 }
 
 // ── Video Player in Feed ──────────────────────────────────────────────────────
+let globalMuted = true;
+
 function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(globalMuted);
   const lastClickTime = useRef<number>(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync with global feed mute state
+  useEffect(() => {
+    const handleMuteChange = (e: CustomEvent<boolean>) => {
+      setMuted(e.detail);
+      if (videoRef.current) {
+        videoRef.current.muted = e.detail;
+      }
+    };
+    window.addEventListener("feedMuteChange" as any, handleMuteChange);
+    return () => {
+      window.removeEventListener("feedMuteChange" as any, handleMuteChange);
+    };
+  }, []);
 
   // Auto-play when scrolled in view, auto-pause when scrolled out of view
   useEffect(() => {
@@ -93,6 +109,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          el.muted = globalMuted;
           el.play().catch(() => {});
           setPlaying(true);
           setHasStarted(true);
@@ -139,9 +156,15 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
             el.play().catch(() => {});
             setPlaying(true);
             setHasStarted(true);
+          } else {
+            el.pause();
+            setPlaying(false);
           }
-          el.muted = !el.muted;
-          setMuted(el.muted);
+          // Unmute globally on first video interaction
+          if (globalMuted) {
+            globalMuted = false;
+            window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: false }));
+          }
         }
       }, DOUBLE_CLICK_DELAY);
     }
@@ -151,8 +174,9 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
     e.stopPropagation();
     const el = videoRef.current;
     if (!el) return;
-    el.muted = !el.muted;
-    setMuted(el.muted);
+    const newMuteState = !el.muted;
+    globalMuted = newMuteState;
+    window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: newMuteState }));
   };
 
   // Convert video URLs in poster to Cloudinary thumbnail images if applicable
