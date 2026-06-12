@@ -457,15 +457,26 @@ export default function StoryViewerModal() {
                     {s.emoji}
                   </div>
                 ))}
-                {texts.map((t: any, idx: number) => (
-                  <div 
-                    key={`t-${idx}`} 
-                    style={{ left: `${t.x}%`, top: `${t.y}%`, color: t.color }} 
-                    className="absolute -translate-x-1/2 -translate-y-1/2 font-extrabold text-[15px] bg-black/60 px-2.5 py-0.5 rounded-lg drop-shadow-md z-20 pointer-events-none select-none text-center whitespace-nowrap"
-                  >
-                    {t.text}
-                  </div>
-                ))}
+                {texts.map((t: any, idx: number) => {
+                  const getStyle = () => {
+                    if (t.bgStyle === "white") {
+                      return { color: "#000000", backgroundColor: "#ffffff" };
+                    }
+                    if (t.bgStyle === "black") {
+                      return { color: "#ffffff", backgroundColor: "#000000" };
+                    }
+                    return { color: t.color, backgroundColor: "transparent", textShadow: "0 2px 4px rgba(0,0,0,0.8)" };
+                  };
+                  return (
+                    <div 
+                      key={`t-${idx}`} 
+                      style={{ left: `${t.x}%`, top: `${t.y}%`, ...getStyle() }} 
+                      className="absolute -translate-x-1/2 -translate-y-1/2 font-extrabold text-[15px] px-2.5 py-0.5 rounded-lg drop-shadow-md z-20 pointer-events-none select-none text-center whitespace-nowrap"
+                    >
+                      {t.text}
+                    </div>
+                  );
+                })}
                 {tags.map((tg: any, idx: number) => (
                   <div 
                     key={`tg-${idx}`} 
@@ -475,6 +486,42 @@ export default function StoryViewerModal() {
                     {tg.username}
                   </div>
                 ))}
+                {activeStory.audioUrl && (() => {
+                  const pos = meta?.audioCardPos || { x: 50, y: 80 };
+                  const shape = meta?.audioCardShape || "card";
+                  const musicName = activeStory.musicName || "Soundtrack";
+
+                  return (
+                    <div 
+                      style={{ left: `${pos.x}%`, top: `${pos.y}%` }} 
+                      className="absolute -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none select-none"
+                    >
+                      {shape === "card" && (
+                        <div className="bg-black/80 border border-zinc-800 p-2.5 rounded-xl flex items-center gap-2 max-w-[180px] shadow-lg">
+                          <Music size={13} className="text-pink-500 animate-pulse" />
+                          <span className="text-[11px] truncate font-bold text-white">{musicName}</span>
+                        </div>
+                      )}
+                      {shape === "list" && (
+                        <div className="bg-zinc-950/70 py-1 px-3 rounded-full flex items-center gap-1.5 shadow text-[10px] font-semibold border border-white/10 text-white">
+                          <Music size={9} className="text-white" />
+                          <span className="truncate max-w-[100px]">{musicName}</span>
+                        </div>
+                      )}
+                      {shape === "transparent" && (
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-white drop-shadow-md bg-transparent">
+                          <Music size={10} className="text-pink-400" />
+                          <span className="truncate max-w-[120px]">{musicName}</span>
+                        </div>
+                      )}
+                      {shape === "icon" && (
+                        <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white shadow-lg">
+                          <Music size={12} className="animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {feeling && (
                   <div className="absolute top-20 left-4 bg-zinc-950/75 border border-white/10 px-2.5 py-0.5 rounded-full text-[10px] font-bold z-20 shadow">
                     Feeling {feeling}

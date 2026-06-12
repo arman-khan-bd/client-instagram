@@ -17,6 +17,7 @@ interface TextOverlay {
   color: string;
   x: number;
   y: number;
+  bgStyle: "transparent" | "white" | "black";
 }
 
 interface TagOverlay {
@@ -59,37 +60,45 @@ const EMOJI_STICKERS = ["😂", "😍", "🔥", "🙌", "💯", "✨", "🌈", "
 export default function StoryCreateModal() {
   const { showStoryCreate, setShowStoryCreate, createStory, showToast } = useApp();
   
-  // File upload preview
+  // File upload state
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [caption, setCaption] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   
-  // Interactive Editor States
+  // Placed Overlays States
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [texts, setTexts] = useState<TextOverlay[]>([]);
   const [tags, setTags] = useState<TagOverlay[]>([]);
   const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
   const [selectedFeeling, setSelectedFeeling] = useState<string>("");
 
-  // Toolbar Selection States
-  const [activeTool, setActiveTool] = useState<"none" | "sticker" | "text" | "tag">("none");
-  const [selectedEmoji, setSelectedEmoji] = useState("");
-  const [currentText, setCurrentText] = useState("");
-  const [currentTextColor, setCurrentTextColor] = useState("#ffffff");
-  const [currentTag, setCurrentTag] = useState("");
-
-  // Audio States
+  // Audio configuration
   const [audioSourceType, setAudioSourceType] = useState<"none" | "preset" | "upload">("none");
   const [selectedPresetIndex, setSelectedPresetIndex] = useState<number | null>(null);
   const [customAudioFile, setCustomAudioFile] = useState<File | null>(null);
   const [customAudioName, setCustomAudioName] = useState("");
+  const [audioCardPos, setAudioCardPos] = useState({ x: 50, y: 80 });
+  const [audioCardShape, setAudioCardShape] = useState<"card" | "list" | "transparent" | "icon" | "remove">("card");
 
-  // Sidebar Tab States
-  const [activeTab, setActiveTab] = useState<"editor" | "audio" | "filter" | "settings">("editor");
+  // Floating Popover UI states
+  const [showTextCreator, setShowTextCreator] = useState(false);
+  const [showStickerCreator, setShowStickerCreator] = useState(false);
+  const [showTagCreator, setShowTagCreator] = useState(false);
+  const [showMusicCreator, setShowMusicCreator] = useState(false);
+
+  // Text inputs
+  const [inputText, setInputText] = useState("");
+  const [inputTextColor, setInputTextColor] = useState("#ffffff");
+  const [inputTag, setInputTag] = useState("");
+
+  // Dragging States
+  const [draggedItem, setDraggedItem] = useState<{ id: string; type: "sticker" | "text" | "tag" | "audio" } | null>(null);
+  const pointerStartPos = useRef({ x: 0, y: 0 });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   if (!showStoryCreate) return null;
 
@@ -107,6 +116,9 @@ export default function StoryCreateModal() {
       setCustomAudioFile(selected);
       setCustomAudioName(selected.name);
       setAudioSourceType("upload");
+      setAudioCardPos({ x: 50, y: 80 });
+      setAudioCardShape("card");
+      setShowMusicCreator(false);
       showToast("Audio track uploaded!", "success");
     }
   };
@@ -120,36 +132,81 @@ export default function StoryCreateModal() {
     setTags([]);
     setActiveFilter(FILTERS[0]);
     setSelectedFeeling("");
-    setActiveTool("none");
     setAudioSourceType("none");
     setSelectedPresetIndex(null);
     setCustomAudioFile(null);
     setCustomAudioName("");
+    setAudioCardShape("card");
     setIsUploading(false);
     setShowStoryCreate(false);
   };
 
-  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+  // Drag Handlers
+  const handlePointerDown = (id: string, type: "sticker" | "text" | "tag" | "audio", e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDraggedItem({ id, type });
+    pointerStartPos.current = { x: e.clientX, y: e.clientY };
+  };
 
-    if (activeTool === "sticker" && selectedEmoji) {
-      setStickers((prev) => [...prev, { id: String(Date.now()), emoji: selectedEmoji, x, y }]);
-      setActiveTool("none");
-      showToast("Sticker placed!", "success");
-    } else if (activeTool === "text" && currentText.trim()) {
-      setTexts((prev) => [...prev, { id: String(Date.now()), text: currentText.trim(), color: currentTextColor, x, y }]);
-      setCurrentText("");
-      setActiveTool("none");
-      showToast("Text placed!", "success");
-    } else if (activeTool === "tag" && currentTag.trim()) {
-      let t = currentTag.trim();
-      if (!t.startsWith("@")) t = "@" + t;
-      setTags((prev) => [...prev, { id: String(Date.now()), username: t, x, y }]);
-      setCurrentTag("");
-      setActiveTool("none");
-      showToast("User tag placed!", "success");
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggedItem || !viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+
+    if (draggedItem.type === "sticker") {
+      setStickers((prev) => prev.map((s) => (s.id === draggedItem.id ? { ...s, x, y } : s)));
+    } else if (draggedItem.type === "text") {
+      setTexts((prev) => prev.map((t) => (t.id === draggedItem.id ? { ...t, x, y } : t)));
+    } else if (draggedItem.type === "tag") {
+      setTags((prev) => prev.map((t) => (t.id === draggedItem.id ? { ...t, x, y } : t)));
+    } else if (draggedItem.type === "audio") {
+      setAudioCardPos({ x, y });
+    }
+  };
+
+  const handlePointerUp = (id: string, type: "sticker" | "text" | "tag" | "audio", e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setDraggedItem(null);
+
+    // Differentiate drag vs click (distance < 6px)
+    const dist = Math.hypot(e.clientX - pointerStartPos.current.x, e.clientY - pointerStartPos.current.y);
+    if (dist < 6) {
+      if (type === "text") {
+        // Cycle text bg: transparent -> white -> black
+        setTexts((prev) =>
+          prev.map((t) => {
+            if (t.id === id) {
+              const nextStyle =
+                t.bgStyle === "transparent" ? "white" : t.bgStyle === "white" ? "black" : "transparent";
+              return { ...t, bgStyle: nextStyle };
+            }
+            return t;
+          })
+        );
+      } else if (type === "audio") {
+        // Cycle audio card shape: card -> list -> transparent -> icon -> remove
+        setAudioCardShape((prev) => {
+          switch (prev) {
+            case "card": return "list";
+            case "list": return "transparent";
+            case "transparent": return "icon";
+            case "icon": return "remove";
+            default: return "card";
+          }
+        });
+      }
+    }
+  };
+
+  const handleTextDoubleClick = (id: string, text: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newText = prompt("Edit text overlay:", text);
+    if (newText !== null && newText.trim() !== "") {
+      setTexts((prev) => prev.map((t) => (t.id === id ? { ...t, text: newText.trim() } : t)));
+      showToast("Text updated!", "success");
     }
   };
 
@@ -181,6 +238,8 @@ export default function StoryCreateModal() {
         tags,
         feeling: selectedFeeling,
         filterClass: activeFilter.name,
+        audioCardPos,
+        audioCardShape,
       };
 
       const opts: any = {
@@ -206,31 +265,25 @@ export default function StoryCreateModal() {
     }
   };
 
+  const musicName = audioSourceType === "preset" && selectedPresetIndex !== null ? PRESET_AUDIOS[selectedPresetIndex].name : customAudioName;
+
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-4 select-none">
       <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-full max-w-[850px] overflow-hidden flex flex-col md:flex-row text-white h-[90vh] md:h-[750px] shadow-2xl">
         
-        {/* Left Side: Editor Viewport */}
+        {/* Left Side: Drag-and-Drop Viewport Editor */}
         <div className="flex-1 bg-zinc-900 flex flex-col items-center justify-center relative border-r border-zinc-900/60 p-4 min-h-[350px] md:min-h-0">
           <div className="flex items-center justify-between w-full p-2 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-2">Viewport Preview</span>
-            {previewUrl && (
-              <button
-                type="button"
-                onClick={() => { setFile(null); setPreviewUrl(""); }}
-                className="bg-black/50 hover:bg-black/80 text-white p-1.5 rounded-full backdrop-blur-sm transition mr-2"
-              >
-                <X size={16} />
-              </button>
-            )}
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-2">Story Canvas</span>
           </div>
 
           {previewUrl ? (
             <div 
-              onClick={handlePreviewClick}
-              className={`relative aspect-[9/16] h-[90%] max-h-[500px] bg-black rounded-2xl overflow-hidden border border-zinc-800 shadow-lg cursor-crosshair group`}
+              ref={viewportRef}
+              onPointerMove={handlePointerMove}
+              className={`relative aspect-[9/16] h-[90%] max-h-[500px] bg-black rounded-2xl overflow-hidden border border-zinc-800 shadow-lg group`}
             >
-              {/* Media Element with filter applied */}
+              {/* Media Preview Container */}
               {file?.type.startsWith("video") ? (
                 <video
                   src={previewUrl}
@@ -239,88 +292,174 @@ export default function StoryCreateModal() {
                   autoPlay
                   loop
                   style={activeFilter.style}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
               ) : (
                 <img
                   src={previewUrl}
                   alt="Story preview"
                   style={activeFilter.style}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
               )}
 
-              {/* Dynamic Overlays Rendering */}
+              {/* Top Right Overlay Buttons (Facebook-style Toolbar) */}
+              <div className="absolute top-4 right-4 flex flex-col gap-2.5 z-40">
+                <button
+                  type="button"
+                  onClick={() => setShowTextCreator(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Add Text"
+                >
+                  <Type size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMusicCreator(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Add Music"
+                >
+                  <Music size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTagCreator(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Tag User"
+                >
+                  <Tag size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowStickerCreator(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Add Emoji Sticker"
+                >
+                  <Smile size={16} />
+                </button>
+              </div>
+
+              {/* Draggable Emojis Overlays */}
               {stickers.map((s) => (
                 <div 
                   key={s.id} 
                   style={{ left: `${s.x}%`, top: `${s.y}%` }} 
-                  className="absolute -translate-x-1/2 -translate-y-1/2 text-[38px] drop-shadow-lg z-20 group/overlay select-none cursor-pointer"
+                  onPointerDown={(e) => handlePointerDown(s.id, "sticker", e)}
+                  onPointerUp={(e) => handlePointerUp(s.id, "sticker", e)}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 text-[38px] drop-shadow-lg z-20 group/overlay select-none cursor-grab active:cursor-grabbing touch-none"
                 >
                   <span>{s.emoji}</span>
                   <button 
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => removeSticker(s.id, e)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/overlay:opacity-100 transition shadow"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/overlay:opacity-100 transition shadow cursor-pointer"
                   >
                     <X size={10} />
                   </button>
                 </div>
               ))}
 
-              {texts.map((t) => (
-                <div 
-                  key={t.id} 
-                  style={{ left: `${t.x}%`, top: `${t.y}%`, color: t.color }} 
-                  className="absolute -translate-x-1/2 -translate-y-1/2 font-extrabold text-[18px] bg-black/60 px-3 py-1 rounded-lg drop-shadow-md z-20 group/overlay text-center whitespace-nowrap"
-                >
-                  {t.text}
-                  <button 
-                    onClick={(e) => removeText(t.id, e)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/overlay:opacity-100 transition shadow"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
+              {/* Draggable Custom Texts Overlays */}
+              {texts.map((t) => {
+                const getStyle = () => {
+                  if (t.bgStyle === "white") {
+                    return { color: "#000000", backgroundColor: "#ffffff" };
+                  }
+                  if (t.bgStyle === "black") {
+                    return { color: "#ffffff", backgroundColor: "#000000" };
+                  }
+                  return { color: t.color, backgroundColor: "transparent", textShadow: "0 2px 4px rgba(0,0,0,0.8)" };
+                };
 
+                return (
+                  <div 
+                    key={t.id} 
+                    style={{ left: `${t.x}%`, top: `${t.y}%`, ...getStyle() }} 
+                    onPointerDown={(e) => handlePointerDown(t.id, "text", e)}
+                    onPointerUp={(e) => handlePointerUp(t.id, "text", e)}
+                    onDoubleClick={(e) => handleTextDoubleClick(t.id, t.text, e)}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 font-extrabold text-[17px] px-3 py-1 rounded-lg z-20 group/overlay text-center whitespace-nowrap cursor-grab active:cursor-grabbing select-none touch-none"
+                  >
+                    {t.text}
+                    <button 
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => removeText(t.id, e)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/overlay:opacity-100 transition shadow cursor-pointer"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {/* Draggable User Tags Overlays */}
               {tags.map((tg) => (
                 <div 
                   key={tg.id} 
                   style={{ left: `${tg.x}%`, top: `${tg.y}%` }} 
-                  className="absolute -translate-x-1/2 -translate-y-1/2 font-bold text-[13px] bg-sky-500/90 text-white px-2.5 py-1 rounded-full border border-sky-400 drop-shadow-md z-20 group/overlay text-center whitespace-nowrap tracking-wide"
+                  onPointerDown={(e) => handlePointerDown(tg.id, "tag", e)}
+                  onPointerUp={(e) => handlePointerUp(tg.id, "tag", e)}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 font-bold text-[13px] bg-sky-500/90 text-white px-2.5 py-1 rounded-full border border-sky-400 drop-shadow-md z-20 group/overlay text-center whitespace-nowrap cursor-grab active:cursor-grabbing select-none touch-none"
                 >
                   {tg.username}
                   <button 
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => removeTag(tg.id, e)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/overlay:opacity-100 transition shadow"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/overlay:opacity-100 transition shadow cursor-pointer"
                   >
                     <X size={10} />
                   </button>
                 </div>
               ))}
+
+              {/* Draggable Audio Card Overlay */}
+              {(audioSourceType !== "none") && (
+                <div
+                  style={{ left: `${audioCardPos.x}%`, top: `${audioCardPos.y}%` }}
+                  onPointerDown={(e) => handlePointerDown("audio", "audio", e)}
+                  onPointerUp={(e) => handlePointerUp("audio", "audio", e)}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 z-20 cursor-grab active:cursor-grabbing select-none touch-none"
+                >
+                  {audioCardShape === "card" && (
+                    <div className="bg-black/80 border border-zinc-800 p-2.5 rounded-xl flex items-center gap-2 max-w-[180px] shadow-lg">
+                      <Music size={13} className="text-pink-500 animate-pulse" />
+                      <span className="text-[11px] truncate font-bold text-white">{musicName}</span>
+                    </div>
+                  )}
+                  {audioCardShape === "list" && (
+                    <div className="bg-zinc-950/70 py-1 px-3 rounded-full flex items-center gap-1.5 shadow text-[10px] font-semibold border border-white/10 text-white">
+                      <Music size={9} className="text-white" />
+                      <span className="truncate max-w-[100px]">{musicName}</span>
+                    </div>
+                  )}
+                  {audioCardShape === "transparent" && (
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-white drop-shadow-md bg-transparent">
+                      <Music size={10} className="text-pink-400" />
+                      <span className="truncate max-w-[120px]">{musicName}</span>
+                    </div>
+                  )}
+                  {audioCardShape === "icon" && (
+                    <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white shadow-lg">
+                      <Music size={12} className="animate-spin" />
+                    </div>
+                  )}
+                  {audioCardShape === "remove" && (
+                    <button 
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); setAudioSourceType("none"); }} 
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <X size={10} /> Remove Audio
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Mood Overlay Badge */}
               {selectedFeeling && (
                 <div className="absolute top-4 left-4 bg-zinc-950/80 backdrop-blur border border-white/10 px-3 py-1 rounded-full text-xs font-bold z-20 shadow flex items-center gap-1.5 animate-pulse">
                   <span>Feeling:</span>
                   <span>{selectedFeeling}</span>
-                </div>
-              )}
-
-              {/* Music overlay Badge */}
-              {(audioSourceType !== "none") && (
-                <div className="absolute bottom-4 left-4 right-4 bg-zinc-950/85 backdrop-blur border border-white/10 p-2 rounded-xl text-[10px] font-bold z-20 flex items-center gap-2 text-zinc-300">
-                  <Music size={12} className="text-white animate-spin" />
-                  <span className="truncate">Playing Background Music: {audioSourceType === "preset" ? PRESET_AUDIOS[selectedPresetIndex!].name : customAudioName}</span>
-                </div>
-              )}
-
-              {/* Tool instructions */}
-              {activeTool !== "none" && (
-                <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] flex items-center justify-center pointer-events-none p-4 text-center z-30">
-                  <span className="bg-black/90 border border-zinc-800 text-white text-xs px-4 py-2 rounded-full font-bold">
-                    Click anywhere on the preview to place your {activeTool}!
-                  </span>
                 </div>
               )}
             </div>
@@ -352,7 +491,7 @@ export default function StoryCreateModal() {
         <div className="w-full md:w-[360px] bg-zinc-950 flex flex-col overflow-hidden h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4.5 border-b border-zinc-900">
-            <h2 className="text-[16px] font-extrabold tracking-wide text-gradient-instagram">Create Story</h2>
+            <h2 className="text-[16px] font-extrabold tracking-wide text-gradient-instagram">Story Configuration</h2>
             <button
               onClick={handleClose}
               className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-900 rounded-full transition"
@@ -361,260 +500,67 @@ export default function StoryCreateModal() {
             </button>
           </div>
 
-          {/* Tab Selection */}
-          <div className="flex border-b border-zinc-900/60 text-xs text-zinc-400 select-none">
-            <button
-              onClick={() => setActiveTab("editor")}
-              className={`flex-1 py-3 text-center border-b-2 font-bold transition ${activeTab === "editor" ? "border-white text-white" : "border-transparent hover:text-white"}`}
-            >
-              Overlays
-            </button>
-            <button
-              onClick={() => setActiveTab("audio")}
-              className={`flex-1 py-3 text-center border-b-2 font-bold transition ${activeTab === "audio" ? "border-white text-white" : "border-transparent hover:text-white"}`}
-            >
-              Audio
-            </button>
-            <button
-              onClick={() => setActiveTab("filter")}
-              className={`flex-1 py-3 text-center border-b-2 font-bold transition ${activeTab === "filter" ? "border-white text-white" : "border-transparent hover:text-white"}`}
-            >
-              Filter / Mood
-            </button>
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={`flex-1 py-3 text-center border-b-2 font-bold transition ${activeTab === "settings" ? "border-white text-white" : "border-transparent hover:text-white"}`}
-            >
-              Post
-            </button>
-          </div>
-
-          {/* Sidebar Tab Panels */}
           <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll text-sm">
-            {activeTab === "editor" && (
-              <div className="space-y-5">
-                {/* 1. Emoji Stickers Picker */}
-                <div className="space-y-2.5">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Emoji Stickers
-                  </label>
-                  <div className="grid grid-cols-7 gap-2.5">
-                    {EMOJI_STICKERS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => {
-                          setSelectedEmoji(emoji);
-                          setActiveTool("sticker");
-                        }}
-                        className={`text-[24px] hover:scale-125 transition cursor-pointer p-1 rounded-xl bg-zinc-900 border ${activeTool === "sticker" && selectedEmoji === emoji ? "border-white" : "border-zinc-800/60"}`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2. Text Overlay Input */}
-                <div className="space-y-3 pt-3 border-t border-zinc-900">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Add Text Overlay
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={currentText}
-                      onChange={(e) => setCurrentText(e.target.value)}
-                      placeholder="Type text overlay..."
-                      className="flex-1 bg-zinc-900 border border-zinc-850 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-zinc-700"
-                    />
-                    <input
-                      type="color"
-                      value={currentTextColor}
-                      onChange={(e) => setCurrentTextColor(e.target.value)}
-                      className="w-8 h-8 rounded-xl bg-transparent border-none outline-none cursor-pointer"
-                    />
-                  </div>
+            {/* Filter Section */}
+            <div className="space-y-2.5">
+              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
+                Visual Filters
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {FILTERS.map((f, idx) => (
                   <button
+                    key={idx}
                     type="button"
-                    disabled={!currentText.trim() || !previewUrl}
-                    onClick={() => setActiveTool("text")}
-                    className="w-full py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => setActiveFilter(f)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
+                      activeFilter.name === f.name
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-900 text-zinc-300 border-zinc-900 hover:bg-zinc-850"
+                    }`}
                   >
-                    <Type size={12} />
-                    Place Text
+                    {f.name}
                   </button>
-                </div>
+                ))}
+              </div>
+            </div>
 
-                {/* 3. User Tag Input */}
-                <div className="space-y-3 pt-3 border-t border-zinc-900">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Tag User
-                  </label>
-                  <input
-                    type="text"
-                    value={currentTag}
-                    onChange={(e) => setCurrentTag(e.target.value)}
-                    placeholder="@username"
-                    className="w-full bg-zinc-900 border border-zinc-850 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-zinc-700"
-                  />
+            {/* Feelings Moods Selector */}
+            <div className="space-y-2.5 pt-4 border-t border-zinc-900">
+              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
+                Mood Status
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {FEELINGS.map((feel) => (
                   <button
+                    key={feel}
                     type="button"
-                    disabled={!currentTag.trim() || !previewUrl}
-                    onClick={() => setActiveTool("tag")}
-                    className="w-full py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => setSelectedFeeling(feel === selectedFeeling ? "" : feel)}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
+                      selectedFeeling === feel
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-900 text-zinc-300 border-zinc-900 hover:bg-zinc-850"
+                    }`}
                   >
-                    <Tag size={12} />
-                    Place User Tag
+                    {feel}
                   </button>
-                </div>
+                ))}
               </div>
-            )}
+            </div>
 
-            {activeTab === "audio" && (
-              <div className="space-y-4">
-                {/* Custom Audio Upload */}
-                <div className="space-y-2">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Upload Custom Audio Track
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => audioInputRef.current?.click()}
-                      className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
-                    >
-                      <Upload size={12} />
-                      Choose Audio File
-                    </button>
-                    {customAudioName && (
-                      <span className="text-xs text-zinc-400 truncate max-w-[150px]">
-                        {customAudioName}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    ref={audioInputRef}
-                    onChange={handleAudioFileChange}
-                    accept="audio/*"
-                    className="hidden"
-                  />
-                </div>
-
-                {/* Preset Audio Selectors */}
-                <div className="space-y-2.5 pt-3 border-t border-zinc-900">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Select Soundtrack Presets
-                  </label>
-                  <div className="space-y-2">
-                    {PRESET_AUDIOS.map((track, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setAudioSourceType("preset");
-                          setSelectedPresetIndex(idx);
-                          setCustomAudioFile(null);
-                          setCustomAudioName("");
-                        }}
-                        className={`w-full p-3 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
-                          audioSourceType === "preset" && selectedPresetIndex === idx
-                            ? "bg-white text-black border-white"
-                            : "bg-zinc-900 text-zinc-300 border-zinc-800/80 hover:bg-zinc-850"
-                        }`}
-                      >
-                        <span className="truncate">{track.name}</span>
-                        <Music size={12} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {(audioSourceType !== "none") && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAudioSourceType("none");
-                      setSelectedPresetIndex(null);
-                      setCustomAudioFile(null);
-                      setCustomAudioName("");
-                    }}
-                    className="w-full py-2 bg-red-950/20 text-red-400 hover:bg-red-950/40 border border-red-900/40 text-xs font-bold rounded-xl transition"
-                  >
-                    Remove Selected Music
-                  </button>
-                )}
-              </div>
-            )}
-
-            {activeTab === "filter" && (
-              <div className="space-y-5">
-                {/* 1. Visual Filters */}
-                <div className="space-y-2.5">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Visual Filters
-                  </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {FILTERS.map((f, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveFilter(f)}
-                        className={`p-3 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
-                          activeFilter.name === f.name
-                            ? "bg-white text-black border-white"
-                            : "bg-zinc-900 text-zinc-300 border-zinc-800/80 hover:bg-zinc-850"
-                        }`}
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2. Mood / Status Selector */}
-                <div className="space-y-2.5 pt-3 border-t border-zinc-900">
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                    Select Mood / Status
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {FEELINGS.map((feel) => (
-                      <button
-                        key={feel}
-                        type="button"
-                        onClick={() => setSelectedFeeling(feel === selectedFeeling ? "" : feel)}
-                        className={`py-2 px-3 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
-                          selectedFeeling === feel
-                            ? "bg-white text-black border-white"
-                            : "bg-zinc-900 text-zinc-300 border-zinc-800/85 hover:bg-zinc-850"
-                        }`}
-                      >
-                        {feel}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "settings" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block mb-1.5">
-                    Story Caption
-                  </label>
-                  <textarea
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder="Write a caption (optional)..."
-                    rows={4}
-                    maxLength={200}
-                    className="w-full bg-zinc-900 border border-zinc-850 rounded-xl p-3 text-xs focus:border-zinc-700 outline-none resize-none placeholder-zinc-600 text-white"
-                  />
-                </div>
-              </div>
-            )}
+            {/* Caption Textarea */}
+            <div className="space-y-2 pt-4 border-t border-zinc-900">
+              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
+                Caption
+              </label>
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="Write a caption (optional)..."
+                rows={3}
+                maxLength={200}
+                className="w-full bg-zinc-900 border border-zinc-850 rounded-xl p-3 text-xs focus:border-zinc-700 outline-none resize-none placeholder-zinc-650 text-white"
+              />
+            </div>
           </div>
 
           {/* Submit Action Block */}
@@ -631,6 +577,187 @@ export default function StoryCreateModal() {
         </div>
 
       </div>
+
+      {/* Floating Creators Popovers (Facebook Style) */}
+      
+      {/* 1. Text Creator Popover */}
+      {showTextCreator && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Add Custom Text</h3>
+              <button onClick={() => setShowTextCreator(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Type your story text here..."
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-zinc-700"
+              autoFocus
+            />
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-zinc-400 font-bold">Text Color:</span>
+              <input
+                type="color"
+                value={inputTextColor}
+                onChange={(e) => setInputTextColor(e.target.value)}
+                className="w-8 h-8 rounded-xl bg-transparent border-none outline-none cursor-pointer"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={!inputText.trim()}
+              onClick={() => {
+                setTexts((prev) => [...prev, { id: String(Date.now()), text: inputText.trim(), color: inputTextColor, bgStyle: "transparent", x: 50, y: 50 }]);
+                setInputText("");
+                setShowTextCreator(false);
+                showToast("Text added! Drag to reposition.", "success");
+              }}
+              className="w-full py-2.5 bg-white text-black font-extrabold rounded-xl hover:bg-zinc-200 transition disabled:opacity-40"
+            >
+              Add to Story
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Emoji Sticker Selector */}
+      {showStickerCreator && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Choose Emoji Sticker</h3>
+              <button onClick={() => setShowStickerCreator(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-5 gap-3.5 max-h-[200px] overflow-y-auto p-1 custom-scroll">
+              {EMOJI_STICKERS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => {
+                    setStickers((prev) => [...prev, { id: String(Date.now()), emoji, x: 50, y: 50 }]);
+                    setShowStickerCreator(false);
+                    showToast("Sticker added! Drag to reposition.", "success");
+                  }}
+                  className="text-[32px] hover:scale-125 transition cursor-pointer p-1.5 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-center"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. User Tag Creator */}
+      {showTagCreator && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Mention User</h3>
+              <button onClick={() => setShowTagCreator(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={inputTag}
+              onChange={(e) => setInputTag(e.target.value)}
+              placeholder="e.g. alex_dev"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-zinc-700"
+              autoFocus
+            />
+            <button
+              type="button"
+              disabled={!inputTag.trim()}
+              onClick={() => {
+                let tag = inputTag.trim();
+                if (!tag.startsWith("@")) tag = "@" + tag;
+                setTags((prev) => [...prev, { id: String(Date.now()), username: tag, x: 50, y: 50 }]);
+                setInputTag("");
+                setShowTagCreator(false);
+                showToast("Tag added! Drag to reposition.", "success");
+              }}
+              className="w-full py-2.5 bg-white text-black font-extrabold rounded-xl hover:bg-zinc-200 transition disabled:opacity-40"
+            >
+              Add to Story
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Music Soundtrack Selector */}
+      {showMusicCreator && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Choose Soundtrack</h3>
+              <button onClick={() => setShowMusicCreator(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Custom Track Upload */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
+                Upload Custom Audio
+              </label>
+              <button
+                type="button"
+                onClick={() => audioInputRef.current?.click()}
+                className="w-full py-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 text-zinc-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+              >
+                <Upload size={12} /> Choose MP3 File
+              </button>
+              <input
+                type="file"
+                ref={audioInputRef}
+                onChange={handleAudioFileChange}
+                accept="audio/*"
+                className="hidden"
+              />
+            </div>
+
+            {/* Presets List */}
+            <div className="space-y-1.5 pt-2 border-t border-zinc-850">
+              <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">
+                Select Soundtrack Presets
+              </label>
+              <div className="space-y-2 max-h-[160px] overflow-y-auto p-0.5 custom-scroll">
+                {PRESET_AUDIOS.map((track, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setAudioSourceType("preset");
+                      setSelectedPresetIndex(idx);
+                      setCustomAudioFile(null);
+                      setCustomAudioName("");
+                      setAudioCardPos({ x: 50, y: 80 });
+                      setAudioCardShape("card");
+                      setShowMusicCreator(false);
+                    }}
+                    className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                      audioSourceType === "preset" && selectedPresetIndex === idx
+                        ? "bg-white text-black border-white"
+                        : "bg-zinc-950 text-zinc-300 border-zinc-850 hover:bg-zinc-900"
+                    }`}
+                  >
+                    <span className="truncate">{track.name}</span>
+                    <Music size={11} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
