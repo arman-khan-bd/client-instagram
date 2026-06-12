@@ -77,10 +77,11 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
 }
 
 // ── Video Player in Feed ──────────────────────────────────────────────────────
-function FeedVideo({ src, poster }: { src: string; poster?: string }) {
+function FeedVideo({ src, poster, onDoubleTap }: { src: string; poster?: string; onDoubleTap?: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
+  const lastClickTime = useRef<number>(0);
 
   // Auto-pause when scrolled out of view
   useEffect(() => {
@@ -99,16 +100,30 @@ function FeedVideo({ src, poster }: { src: string; poster?: string }) {
     return () => observer.disconnect();
   }, []);
 
-  const togglePlay = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const el = videoRef.current;
     if (!el) return;
-    if (el.paused) {
-      el.play();
-      setPlaying(true);
+
+    const now = Date.now();
+    const DOUBLE_CLICK_DELAY = 300;
+    if (now - lastClickTime.current < DOUBLE_CLICK_DELAY) {
+      if (onDoubleTap) onDoubleTap();
+      lastClickTime.current = 0;
     } else {
-      el.pause();
-      setPlaying(false);
+      lastClickTime.current = now;
+      setTimeout(() => {
+        if (lastClickTime.current === now) {
+          if (el.paused) {
+            el.play().catch(() => {});
+            setPlaying(true);
+            setMuted(false);
+          } else {
+            el.pause();
+            setPlaying(false);
+          }
+        }
+      }, DOUBLE_CLICK_DELAY);
     }
   };
 
@@ -121,7 +136,7 @@ function FeedVideo({ src, poster }: { src: string; poster?: string }) {
   };
 
   return (
-    <div className="relative w-full h-full bg-black" onClick={togglePlay}>
+    <div className="relative w-full h-full bg-black cursor-pointer" onClick={handleClick}>
       <video
         ref={videoRef}
         src={src}
@@ -205,6 +220,24 @@ export default function PostCard({ post }: PostCardProps) {
 
   const isSaved     = savedPosts.has(post.id);
   const reactionInfo = getReactionInfo(currentReaction);
+
+  const touchStart = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart.current === null) return;
+    const diff = touchStart.current - e.changedTouches[0].clientX;
+    const threshold = 50;
+    if (post.imgs && post.imgs.length > 1) {
+      if (diff > threshold && activeImgIndex < post.imgs.length - 1) {
+        setActiveImgIndex((p) => p + 1);
+      } else if (diff < -threshold && activeImgIndex > 0) {
+        setActiveImgIndex((p) => p - 1);
+      }
+    }
+    touchStart.current = null;
+  };
 
   // Detect if this post is a video/reel
   const isVideo = post.isReel || post.mediaType === "video" ||
@@ -384,13 +417,12 @@ export default function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* ── Post Media ─────────────────────────────────────────────────────── */}
+      {/* ── Post Media ─────────────────────────────────────────────────────── */}
       <div
         className="relative aspect-square overflow-hidden select-none"
-        onPointerDown={isVideo ? undefined : onImagePointerDown}
-        onPointerUp={isVideo ? undefined : onImagePointerUp}
-        onPointerCancel={isVideo ? undefined : onImagePointerCancel}
-        onPointerLeave={isVideo ? undefined : onImagePointerCancel}
         onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {post.isTextOnly ? (
           <div
@@ -399,19 +431,44 @@ export default function PostCard({ post }: PostCardProps) {
           >
             {post.caption}
           </div>
-        ) : isVideo ? (
-          // ── Video / Reel ──────────────────────────────────────────────────
-          <FeedVideo src={videoSrc} poster={post.img || undefined} />
         ) : (
-          // ── Image carousel ────────────────────────────────────────────────
           <div className="relative w-full h-full">
-            <img
-              src={post.imgs && post.imgs.length > 0 ? post.imgs[activeImgIndex] : post.img}
-              className="w-full h-full object-cover transition-all duration-300"
-              style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
-              alt="post"
-              draggable={false}
-            />
+            {(() => {
+              const mediaList = post.imgs && post.imgs.length > 0 ? post.imgs : [post.img];
+              const currentMediaUrl = mediaList[activeImgIndex] || "";
+              const isCurrentMediaVideo = typeof currentMediaUrl === "string" && (
+                currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
+              );
+
+              if (isCurrentMediaVideo) {
+                return (
+                  <FeedVideo 
+                    src={currentMediaUrl} 
+                    poster={post.img || undefined} 
+                    onDoubleTap={() => {
+                      setShowHeartPop(true);
+                      setTimeout(() => setShowHeartPop(false), 850);
+                      commitReaction("love");
+                    }}
+                  />
+                );
+              } else {
+                return (
+                  <img
+                    src={currentMediaUrl}
+                    className="w-full h-full object-cover transition-all duration-300"
+                    style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
+                    alt="post"
+                    draggable={false}
+                    onPointerDown={onImagePointerDown}
+                    onPointerUp={onImagePointerUp}
+                    onPointerCancel={onImagePointerCancel}
+                    onPointerLeave={onImagePointerCancel}
+                  />
+                );
+              }
+            })()}
+
             {post.imgs && post.imgs.length > 1 && (
               <>
                 {activeImgIndex > 0 && (
@@ -438,51 +495,47 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         )}
 
-        {/* Double-tap heart pop (only for non-video) */}
-        {!isVideo && (
-          <AnimatePresence>
-            {showHeartPop && (
-              <motion.div
-                initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: [0.3, 1.4, 1], opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.42 }}
-                className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 text-[90px] drop-shadow-2xl"
-              >❤️</motion.div>
-            )}
-          </AnimatePresence>
-        )}
+        {/* Double-tap heart pop */}
+        <AnimatePresence>
+          {showHeartPop && (
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: [0.3, 1.4, 1], opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.42 }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 text-[90px] drop-shadow-2xl"
+            >❤️</motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Long-press reaction picker (only for non-video) */}
-        {!isVideo && (
-          <AnimatePresence>
-            {showLongPicker && (
-              <>
-                <div className="absolute inset-0 z-30 bg-black/30"
-                  onPointerUp={(e) => { e.stopPropagation(); setShowLongPicker(false); setLongPickerHovIdx(null); }} />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.7, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.7, y: 12 }} transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                  className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
-                  onPointerUp={(e) => e.stopPropagation()}
-                >
-                  {REACTIONS.map((r, idx) => (
-                    <motion.button key={r.type}
-                      animate={{ scale: longPickerHovIdx === idx ? 1.55 : 1, y: longPickerHovIdx === idx ? -12 : 0 }}
-                      transition={{ type: "spring", stiffness: 480, damping: 22 }}
-                      className="text-[28px] leading-none cursor-pointer relative"
-                      onPointerEnter={() => setLongPickerHovIdx(idx)} onPointerLeave={() => setLongPickerHovIdx(null)}
-                      onPointerUp={(e) => { e.stopPropagation(); commitReaction(r.type); }}
-                    >
-                      {r.emoji}
-                      {longPickerHovIdx === idx && (
-                        <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">{r.label}</span>
-                      )}
-                    </motion.button>
-                  ))}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        )}
+        {/* Long-press reaction picker */}
+        <AnimatePresence>
+          {showLongPicker && (
+            <>
+              <div className="absolute inset-0 z-30 bg-black/30"
+                onPointerUp={(e) => { e.stopPropagation(); setShowLongPicker(false); setLongPickerHovIdx(null); }} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.7, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.7, y: 12 }} transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
+                onPointerUp={(e) => e.stopPropagation()}
+              >
+                {REACTIONS.map((r, idx) => (
+                  <motion.button key={r.type}
+                    animate={{ scale: longPickerHovIdx === idx ? 1.55 : 1, y: longPickerHovIdx === idx ? -12 : 0 }}
+                    transition={{ type: "spring", stiffness: 480, damping: 22 }}
+                    className="text-[28px] leading-none cursor-pointer relative"
+                    onPointerEnter={() => setLongPickerHovIdx(idx)} onPointerLeave={() => setLongPickerHovIdx(null)}
+                    onPointerUp={(e) => { e.stopPropagation(); commitReaction(r.type); }}
+                  >
+                    {r.emoji}
+                    {longPickerHovIdx === idx && (
+                      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">{r.label}</span>
+                    )}
+                  </motion.button>
+                ))}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Actions bar ────────────────────────────────────────────────────── */}

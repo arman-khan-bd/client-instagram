@@ -56,10 +56,10 @@ export default function Feed() {
 
           {/* Posts list — each card snaps */}
           <div className="w-full flex flex-col items-center">
-            {posts.slice(0, visibleCount).map((post) => (
+            {posts.slice(0, visibleCount).map((post, idx) => (
               <div
                 key={post.id}
-                style={{ scrollSnapAlign: "start", scrollMarginTop: "16px" }}
+                style={{ scrollSnapAlign: idx === 0 ? "none" : "start", scrollMarginTop: "16px" }}
                 className="w-full"
               >
                 <PostCard post={post} />

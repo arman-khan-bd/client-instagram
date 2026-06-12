@@ -146,6 +146,8 @@ export default function Reels() {
     };
   }, [reelsList]);
 
+  const lastReelClickTime = useRef<Record<number, number>>({});
+
   // Click to Play/Pause (Auto-unmute on play click)
   const togglePlayPause = (idx: number) => {
     const video = videoRefs.current[idx];
@@ -158,6 +160,30 @@ export default function Reels() {
     } else {
       video.pause();
       setIsPlaying((prev) => ({ ...prev, [idx]: false }));
+    }
+  };
+
+  const handleReelClick = (idx: number, post: MockPost) => {
+    const video = videoRefs.current[idx];
+    if (!video) return;
+
+    const now = Date.now();
+    const prevClick = lastReelClickTime.current[idx] || 0;
+    const origId = post.originalPostId || post.id;
+
+    if (now - prevClick < 300) {
+      const activeReaction = reelsReactions[post.id]?.type || "";
+      if (!activeReaction) {
+        handleReact(post.id, origId, "love");
+      }
+      lastReelClickTime.current[idx] = 0;
+    } else {
+      lastReelClickTime.current[idx] = now;
+      setTimeout(() => {
+        if (lastReelClickTime.current[idx] === now) {
+          togglePlayPause(idx);
+        }
+      }, 300);
     }
   };
 
@@ -290,7 +316,7 @@ export default function Reels() {
                 loop={!autoScroll}
                 muted={muted}
                 playsInline
-                onClick={() => togglePlayPause(idx)}
+                onClick={() => handleReelClick(idx, post)}
                 onEnded={() => handleVideoEnded(idx)}
                 className="w-full h-full object-cover cursor-pointer"
               />
@@ -298,7 +324,7 @@ export default function Reels() {
               {/* Centered Play/Pause Overlay Animation */}
               {!playing && (
                 <div
-                  onClick={() => togglePlayPause(idx)}
+                  onClick={() => handleReelClick(idx, post)}
                   className="absolute inset-0 flex items-center justify-center bg-black/25 cursor-pointer z-10"
                 >
                   <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white animate-pulse">
@@ -313,10 +339,17 @@ export default function Reels() {
               {/* Reels Sidebar (Right Action Panel) */}
               <div className="absolute right-3.5 bottom-24 flex flex-col gap-5 items-center z-20 text-white select-none">
                 {/* React Button & Picker */}
-                <div className="relative">
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setShowPickerForReelId(post.id)}
+                  onMouseLeave={() => setShowPickerForReelId(null)}
+                >
                   <button
                     onClick={() => handleReact(post.id, origId, activeReaction ? activeReaction : "love")}
-                    onMouseEnter={() => setShowPickerForReelId(post.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setShowPickerForReelId(post.id);
+                    }}
                     className={`flex flex-col items-center gap-1 cursor-pointer hover:scale-110 active:scale-90 transition ${
                       activeReaction ? "text-red-500" : "text-white"
                     }`}
@@ -338,7 +371,6 @@ export default function Reels() {
                         initial={{ opacity: 0, scale: 0.7, x: -160 }}
                         animate={{ opacity: 1, scale: 1, x: -160 }}
                         exit={{ opacity: 0, scale: 0.7 }}
-                        onMouseLeave={() => setShowPickerForReelId(null)}
                         className="absolute bottom-12 left-1/2 flex items-center gap-1 bg-[#111]/95 backdrop-blur-xl border border-white/10 rounded-full px-2.5 py-1.5 shadow-2xl z-50 select-none"
                       >
                         {REACTIONS.map((r, rIdx) => (
