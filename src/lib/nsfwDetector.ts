@@ -110,7 +110,7 @@ export async function scanFileForAdultContent(file: File): Promise<ScanResult> {
     }
 
     return {
-      isAdult: adultProbability >= 0.30,
+      isAdult: adultProbability >= 0.50,
       probability: adultProbability,
       category: highestAdultCategory || "Safe",
       predictions
