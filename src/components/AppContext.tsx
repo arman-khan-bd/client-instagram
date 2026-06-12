@@ -237,6 +237,11 @@ const TAB_TO_PATHNAME: Record<string, string> = {
   profile: "/profile",
 };
 
+// Cache variables outside the React lifecycle to persist across route transitions
+let globalCachedPosts: MockPost[] | null = null;
+let globalLastFetchTime = 0;
+const FETCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -334,6 +339,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Fetch posts from Supabase
     const loadFeed = async () => {
+      const now = Date.now();
+      if (globalCachedPosts && (now - globalLastFetchTime < FETCH_CACHE_TTL)) {
+        setPosts(globalCachedPosts);
+        loadStories();
+        return;
+      }
+
       try {
         loadStories();
 
@@ -390,6 +402,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
           };
         });
+
+        globalCachedPosts = mapped;
+        globalLastFetchTime = Date.now();
         setPosts(mapped);
       } catch (err) {
         console.error("Failed to load feed:", err);
@@ -801,6 +816,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           : "image",
       };
       setPosts((prev) => [newPost, ...prev]);
+      globalCachedPosts = null;
+      globalLastFetchTime = 0;
       showToast("Post shared! 🎉", "success");
     } catch (err: any) {
       console.error("Create post error:", err);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Hls from "hls.js";
 import { useApp, MockPost } from "../AppContext";
 import { Heart, MessageCircle, Send, MoreHorizontal, Music, Play, Pause, Volume2, VolumeX, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -132,6 +133,96 @@ export default function Reels() {
       img: MOCK_REEL_VIDEOS[idx % MOCK_REEL_VIDEOS.length],
     }));
   }, [posts]);
+
+  // Helper to convert a Cloudinary video URL to an HLS (.m3u8) adaptive stream URL with optimal compression
+  const getStreamingVideoUrl = (url: string | undefined): string => {
+    if (!url) return "";
+    const cleanUrl = url.trim();
+    if (cleanUrl.includes("res.cloudinary.com") && (cleanUrl.includes("/video/upload/") || cleanUrl.match(/\.(mp4|mov|webm)$/i))) {
+      let hlsUrl = cleanUrl.replace(/\.(mp4|mov|webm)$/i, ".m3u8");
+      if (!hlsUrl.includes("/sp_auto")) {
+        hlsUrl = hlsUrl.replace("/video/upload/", "/video/upload/sp_auto/");
+      }
+      return hlsUrl;
+    }
+    return cleanUrl;
+  };
+
+  // Preloading states: wait 5 seconds while viewing active reel, then preload next 2 reels
+  const [shouldPreload, setShouldPreload] = useState(false);
+  const [preloadedForIdx, setPreloadedForIdx] = useState<number>(-1);
+
+  useEffect(() => {
+    setShouldPreload(false);
+    setPreloadedForIdx(-1);
+
+    const timer = setTimeout(() => {
+      setShouldPreload(true);
+      setPreloadedForIdx(activeVideoIdx);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [activeVideoIdx]);
+
+  const hlsInstances = useRef<Record<number, Hls | null>>({});
+
+  useEffect(() => {
+    reelsList.forEach((post, idx) => {
+      const video = videoRefs.current[idx];
+      if (!video) return;
+
+      // Active video OR next 2 videos if preload triggered
+      const isLoaded = idx === activeVideoIdx || (shouldPreload && preloadedForIdx === activeVideoIdx && (idx === activeVideoIdx + 1 || idx === activeVideoIdx + 2));
+
+      if (isLoaded) {
+        if (hlsInstances.current[idx] || (video.src && !post.img.includes("res.cloudinary.com"))) {
+          // Already loaded
+          return;
+        }
+
+        const rawSrc = post.img;
+        const streamSrc = getStreamingVideoUrl(rawSrc);
+
+        if (streamSrc.endsWith(".m3u8")) {
+          if (Hls.isSupported()) {
+            if (!hlsInstances.current[idx]) {
+              const hls = new Hls({
+                maxMaxBufferLength: 10,
+                autoStartLoad: true,
+              });
+              hls.loadSource(streamSrc);
+              hls.attachMedia(video);
+              hlsInstances.current[idx] = hls;
+            }
+          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = streamSrc;
+          } else {
+            video.src = rawSrc;
+          }
+        } else {
+          video.src = rawSrc;
+        }
+      } else {
+        // Unload source and destroy Hls to save bandwidth and memory
+        if (hlsInstances.current[idx]) {
+          hlsInstances.current[idx]?.destroy();
+          hlsInstances.current[idx] = null;
+        }
+        video.src = "";
+        video.removeAttribute("src");
+        video.load();
+      }
+    });
+  }, [reelsList, activeVideoIdx, shouldPreload, preloadedForIdx]);
+
+  // Clean up all HLS instances on component unmount
+  useEffect(() => {
+    return () => {
+      Object.values(hlsInstances.current).forEach((hls) => {
+        if (hls) hls.destroy();
+      });
+    };
+  }, []);
 
   // Fetch reactions on mount/change
   useEffect(() => {
@@ -463,6 +554,7 @@ export default function Reels() {
               onPointerUp={handlePointerUpVideo}
               onPointerCancel={handlePointerUpVideo}
               onPointerLeave={handlePointerUpVideo}
+              onContextMenu={(e) => e.preventDefault()}
               className="w-full h-full snap-start snap-always relative flex items-center justify-center overflow-hidden select-none bg-black"
               style={{ height: "100%" }}
             >
@@ -471,13 +563,13 @@ export default function Reels() {
                 ref={(el) => {
                   videoRefs.current[idx] = el;
                 }}
-                src={post.img}
                 muted={muted}
                 playsInline
                 onClick={() => handleReelClick(idx, post)}
                 onEnded={() => handleVideoEnded(idx, post)}
                 onTimeUpdate={(e) => handleTimeUpdate(idx, e.currentTarget)}
                 onLoadedMetadata={(e) => handleLoadedMetadata(idx, e.currentTarget)}
+                onContextMenu={(e) => e.preventDefault()}
                 className="w-full h-full object-contain bg-black cursor-pointer"
               />
 

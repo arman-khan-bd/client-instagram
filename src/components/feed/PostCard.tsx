@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import Hls from "hls.js";
 import { useApp, MockPost } from "../AppContext";
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -160,7 +161,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
       return cleanPoster;
     }
     // If it's a Cloudinary video URL, convert it to a jpg thumbnail
-    if (cleanPoster.includes("res.cloudinary.com") && (cleanPoster.includes("/video/upload/") || cleanPoster.match(/\.(mp4|mov|webm)/i))) {
+    if (cleanPoster.includes("res.cloudinary.com") && (cleanPoster.includes("/video/upload/") || cleanPoster.match(/\.(mp4|mov|webm)$/i))) {
       let url = cleanPoster.replace(/\.(mp4|mov|webm)$/i, ".jpg");
       if (!url.includes("/so_")) {
         url = url.replace("/video/upload/", "/video/upload/so_0/");
@@ -170,6 +171,51 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
     return cleanPoster;
   }, [poster]);
 
+  // Convert video URLs to HLS (.m3u8) adaptive streams for compression and chunking
+  const streamSrc = useMemo(() => {
+    if (!src) return "";
+    const cleanUrl = src.trim();
+    if (cleanUrl.includes("res.cloudinary.com") && (cleanUrl.includes("/video/upload/") || cleanUrl.match(/\.(mp4|mov|webm)$/i))) {
+      let hlsUrl = cleanUrl.replace(/\.(mp4|mov|webm)$/i, ".m3u8");
+      if (!hlsUrl.includes("/sp_auto")) {
+        hlsUrl = hlsUrl.replace("/video/upload/", "/video/upload/sp_auto/");
+      }
+      return hlsUrl;
+    }
+    return cleanUrl;
+  }, [src]);
+
+  // Set up Hls.js playback
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
+
+    if (streamSrc.endsWith(".m3u8")) {
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          maxMaxBufferLength: 10,
+          autoStartLoad: true,
+        });
+        hls.loadSource(streamSrc);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = streamSrc;
+      } else {
+        video.src = src;
+      }
+    } else {
+      video.src = src;
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [src, streamSrc]);
+
   return (
     <div
       className="relative w-full h-full bg-black cursor-pointer"
@@ -178,10 +224,10 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <video
         ref={videoRef}
-        src={src}
         poster={posterUrl}
         className="w-full h-full object-cover"
         playsInline
@@ -192,6 +238,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
           setHasStarted(true);
         }}
         onPause={() => setPlaying(false)}
+        onContextMenu={(e) => e.preventDefault()}
       />
 
       {/* Stretch thumbnail image overlay to guarantee it displays stretched under all conditions before starting */}
@@ -488,45 +535,56 @@ export default function PostCard({ post }: PostCardProps) {
             {post.caption}
           </div>
         ) : (
-          <div className="relative w-full h-full">
-            {(() => {
-              const mediaList = post.imgs && post.imgs.length > 0 ? post.imgs : [post.img];
-              const currentMediaUrl = mediaList[activeImgIndex] || "";
-              const isCurrentMediaVideo = typeof currentMediaUrl === "string" && (
-                currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
-              );
+          <div className="relative w-full h-full overflow-hidden">
+            <AnimatePresence initial={false}>
+              <motion.div
+                key={activeImgIndex}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                className="w-full h-full absolute inset-0"
+              >
+                {(() => {
+                  const mediaList = post.imgs && post.imgs.length > 0 ? post.imgs : [post.img];
+                  const currentMediaUrl = mediaList[activeImgIndex] || "";
+                  const isCurrentMediaVideo = typeof currentMediaUrl === "string" && (
+                    currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
+                  );
 
-              if (isCurrentMediaVideo) {
-                return (
-                  <FeedVideo 
-                    src={currentMediaUrl} 
-                    poster={post.img || undefined} 
-                    onDoubleTap={() => {
-                      setShowHeartPop(true);
-                      setTimeout(() => setShowHeartPop(false), 850);
-                      commitReaction("love");
-                    }}
-                    onLongPress={() => {
-                      setShowLongPicker(true);
-                    }}
-                  />
-                );
-              } else {
-                return (
-                  <img
-                    src={currentMediaUrl}
-                    className="w-full h-full object-cover transition-all duration-300"
-                    style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
-                    alt="post"
-                    draggable={false}
-                    onPointerDown={onImagePointerDown}
-                    onPointerUp={onImagePointerUp}
-                    onPointerCancel={onImagePointerCancel}
-                    onPointerLeave={onImagePointerCancel}
-                  />
-                );
-              }
-            })()}
+                  if (isCurrentMediaVideo) {
+                    return (
+                      <FeedVideo 
+                        src={currentMediaUrl} 
+                        poster={post.img || undefined} 
+                        onDoubleTap={() => {
+                          setShowHeartPop(true);
+                          setTimeout(() => setShowHeartPop(false), 850);
+                          commitReaction("love");
+                        }}
+                        onLongPress={() => {
+                          setShowLongPicker(true);
+                        }}
+                      />
+                    );
+                  } else {
+                    return (
+                      <img
+                        src={currentMediaUrl}
+                        className="w-full h-full object-cover transition-all duration-300"
+                        style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
+                        alt="post"
+                        draggable={false}
+                        onPointerDown={onImagePointerDown}
+                        onPointerUp={onImagePointerUp}
+                        onPointerCancel={onImagePointerCancel}
+                        onPointerLeave={onImagePointerCancel}
+                      />
+                    );
+                  }
+                })()}
+              </motion.div>
+            </AnimatePresence>
 
             {post.imgs && post.imgs.length > 1 && (
               <>
