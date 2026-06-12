@@ -39,10 +39,14 @@ export default function PostModal() {
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLInputElement>(null);
 
-  const activePost = useMemo(
-    () => posts.find((p) => p.id === activePostId),
-    [posts, activePostId]
-  );
+  const [fetchedPost, setFetchedPost] = useState<any | null>(null);
+  const [loadingPost, setLoadingPost] = useState(false);
+
+  const activePost = useMemo(() => {
+    const fromFeed = posts.find((p) => p.id === activePostId);
+    if (fromFeed) return fromFeed;
+    return fetchedPost;
+  }, [posts, activePostId, fetchedPost]);
 
   const [replyingTo, setReplyingTo] = useState<DbComment | null>(null);
 
@@ -53,10 +57,75 @@ export default function PostModal() {
       setCurrentReaction(null);
       setReactionsList([]);
       setReplyingTo(null);
+      setFetchedPost(null);
       return;
     }
-    setLoadingComments(true);
 
+    const fromFeed = posts.find((p) => p.id === activePostId);
+    if (!fromFeed) {
+      setLoadingPost(true);
+      api.getPost(activePostId)
+        .then((dbPost) => {
+          const mediaList: string[] = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
+            ? dbPost.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
+            : [];
+          const thumbnailUrls: string[] = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
+            ? dbPost.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
+            : [];
+          const isTextOnly =
+            mediaList.length === 0 &&
+            typeof dbPost.thumbnailUrl === "string" &&
+            (dbPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.thumbnailUrl.startsWith("radial-gradient"));
+          const isVideo = mediaList.some(
+            (m) =>
+              typeof m === "string" &&
+              (m.endsWith(".mp4") ||
+                m.endsWith(".mov") ||
+                m.endsWith(".webm") ||
+                m.includes("/video/upload/"))
+          );
+          const bgGradient = isTextOnly ? dbPost.thumbnailUrl : undefined;
+          const img = isTextOnly ? "" : (dbPost.thumbnailUrl || mediaList[0] || "");
+          const filterVal = dbPost.masterUrl && dbPost.masterUrl !== "none" ? dbPost.masterUrl : undefined;
+
+          setFetchedPost({
+            id: dbPost.id,
+            user: {
+              id: dbPost.user?.id || 0,
+              name: dbPost.user?.username || "unknown",
+              full: dbPost.user?.fullName || dbPost.user?.username || "User",
+              img: dbPost.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+              followers: 0,
+              following: 0,
+              bio: "",
+              verified: dbPost.user?.isVerified || false,
+            },
+            img,
+            imgs: isTextOnly ? [] : mediaList,
+            thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
+            caption: dbPost.caption || "",
+            likes: dbPost._count?.likes ?? 0,
+            comments: [],
+            time: dbPost.createdAt ? new Date(dbPost.createdAt).toLocaleDateString() : "recently",
+            hasStory: false,
+            location: dbPost.location || "",
+            filter: filterVal,
+            bgGradient,
+            isTextOnly,
+            isReel: isVideo,
+            mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to fetch active post details:", err);
+          showToast("Failed to load post details", "info");
+        })
+        .finally(() => {
+          setLoadingPost(false);
+        });
+    }
+
+    setLoadingComments(true);
     const timer = setTimeout(() => {
       setLoadingComments(false);
     }, 3000);
@@ -89,7 +158,7 @@ export default function PostModal() {
       .finally(() => setLoadingComments(false));
 
     return () => clearTimeout(timer);
-  }, [activePostId, clearPendingComments]);
+  }, [activePostId, clearPendingComments, posts, showToast]);
 
   // Auto-scroll to newest comment
   useEffect(() => {
@@ -118,7 +187,16 @@ export default function PostModal() {
     [activePostId, toggleLike, showToast]
   );
 
-  if (!activePost) return null;
+  if (!activePost) {
+    if (loadingPost) {
+      return (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center">
+          <div className="text-white">Loading post...</div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const allComments = (() => {
     const pending = activePostId ? (pendingComments[activePostId] || []) : [];

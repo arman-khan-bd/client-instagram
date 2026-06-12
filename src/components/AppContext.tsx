@@ -63,12 +63,14 @@ export interface MockChatSession {
 
 export interface MockNotification {
   id: number;
-  type: "like" | "comment" | "follow" | "mention" | "tag";
+  type: string;
   user: MockUser;
   text: string;
   time: string;
   img?: string;
   unread: boolean;
+  postId?: number;
+  storyId?: number;
 }
 
 export interface ToastMessage {
@@ -164,6 +166,7 @@ interface AppContextType {
   storyGroups: StoryGroup[];
   loadStories: () => Promise<void>;
   createStory: (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => Promise<void>;
+  loadNotifications: () => Promise<void>;
 
   // Toast notifications
   toasts: ToastMessage[];
@@ -350,6 +353,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loadNotifications = async () => {
+    try {
+      const dbNotifs = await api.getNotifications();
+      const mapped = dbNotifs.map((n: any) => {
+        const relativeTime = n.createdAt
+          ? new Date(n.createdAt).toLocaleDateString()
+          : "recently";
+
+        const notifier = n.notifier || {};
+        const mockUser: MockUser = {
+          id: notifier.id || "0",
+          name: notifier.username || "unknown",
+          full: notifier.fullName || notifier.username || "User",
+          img: notifier.avatarUrl || "https://i.pravatar.cc/80?img=1",
+          followers: 0,
+          following: 0,
+          bio: "",
+          verified: false,
+        };
+
+        let imgUrl = undefined;
+        if (n.post) {
+          const mediaList: string[] = Array.isArray(n.post.mediaUrls) && n.post.mediaUrls.length > 0
+            ? n.post.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
+            : [];
+          imgUrl = n.post.thumbnailUrl || mediaList[0] || undefined;
+        } else if (n.story) {
+          imgUrl = n.story.mediaUrl || undefined;
+        }
+
+        return {
+          id: n.id,
+          type: n.type,
+          user: mockUser,
+          text: n.text || "",
+          time: relativeTime,
+          img: imgUrl,
+          unread: n.unread,
+          postId: n.postId || undefined,
+          storyId: n.storyId || undefined,
+        };
+      });
+      setNotifications(mapped);
+    } catch (err) {
+      console.error("Failed to load notifications:", err);
+    }
+  };
+
+  // Load saved posts, followings, and notifications on currentUser change
+  useEffect(() => {
+    if (!currentUser) {
+      setSavedPosts(new Set());
+      setFollowStates({});
+      setNotifications([]);
+      return;
+    }
+
+    api.getSavedPosts()
+      .then((savedList) => {
+        const savedIds = new Set(savedList.map((p: any) => p.id));
+        setSavedPosts(savedIds);
+      })
+      .catch((err) => {
+        console.error("Failed to load saved posts:", err);
+      });
+
+    api.getFollowingList()
+      .then((followingList) => {
+        const states: Record<string | number, boolean> = {};
+        followingList.forEach((u: any) => {
+          states[u.id] = true;
+          states[u.username] = true;
+        });
+        setFollowStates(states);
+      })
+      .catch((err) => {
+        console.error("Failed to load following list:", err);
+      });
+
+    loadNotifications();
+  }, [currentUser]);
+
   const createStory = async (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => {
     try {
       showToast("Uploading story... ⚡", "info");
@@ -444,21 +529,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     loadFeed();
 
-
-    // Generate notifications
-    const initialNotifications: MockNotification[] = [
-      { id: 1, type: "like", user: MOCK_USERS[0], text: "liked your photo.", time: "2m", unread: true },
-      { id: 2, type: "comment", user: MOCK_USERS[1], text: 'commented: "This is fire 🔥"', time: "15m", unread: true },
-      { id: 3, type: "follow", user: MOCK_USERS[2], text: "started following you.", time: "1h", unread: true },
-      { id: 4, type: "like", user: MOCK_USERS[3], text: "liked your reel.", time: "2h", unread: true },
-      { id: 5, type: "mention", user: MOCK_USERS[4], text: "mentioned you in a comment.", time: "3h", unread: true },
-      { id: 6, type: "follow", user: MOCK_USERS[5], text: "started following you.", time: "1d", unread: false },
-      { id: 7, type: "like", user: MOCK_USERS[6], text: "and 48 others liked your photo.", time: "2d", unread: false },
-      { id: 8, type: "tag", user: MOCK_USERS[7], text: "tagged you in a post.", time: "3d", unread: false },
-      { id: 9, type: "follow", user: MOCK_USERS[0], text: "and others you may know joined Instagram.", time: "1w", unread: false },
-      { id: 10, type: "like", user: MOCK_USERS[1], text: "liked your story.", time: "1w", unread: false },
-    ];
-    setNotifications(initialNotifications);
 
     // Listen for auth state changes — this is the SINGLE source of truth for user state
     const initAuth = () => {
@@ -643,7 +713,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const toggleSave = (postId: number) => {
+  const toggleSave = async (postId: number) => {
+    // Optimistic UI update
     setSavedPosts((prev) => {
       const next = new Set(prev);
       if (next.has(postId)) {
@@ -655,16 +726,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
       return next;
     });
+
+    try {
+      await api.toggleSavePost(postId);
+    } catch (err: any) {
+      // Rollback
+      setSavedPosts((prev) => {
+        const next = new Set(prev);
+        if (next.has(postId)) {
+          next.delete(postId);
+        } else {
+          next.add(postId);
+        }
+        return next;
+      });
+      showToast(err.message || "Failed to save post", "info");
+    }
   };
 
   const toggleFollow = (userId: string | number) => {
     setFollowStates((prev) => {
       const isFollowing = !prev[userId];
       showToast(isFollowing ? "Following! 🎉" : "Unfollowed", "follow");
-      if (typeof userId === "string") {
-        api.toggleFollow(userId).catch(console.error);
-      }
-      return { ...prev, [userId]: isFollowing };
+      api.toggleFollow(userId.toString()).catch(console.error);
+      const next = { ...prev, [userId]: isFollowing };
+      next[userId.toString()] = isFollowing;
+      return next;
     });
   };
 
@@ -945,6 +1032,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         storyGroups,
         loadStories,
         createStory,
+        loadNotifications,
         toasts,
         showToast,
         removeToast,

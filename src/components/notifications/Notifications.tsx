@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useApp, MockNotification } from "../AppContext";
+import { api } from "../../lib/api";
 
 export default function Notifications() {
   const {
@@ -12,16 +13,32 @@ export default function Notifications() {
     setActivePostId,
     setViewingUserId,
     setActiveTab,
+    storyGroups,
+    setStoryViewerIndex,
   } = useApp();
 
-  const handleNotificationClick = (item: MockNotification) => {
-    // Mark as read
+  const handleNotificationClick = async (item: MockNotification) => {
+    // Mark as read in local state
     setNotifications((prev) =>
       prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
     );
+    try {
+      await api.markNotificationRead(item.id);
+    } catch (err) {
+      console.error("Failed to mark notification read in database:", err);
+    }
+
+    if (item.postId) {
+      setActivePostId(item.postId);
+    } else if (item.storyId) {
+      const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
+      if (storyIdx !== -1) {
+        setStoryViewerIndex(storyIdx);
+      }
+    }
   };
 
-  const handleUserClick = (userId: number) => {
+  const handleUserClick = (userId: string | number) => {
     setViewingUserId(userId);
     setActiveTab("profile");
   };
@@ -83,7 +100,12 @@ export default function Notifications() {
             className="w-11 h-11 rounded-lg object-cover cursor-pointer shrink-0 border border-[#222] hover:opacity-85 transition"
             onClick={(e) => {
               e.stopPropagation();
-              setActivePostId(item.id); // Opens post modal detail
+              if (item.postId) {
+                setActivePostId(item.postId);
+              } else if (item.storyId) {
+                const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
+                if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
+              }
             }}
           />
         )}

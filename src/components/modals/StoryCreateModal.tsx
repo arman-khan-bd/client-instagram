@@ -86,6 +86,9 @@ export default function StoryCreateModal() {
   const [showStickerCreator, setShowStickerCreator] = useState(false);
   const [showTagCreator, setShowTagCreator] = useState(false);
   const [showMusicCreator, setShowMusicCreator] = useState(false);
+  const [showFilterSelector, setShowFilterSelector] = useState(false);
+  const [showMoodSelector, setShowMoodSelector] = useState(false);
+  const [showCaptionSelector, setShowCaptionSelector] = useState(false);
 
   // Text inputs
   const [inputText, setInputText] = useState("");
@@ -268,20 +271,17 @@ export default function StoryCreateModal() {
   const musicName = audioSourceType === "preset" && selectedPresetIndex !== null ? PRESET_AUDIOS[selectedPresetIndex].name : customAudioName;
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-4 select-none">
-      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-full max-w-[850px] overflow-hidden flex flex-col md:flex-row text-white h-[90vh] md:h-[750px] shadow-2xl">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-4 select-none animate-fade-in">
+      <div className="bg-zinc-950 border border-zinc-900 rounded-3xl w-full max-w-[420px] aspect-[9/16] overflow-hidden flex flex-col text-white h-[90vh] md:h-[750px] shadow-2xl relative animate-scale-up">
         
         {/* Left Side: Drag-and-Drop Viewport Editor */}
-        <div className="flex-1 bg-zinc-900 flex flex-col items-center justify-center relative border-r border-zinc-900/60 p-4 min-h-[350px] md:min-h-0">
-          <div className="flex items-center justify-between w-full p-2 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-2">Story Canvas</span>
-          </div>
-
+        <div className="w-full h-full bg-zinc-900 flex flex-col items-center justify-center relative p-0 overflow-hidden">
+          
           {previewUrl ? (
             <div 
               ref={viewportRef}
               onPointerMove={handlePointerMove}
-              className={`relative aspect-[9/16] h-[90%] max-h-[500px] bg-black rounded-2xl overflow-hidden border border-zinc-800 shadow-lg group`}
+              className="relative w-full h-full bg-black overflow-hidden shadow-lg group"
             >
               {/* Media Preview Container */}
               {file?.type.startsWith("video") ? (
@@ -292,16 +292,28 @@ export default function StoryCreateModal() {
                   autoPlay
                   loop
                   style={activeFilter.style}
-                  className="w-full h-full object-contain pointer-events-none"
+                  className="w-full h-full object-cover pointer-events-none"
                 />
               ) : (
                 <img
                   src={previewUrl}
                   alt="Story preview"
                   style={activeFilter.style}
-                  className="w-full h-full object-contain pointer-events-none"
+                  className="w-full h-full object-cover pointer-events-none"
                 />
               )}
+
+              {/* Top Left Close Button */}
+              <div className="absolute top-4 left-4 z-40">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
               {/* Top Right Overlay Buttons (Facebook-style Toolbar) */}
               <div className="absolute top-4 right-4 flex flex-col gap-2.5 z-40">
@@ -336,6 +348,30 @@ export default function StoryCreateModal() {
                   title="Add Emoji Sticker"
                 >
                   <Smile size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterSelector(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Visual Filters"
+                >
+                  <Palette size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMoodSelector(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Mood Status"
+                >
+                  <Sparkles size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCaptionSelector(true)}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Add Caption"
+                >
+                  <SmilePlus size={16} />
                 </button>
               </div>
 
@@ -457,23 +493,60 @@ export default function StoryCreateModal() {
 
               {/* Mood Overlay Badge */}
               {selectedFeeling && (
-                <div className="absolute top-4 left-4 bg-zinc-950/80 backdrop-blur border border-white/10 px-3 py-1 rounded-full text-xs font-bold z-20 shadow flex items-center gap-1.5 animate-pulse">
-                  <span>Feeling:</span>
+                <div className="absolute top-4 left-16 bg-zinc-950/80 backdrop-blur border border-white/10 px-3 py-1 rounded-full text-[10px] font-bold z-20 shadow flex items-center gap-1.5 animate-pulse">
                   <span>{selectedFeeling}</span>
                 </div>
               )}
+
+              {/* Bottom Left Privacy Button */}
+              <div className="absolute bottom-4 left-4 z-40">
+                <button
+                  type="button"
+                  onClick={() => showToast("Story privacy: Friends Only 🔒", "info")}
+                  className="px-3.5 py-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center gap-1 border border-white/10 transition shadow hover:scale-105 active:scale-95 text-[11px] font-extrabold"
+                >
+                  🔒 Friends
+                </button>
+              </div>
+
+              {/* Bottom Right Share Button */}
+              <div className="absolute bottom-4 right-4 z-40">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isUploading}
+                  className="px-4.5 py-2 rounded-full bg-insta-blue hover:bg-insta-blue/90 text-white flex items-center gap-1 transition shadow hover:scale-105 active:scale-95 text-[11px] font-extrabold uppercase tracking-wide disabled:opacity-50"
+                >
+                  {isUploading ? "Sharing..." : "Share Story ✨"}
+                </button>
+              </div>
+
             </div>
           ) : (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="flex flex-col items-center gap-3 cursor-pointer text-zinc-500 hover:text-zinc-300 transition p-6 text-center select-none"
-            >
-              <div className="w-16 h-16 rounded-full bg-zinc-950 border border-zinc-900 flex items-center justify-center hover:scale-105 transition">
-                <Upload size={28} />
+            <div className="flex flex-col items-center justify-center w-full h-full relative">
+              {/* Close button for upload screen */}
+              <div className="absolute top-4 left-4 z-40">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition shadow hover:scale-105 active:scale-95"
+                  title="Close"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <div>
-                <p className="font-semibold text-sm text-zinc-300">Upload photo or video</p>
-                <p className="text-xs text-zinc-600 mt-1">Recommended: 9:16 aspect ratio</p>
+
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-3 cursor-pointer text-zinc-500 hover:text-zinc-300 transition p-6 text-center select-none"
+              >
+                <div className="w-16 h-16 rounded-full bg-zinc-950 border border-zinc-900 flex items-center justify-center hover:scale-105 transition">
+                  <Upload size={28} />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-zinc-300">Upload photo or video</p>
+                  <p className="text-xs text-zinc-600 mt-1">Recommended: 9:16 aspect ratio</p>
+                </div>
               </div>
             </div>
           )}
@@ -487,102 +560,13 @@ export default function StoryCreateModal() {
           />
         </div>
 
-        {/* Right Side: Tabbed Settings Sidebar */}
-        <div className="w-full md:w-[360px] bg-zinc-950 flex flex-col overflow-hidden h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4.5 border-b border-zinc-900">
-            <h2 className="text-[16px] font-extrabold tracking-wide text-gradient-instagram">Story Configuration</h2>
-            <button
-              onClick={handleClose}
-              className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-900 rounded-full transition"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll text-sm">
-            {/* Filter Section */}
-            <div className="space-y-2.5">
-              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                Visual Filters
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {FILTERS.map((f, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setActiveFilter(f)}
-                    className={`p-2.5 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
-                      activeFilter.name === f.name
-                        ? "bg-white text-black border-white"
-                        : "bg-zinc-900 text-zinc-300 border-zinc-900 hover:bg-zinc-850"
-                    }`}
-                  >
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Feelings Moods Selector */}
-            <div className="space-y-2.5 pt-4 border-t border-zinc-900">
-              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                Mood Status
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {FEELINGS.map((feel) => (
-                  <button
-                    key={feel}
-                    type="button"
-                    onClick={() => setSelectedFeeling(feel === selectedFeeling ? "" : feel)}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
-                      selectedFeeling === feel
-                        ? "bg-white text-black border-white"
-                        : "bg-zinc-900 text-zinc-300 border-zinc-900 hover:bg-zinc-850"
-                    }`}
-                  >
-                    {feel}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Caption Textarea */}
-            <div className="space-y-2 pt-4 border-t border-zinc-900">
-              <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">
-                Caption
-              </label>
-              <textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                placeholder="Write a caption (optional)..."
-                rows={3}
-                maxLength={200}
-                className="w-full bg-zinc-900 border border-zinc-850 rounded-xl p-3 text-xs focus:border-zinc-700 outline-none resize-none placeholder-zinc-650 text-white"
-              />
-            </div>
-          </div>
-
-          {/* Submit Action Block */}
-          <div className="p-4 bg-zinc-950 border-t border-zinc-900">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!file || isUploading}
-              className="w-full py-3 bg-white text-black font-extrabold rounded-xl hover:bg-zinc-200 transition disabled:opacity-55 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow"
-            >
-              {isUploading ? "Sharing to Story..." : "Share Story ✨"}
-            </button>
-          </div>
-        </div>
-
       </div>
 
       {/* Floating Creators Popovers (Facebook Style) */}
       
       {/* 1. Text Creator Popover */}
       {showTextCreator && (
-        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Add Custom Text</h3>
@@ -626,7 +610,7 @@ export default function StoryCreateModal() {
 
       {/* 2. Emoji Sticker Selector */}
       {showStickerCreator && (
-        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Choose Emoji Sticker</h3>
@@ -644,7 +628,7 @@ export default function StoryCreateModal() {
                     setShowStickerCreator(false);
                     showToast("Sticker added! Drag to reposition.", "success");
                   }}
-                  className="text-[32px] hover:scale-125 transition cursor-pointer p-1.5 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-center"
+                  className="text-[32px] hover:scale-125 transition cursor-pointer p-1.5 rounded-xl bg-zinc-955 border border-zinc-800/80 flex items-center justify-center"
                 >
                   {emoji}
                 </button>
@@ -656,7 +640,7 @@ export default function StoryCreateModal() {
 
       {/* 3. User Tag Creator */}
       {showTagCreator && (
-        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Mention User</h3>
@@ -693,7 +677,7 @@ export default function StoryCreateModal() {
 
       {/* 4. Music Soundtrack Selector */}
       {showMusicCreator && (
-        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Choose Soundtrack</h3>
@@ -758,6 +742,100 @@ export default function StoryCreateModal() {
         </div>
       )}
 
+      {/* 5. Filter Selector Popover */}
+      {showFilterSelector && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Visual Filters</h3>
+              <button onClick={() => setShowFilterSelector(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {FILTERS.map((f, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setActiveFilter(f);
+                    setShowFilterSelector(false);
+                  }}
+                  className={`p-2.5 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
+                    activeFilter.name === f.name
+                      ? "bg-white text-black border-white"
+                      : "bg-zinc-950 text-zinc-300 border-zinc-850 hover:bg-zinc-900"
+                  }`}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Mood Selector Popover */}
+      {showMoodSelector && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Mood Status</h3>
+              <button onClick={() => setShowMoodSelector(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scroll p-1">
+              {FEELINGS.map((feel) => (
+                <button
+                  key={feel}
+                  type="button"
+                  onClick={() => {
+                    setSelectedFeeling(feel === selectedFeeling ? "" : feel);
+                    setShowMoodSelector(false);
+                  }}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold text-center transition cursor-pointer ${
+                    selectedFeeling === feel
+                      ? "bg-white text-black border-white"
+                      : "bg-zinc-955 text-zinc-300 border-zinc-850 hover:bg-zinc-900"
+                  }`}
+                >
+                  {feel}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Caption Selector Popover */}
+      {showCaptionSelector && (
+        <div className="fixed inset-0 bg-black/85 z-[250] flex flex-col items-center justify-center p-4 animate-fade-in">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-[400px] p-5 flex flex-col gap-4 text-white shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-wider uppercase text-zinc-400">Add Caption</h3>
+              <button onClick={() => setShowCaptionSelector(false)} className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition">
+                <X size={16} />
+              </button>
+            </div>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Write a caption (optional)..."
+              rows={3}
+              maxLength={200}
+              className="w-full bg-zinc-950 border border-zinc-855 rounded-xl p-3 text-xs focus:border-zinc-700 outline-none resize-none placeholder-zinc-650 text-white"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCaptionSelector(false)}
+              className="w-full py-2.5 bg-white text-black font-extrabold rounded-xl hover:bg-zinc-200 transition"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

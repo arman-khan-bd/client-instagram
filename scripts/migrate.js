@@ -218,6 +218,19 @@ CREATE TABLE IF NOT EXISTS "StoryInteraction" (
   "value"     TEXT,                 -- emoji sticker / custom message / reaction
   "createdAt" TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── Notification ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "Notification" (
+  "id"           SERIAL      PRIMARY KEY,
+  "type"         TEXT        NOT NULL,
+  "notifierId"   UUID        NOT NULL CONSTRAINT "Notification_notifierId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "receiverId"   UUID        NOT NULL CONSTRAINT "Notification_receiverId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "postId"       INTEGER     CONSTRAINT "Notification_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
+  "storyId"      INTEGER     CONSTRAINT "Notification_storyId_fkey" REFERENCES "Story"("id") ON DELETE CASCADE,
+  "text"         TEXT,
+  "unread"       BOOLEAN     DEFAULT TRUE,
+  "createdAt"    TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -238,6 +251,7 @@ const rlsStatements = [
   `ALTER TABLE "Follow"      ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Message"     ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Reaction"    ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Notification" ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"        FORCE ROW LEVEL SECURITY`,
@@ -250,6 +264,7 @@ const rlsStatements = [
   `ALTER TABLE "Follow"      FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "Message"     FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "Reaction"    FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Notification" FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -537,6 +552,24 @@ const rlsStatements = [
   `CREATE POLICY "StoryInteraction: insert"
      ON "StoryInteraction" FOR INSERT
      WITH CHECK (auth.uid() = "userId")`,
+
+  // ── Notification Table RLS ──────────────────────────────────────────────────
+  `DROP POLICY IF EXISTS "Notification: receiver read" ON "Notification"`,
+  `DROP POLICY IF EXISTS "Notification: auth insert" ON "Notification"`,
+  `DROP POLICY IF EXISTS "Notification: receiver update" ON "Notification"`,
+
+  `CREATE POLICY "Notification: receiver read"
+     ON "Notification" FOR SELECT
+     USING (auth.uid() = "receiverId")`,
+
+  `CREATE POLICY "Notification: auth insert"
+     ON "Notification" FOR INSERT
+     WITH CHECK (auth.uid() = "notifierId")`,
+
+  `CREATE POLICY "Notification: receiver update"
+     ON "Notification" FOR UPDATE
+     USING (auth.uid() = "receiverId")
+     WITH CHECK (auth.uid() = "receiverId")`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

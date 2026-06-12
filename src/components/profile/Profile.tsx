@@ -115,10 +115,20 @@ export default function Profile() {
       return posts.filter((p) => savedPosts.has(p.id));
     }
     if (activeTabName === "tagged") {
-      return posts.slice(12, 18);
+      return posts.filter(
+        (p) =>
+          p.caption &&
+          p.caption.toLowerCase().includes(`@${profileUser.name.toLowerCase()}`)
+      );
     }
     if (activeTabName === "reels") {
-      return posts.filter((_, i) => i % 3 === 0);
+      return posts.filter(
+        (p) =>
+          p.isReel &&
+          (p.user.id === profileUser.id ||
+            p.user.id.toString() === profileUser.id.toString() ||
+            p.user.name === profileUser.name)
+      );
     }
 
     // Default posts
@@ -132,16 +142,50 @@ export default function Profile() {
 
   // Map dbProfile posts or tabPosts fallback
   const profilePostsList = useMemo(() => {
-    if (dbProfile?.posts && activeTabName === "posts") {
-      return dbProfile.posts.map((p: any) => ({
-        id: p.id,
-        img: p.thumbnailUrl || p.mobileUrl || "https://picsum.photos/400/400",
-        likes: p._count?.likes ?? 0,
-        comments: { length: p._count?.comments ?? 0 },
-      }));
+    if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged")) {
+      const allMapped = dbProfile.posts.map((p: any) => {
+        const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+          ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
+          : [];
+        const isTextOnly =
+          mediaList.length === 0 &&
+          typeof p.thumbnailUrl === "string" &&
+          (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+
+        const isVideo = mediaList.some(
+          (m) =>
+            typeof m === "string" &&
+            (m.endsWith(".mp4") ||
+              m.endsWith(".mov") ||
+              m.endsWith(".webm") ||
+              m.includes("/video/upload/"))
+        );
+
+        return {
+          id: p.id,
+          img: isTextOnly ? "" : (p.thumbnailUrl || p.mobileUrl || "https://picsum.photos/400/400"),
+          isTextOnly,
+          bgGradient: isTextOnly ? p.thumbnailUrl : undefined,
+          caption: p.caption || "",
+          likes: p._count?.likes ?? 0,
+          comments: { length: p._count?.comments ?? 0 },
+          isReel: isVideo,
+        };
+      });
+
+      if (activeTabName === "reels") {
+        return allMapped.filter((p: any) => p.isReel);
+      }
+      if (activeTabName === "tagged") {
+        return allMapped.filter((p: any) =>
+          p.caption &&
+          p.caption.toLowerCase().includes(`@${profileUser.name.toLowerCase()}`)
+        );
+      }
+      return allMapped;
     }
     return tabPosts;
-  }, [dbProfile, tabPosts, activeTabName]);
+  }, [dbProfile, tabPosts, activeTabName, profileUser]);
 
   if (!profileUser) {
     return <div className="text-center p-12 text-white">User not found</div>;
@@ -392,16 +436,25 @@ export default function Profile() {
               <div
                 key={`grid-post-${post.id}-${i}`}
                 onClick={() => setActivePostId(post.id)}
-                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in"
+                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg"
               >
-                <img
-                  src={post.img}
-                  alt="Profile content"
-                  className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
+                {post.isTextOnly ? (
+                  <div
+                    style={{ background: post.bgGradient }}
+                    className="w-full h-full flex items-center justify-center p-4 text-center font-semibold text-xs md:text-sm break-words select-none text-white border border-[#222]"
+                  >
+                    <span className="line-clamp-4">{post.caption}</span>
+                  </div>
+                ) : (
+                  <img
+                    src={post.img}
+                    alt="Profile content"
+                    className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                )}
                 
-                {activeTabName === "reels" && (
+                {(activeTabName === "reels" || post.isReel) && (
                   <span className="absolute top-2 right-2 text-lg drop-shadow-md">🎬</span>
                 )}
 

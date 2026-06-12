@@ -238,6 +238,17 @@ class ApiClient {
       return { liked: false };
     } else {
       await supabase.from('Like').insert({ userId: authUser.id, postId });
+
+      const { data: post } = await supabase.from('Post').select('userId').eq('id', postId).single();
+      if (post && post.userId !== authUser.id) {
+        await this.createNotification({
+          type: 'like',
+          receiverId: post.userId,
+          postId: Number(postId),
+          text: 'liked your photo.'
+        });
+      }
+
       return { liked: true };
     }
   }
@@ -263,12 +274,34 @@ class ApiClient {
       } else {
         // Change reaction type
         await supabase.from('Reaction').update({ type: reactionType }).eq('id', existing.id);
+
+        const { data: post } = await supabase.from('Post').select('userId').eq('id', postId).single();
+        if (post && post.userId !== authUser.id) {
+          await this.createNotification({
+            type: 'like',
+            receiverId: post.userId,
+            postId: Number(postId),
+            text: `reacted with ${reactionType} to your post.`
+          });
+        }
+
         return { reaction: reactionType };
       }
     } else {
       // New reaction — also add a Like entry
       await supabase.from('Reaction').insert({ userId: authUser.id, postId, type: reactionType });
       await supabase.from('Like').upsert({ userId: authUser.id, postId }, { onConflict: 'userId,postId' });
+
+      const { data: post } = await supabase.from('Post').select('userId').eq('id', postId).single();
+      if (post && post.userId !== authUser.id) {
+        await this.createNotification({
+          type: 'like',
+          receiverId: post.userId,
+          postId: Number(postId),
+          text: `reacted with ${reactionType} to your post.`
+        });
+      }
+
       return { reaction: reactionType };
     }
   }
@@ -345,6 +378,34 @@ class ApiClient {
       .single();
 
     if (error) throw error;
+
+    // Create notification
+    const { data: post } = await supabase.from('Post').select('userId').eq('id', postId).single();
+    if (post && post.userId !== authUser.id) {
+      await this.createNotification({
+        type: 'comment',
+        receiverId: post.userId,
+        postId: Number(postId),
+        text: `commented: "${text.substring(0, 40)}${text.length > 40 ? '...' : ''}"`
+      });
+    }
+
+    if (options?.parentId) {
+      const { data: parentComment } = await supabase
+        .from('Comment')
+        .select('userId')
+        .eq('id', options.parentId)
+        .single();
+      if (parentComment && parentComment.userId !== authUser.id && parentComment.userId !== post?.userId) {
+        await this.createNotification({
+          type: 'reply',
+          receiverId: parentComment.userId,
+          postId: Number(postId),
+          text: `replied to your comment: "${text.substring(0, 40)}${text.length > 40 ? '...' : ''}"`
+        });
+      }
+    }
+
     return comment;
   }
 
@@ -405,6 +466,17 @@ class ApiClient {
     } else {
       const { error } = await supabase.from('Save').insert({ userId: authUser.id, postId });
       if (error) throw error;
+
+      const { data: post } = await supabase.from('Post').select('userId').eq('id', postId).single();
+      if (post && post.userId !== authUser.id) {
+        await this.createNotification({
+          type: 'save',
+          receiverId: post.userId,
+          postId: Number(postId),
+          text: 'saved your post.'
+        });
+      }
+
       return { saved: true };
     }
   }
@@ -489,7 +561,7 @@ class ApiClient {
 
     const { data: posts } = await supabase
       .from('Post')
-      .select('id, thumbnailUrl, mobileUrl')
+      .select('id, thumbnailUrl, mobileUrl, mediaUrls, caption')
       .eq('userId', user.id)
       .order('createdAt', { ascending: false })
       .limit(30);
@@ -557,6 +629,13 @@ class ApiClient {
       return { following: false };
     } else {
       await supabase.from('Follow').insert({ followerId: authUser.id, followingId: userId });
+
+      await this.createNotification({
+        type: 'follow',
+        receiverId: userId,
+        text: 'started following you.'
+      });
+
       return { following: true };
     }
   }
@@ -648,7 +727,12 @@ class ApiClient {
     formData.append('upload_preset', 'auragram');
     formData.append('folder', 'auragram/stories');
 
-    const cloudRes = await fetch('https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload', {
+    const isVideo = file.type.startsWith('video/');
+    const cloudinaryEndpoint = isVideo
+      ? 'https://api.cloudinary.com/v1_1/dj7pg5slk/video/upload'
+      : 'https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload';
+
+    const cloudRes = await fetch(cloudinaryEndpoint, {
       method: 'POST',
       body: formData,
     });
@@ -734,6 +818,36 @@ class ApiClient {
       .single();
 
     if (error) throw error;
+
+    // Create notification
+    const { data: story } = await supabase.from('Story').select('userId').eq('id', storyId).single();
+    if (story && story.userId !== authUser.id) {
+      let text = '';
+      let nType = 'story_view';
+      if (type === 'view') {
+        text = 'viewed your story.';
+        nType = 'story_view';
+      } else if (type === 'like') {
+        text = 'liked your story.';
+        nType = 'like';
+      } else if (type === 'reaction') {
+        text = `reacted to your story: ${value || ''}`;
+        nType = 'story_reaction';
+      } else if (type === 'message') {
+        text = `replied to your story: "${value || ''}"`;
+        nType = 'reply';
+      }
+
+      if (text) {
+        await this.createNotification({
+          type: nType,
+          receiverId: story.userId,
+          storyId,
+          text
+        });
+      }
+    }
+
     return data;
   }
 
@@ -769,6 +883,104 @@ class ApiClient {
 
     if (error) throw error;
     return updatedUser;
+  }
+
+  async getPost(postId: number | string) {
+    const { data: post, error } = await supabase
+      .from('Post')
+      .select('*, user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified)')
+      .eq('id', Number(postId))
+      .single();
+
+    if (error || !post) throw new Error(error?.message || 'Post not found');
+
+    const { count: likesCount } = await supabase.from('Like').select('id', { count: 'exact', head: true }).eq('postId', post.id);
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    let isLiked = false;
+    if (authUser) {
+      const { data: likeRecord } = await supabase
+        .from('Like')
+        .select('id')
+        .eq('userId', authUser.id)
+        .eq('postId', post.id)
+        .maybeSingle();
+      isLiked = !!likeRecord;
+    }
+
+    return {
+      ...post,
+      isLiked,
+      _count: {
+        likes: likesCount || 0,
+      }
+    };
+  }
+
+  async getFollowingList() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return [];
+
+    const { data: followings, error } = await supabase
+      .from('Follow')
+      .select('followingId, User:User!Follow_followingId_fkey(id, username, fullName, avatarUrl)')
+      .eq('followerId', authUser.id);
+
+    if (error) throw error;
+    return (followings || []).map((f: any) => f.User).filter(Boolean);
+  }
+
+  async createNotification(data: { type: string; receiverId: string; postId?: number; storyId?: number; text?: string }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return null;
+    if (authUser.id === data.receiverId) return null;
+
+    const { data: notif, error } = await supabase
+      .from('Notification')
+      .insert({
+        type: data.type,
+        notifierId: authUser.id,
+        receiverId: data.receiverId,
+        postId: data.postId || null,
+        storyId: data.storyId || null,
+        text: data.text || '',
+        unread: true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.warn("Failed to create notification:", error.message);
+      return null;
+    }
+    return notif;
+  }
+
+  async getNotifications() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return [];
+
+    const { data, error } = await supabase
+      .from('Notification')
+      .select(`
+        *,
+        notifier:User!Notification_notifierId_fkey(id, username, fullName, avatarUrl),
+        post:Post!Notification_postId_fkey(id, thumbnailUrl, mobileUrl, mediaUrls),
+        story:Story!Notification_storyId_fkey(id, mediaUrl)
+      `)
+      .eq('receiverId', authUser.id)
+      .order('createdAt', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  async markNotificationRead(id: number) {
+    const { error } = await supabase
+      .from('Notification')
+      .update({ unread: false })
+      .eq('id', id);
+    if (error) throw error;
   }
 }
 
