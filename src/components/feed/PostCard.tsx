@@ -677,6 +677,30 @@ export default function PostCard({ post }: PostCardProps) {
 
             {post.imgs && post.imgs.length > 1 && (
               <>
+                {activeImgIndex > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImgIndex((prev) => prev - 1);
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition z-20 cursor-pointer hidden sm:flex"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                )}
+
+                {activeImgIndex < post.imgs.length - 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImgIndex((prev) => prev + 1);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition z-20 cursor-pointer hidden sm:flex"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
                   {post.imgs.map((_, idx) => (
                     <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"}`} />
