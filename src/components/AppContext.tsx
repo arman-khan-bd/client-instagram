@@ -248,9 +248,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   // Derive initial tab from URL
-  const [activeTab, setActiveTabState] = useState<string>(
-    PATHNAME_TO_TAB[pathname] || "home"
-  );
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    if (pathname.startsWith("/reels/r/")) {
+      return "reels";
+    }
+    return PATHNAME_TO_TAB[pathname] || "home";
+  });
   const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("insta_me");
@@ -268,15 +271,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync activeTab when pathname changes externally (back/forward)
   useEffect(() => {
-    const tab = PATHNAME_TO_TAB[pathname] || "home";
+    const tab = pathname.startsWith("/reels/r/") ? "reels" : (PATHNAME_TO_TAB[pathname] || "home");
     setActiveTabState(tab);
+
+    if (pathname.startsWith("/reels/r/")) {
+      const parts = pathname.split("/");
+      const id = parts[parts.length - 1];
+      if (id) {
+        localStorage.setItem("activeReelId", id);
+      }
+    }
   }, [pathname]);
 
   // setActiveTab pushes to router AND updates local state
   const setActiveTab = useCallback((tab: string) => {
     setActiveTabState(tab);
     const target = TAB_TO_PATHNAME[tab] || "/";
-    if (pathname !== target) {
+    if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
       router.push(target);
     }
   }, [router, pathname]);

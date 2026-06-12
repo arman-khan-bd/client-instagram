@@ -103,15 +103,19 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
     };
   }, []);
 
-  // Auto-play when scrolled in view, auto-pause when scrolled out of view
+  // Auto-play when scrolled in view (>= 40% visible), auto-pause when scrolled out of view (< 40% visible / 60% hidden)
+  // Ensures only one video plays at any given time in the feed.
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           el.muted = globalMuted;
-          el.play().catch(() => {});
+          el.play().then(() => {
+            window.dispatchEvent(new CustomEvent("feedVideoPlay", { detail: { src } }));
+          }).catch(() => {});
           setPlaying(true);
           setHasStarted(true);
         } else {
@@ -119,17 +123,23 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
           setPlaying(false);
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.4 }
     );
     observer.observe(el);
 
-    // Force autoplay on mount / src change if already visible in viewport
-    el.muted = globalMuted;
-    el.play().catch(() => {});
-    setPlaying(true);
-    setHasStarted(true);
+    const handleVideoPlay = (e: CustomEvent<{ src: string }>) => {
+      if (e.detail.src !== src) {
+        el.pause();
+        setPlaying(false);
+      }
+    };
 
-    return () => observer.disconnect();
+    window.addEventListener("feedVideoPlay" as any, handleVideoPlay);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("feedVideoPlay" as any, handleVideoPlay);
+    };
   }, [src]);
 
   const [isVertical, setIsVertical] = useState(false);
@@ -178,7 +188,9 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
           } else {
             // Otherwise, play/pause normally
             if (el.paused) {
-              el.play().catch(() => {});
+              el.play().then(() => {
+                window.dispatchEvent(new CustomEvent("feedVideoPlay", { detail: { src } }));
+              }).catch(() => {});
               setPlaying(true);
               setHasStarted(true);
             } else {
@@ -322,19 +334,17 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
       {/* View Full Screen button */}
-      {isVertical && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            localStorage.setItem("activeReelId", String(postId));
-            setActiveTab("reels");
-          }}
-          className="absolute bottom-3 right-13 px-2.5 py-1 bg-black/60 hover:bg-black/80 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold transition z-10 border border-white/10"
-        >
-          <Maximize size={12} />
-          Full Screen
-        </button>
-      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          localStorage.setItem("activeReelId", String(postId));
+          setActiveTab("reels");
+        }}
+        className="absolute bottom-3 right-13 px-2.5 py-1 bg-black/60 hover:bg-black/80 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold transition z-10 border border-white/10"
+      >
+        <Maximize size={12} />
+        Full Screen
+      </button>
       {/* Reel badge */}
       <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 z-10">
         🎬 REEL
@@ -667,20 +677,6 @@ export default function PostCard({ post }: PostCardProps) {
 
             {post.imgs && post.imgs.length > 1 && (
               <>
-                {activeImgIndex > 0 && (
-                  <button type="button" onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); setActiveImgIndex((p) => p - 1); }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 text-white border-none cursor-pointer">
-                    <ChevronLeft size={16} />
-                  </button>
-                )}
-                {activeImgIndex < post.imgs.length - 1 && (
-                  <button type="button" onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); setActiveImgIndex((p) => p + 1); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 rounded-full p-1.5 z-20 text-white border-none cursor-pointer">
-                    <ChevronRight size={16} />
-                  </button>
-                )}
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
                   {post.imgs.map((_, idx) => (
                     <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"}`} />

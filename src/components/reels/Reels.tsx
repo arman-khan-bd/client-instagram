@@ -144,9 +144,16 @@ export default function Reels() {
     }));
   }, [posts]);
 
-  // Handle scrolling to target reel from feed view
+  // Handle scrolling to target reel from feed view or direct URL path
   useEffect(() => {
-    const targetIdStr = localStorage.getItem("activeReelId");
+    let targetIdStr = localStorage.getItem("activeReelId");
+    if (!targetIdStr && typeof window !== "undefined") {
+      const pathname = window.location.pathname;
+      if (pathname.startsWith("/reels/r/")) {
+        const parts = pathname.split("/");
+        targetIdStr = parts[parts.length - 1];
+      }
+    }
     if (targetIdStr && reelsList.length > 0) {
       const targetId = Number(targetIdStr);
       const targetIdx = reelsList.findIndex((r) => r.originalPostId === targetId || r.id === targetId);
