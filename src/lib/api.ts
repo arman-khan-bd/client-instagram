@@ -651,42 +651,68 @@ class ApiClient {
     }
   }
 
-  // Messages
+  // Messages & Conversations API
   async getConversations() {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
-    const { data: messages, error } = await supabase
-      .from('Message')
+    const { data: participations, error: partError } = await supabase
+      .from('ConversationParticipant')
+      .select('conversationId')
+      .eq('userId', authUser.id);
+
+    if (partError) throw partError;
+    const conversationIds = (participations || []).map((p: any) => p.conversationId);
+    if (conversationIds.length === 0) return [];
+
+    const { data: conversations, error: convError } = await supabase
+      .from('Conversation')
       .select(`
-        id, text, senderId, receiverId, status, createdAt,
-        sender:User!Message_senderId_fkey(id, username, avatarUrl),
-        receiver:User!Message_receiverId_fkey(id, username, avatarUrl)
+        *,
+        participants:ConversationParticipant(
+          user:User(id, username, fullName, avatarUrl)
+        )
       `)
-      .or(`senderId.eq.${authUser.id},receiverId.eq.${authUser.id}`)
+      .in('id', conversationIds);
+
+    if (convError) throw convError;
+
+    const { data: lastMessages, error: msgError } = await supabase
+      .from('Message')
+      .select('*')
+      .in('conversationId', conversationIds)
       .order('createdAt', { ascending: false });
 
-    if (error) throw error;
+    if (msgError) throw msgError;
 
-    const conversationMap = new Map<string, any>();
-    (messages || []).forEach((msg: any) => {
-      const otherId = msg.senderId === authUser.id ? msg.receiverId : msg.senderId;
-      if (!conversationMap.has(otherId)) conversationMap.set(otherId, msg);
+    const lastMsgMap = new Map<number, any>();
+    (lastMessages || []).forEach((msg: any) => {
+      if (!lastMsgMap.has(msg.conversationId)) {
+        lastMsgMap.set(msg.conversationId, msg);
+      }
     });
-    return Array.from(conversationMap.values());
+
+    return (conversations || []).map((conv: any) => {
+      const lastMsg = lastMsgMap.get(conv.id);
+      return {
+        ...conv,
+        lastMessage: lastMsg || null,
+        participants: (conv.participants || []).map((p: any) => p.user).filter(Boolean)
+      };
+    });
   }
 
-  async getMessages(partnerId: string) {
+  async getMessages(conversationId: number) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
     const { data: messages, error } = await supabase
       .from('Message')
       .select(`
-        id, text, senderId, receiverId, status, createdAt,
+        *,
         sender:User!Message_senderId_fkey(id, username, avatarUrl)
       `)
-      .or(`and(senderId.eq.${authUser.id},receiverId.eq.${partnerId}),and(senderId.eq.${partnerId},receiverId.eq.${authUser.id})`)
+      .eq('conversationId', conversationId)
       .order('createdAt', { ascending: true });
 
     if (error) throw error;
@@ -695,29 +721,223 @@ class ApiClient {
     supabase
       .from('Message')
       .update({ status: 'READ' })
-      .eq('senderId', partnerId)
-      .eq('receiverId', authUser.id)
+      .eq('conversationId', conversationId)
+      .neq('senderId', authUser.id)
       .neq('status', 'READ')
       .then();
 
     return messages || [];
   }
 
-  async sendMessage(receiverId: string, text: string) {
+  async sendMessage(options: { conversationId: number; text?: string; mediaUrl?: string; mediaType?: string; replyToId?: number }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
     const { data: message, error } = await supabase
       .from('Message')
-      .insert({ senderId: authUser.id, receiverId, text })
+      .insert({
+        conversationId: options.conversationId,
+        senderId: authUser.id,
+        text: options.text || null,
+        mediaUrl: options.mediaUrl || null,
+        mediaType: options.mediaType || null,
+        replyToId: options.replyToId || null,
+        reactions: {},
+      })
       .select(`
-        id, text, senderId, receiverId, status, createdAt,
+        *,
         sender:User!Message_senderId_fkey(id, username, avatarUrl)
       `)
       .single();
 
     if (error) throw error;
     return message;
+  }
+
+  async createConversation(options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const isGroup = options.isGroup || false;
+    const allParticipantIds = Array.from(new Set([authUser.id, ...options.participantIds]));
+
+    if (!isGroup && allParticipantIds.length === 2) {
+      // 1-on-1 DM: Check if one already exists
+      const { data: myPartics } = await supabase
+        .from('ConversationParticipant')
+        .select('conversationId')
+        .eq('userId', authUser.id);
+      
+      const myConvIds = (myPartics || []).map((p: any) => p.conversationId);
+      
+      if (myConvIds.length > 0) {
+        const { data: candidates } = await supabase
+          .from('Conversation')
+          .select(`
+            id,
+            isGroup,
+            participants:ConversationParticipant(userId)
+          `)
+          .in('id', myConvIds)
+          .eq('isGroup', false);
+
+        const existingDm = (candidates || []).find((c: any) => {
+          const pIds = c.participants.map((p: any) => p.userId);
+          return pIds.length === 2 && pIds.includes(allParticipantIds[1]);
+        });
+
+        if (existingDm) {
+          const { data: conv } = await supabase
+            .from('Conversation')
+            .select(`
+              *,
+              participants:ConversationParticipant(
+                user:User(id, username, fullName, avatarUrl)
+              )
+            `)
+            .eq('id', existingDm.id)
+            .single();
+
+          if (conv) {
+            return {
+              ...conv,
+              participants: (conv.participants || []).map((p: any) => p.user).filter(Boolean)
+            };
+          }
+        }
+      }
+    }
+
+    // Otherwise, create a new conversation
+    const { data: conversation, error: convError } = await supabase
+      .from('Conversation')
+      .insert({
+        name: options.name || null,
+        avatarUrl: options.avatarUrl || null,
+        isGroup,
+        createdBy: authUser.id
+      })
+      .select()
+      .single();
+
+    if (convError) throw convError;
+
+    const participantRows = allParticipantIds.map(userId => ({
+      conversationId: conversation.id,
+      userId
+    }));
+
+    const { error: partError } = await supabase
+      .from('ConversationParticipant')
+      .insert(participantRows);
+
+    if (partError) throw partError;
+
+    const { data: fullConversation, error: fetchError } = await supabase
+      .from('Conversation')
+      .select(`
+        *,
+        participants:ConversationParticipant(
+          user:User(id, username, fullName, avatarUrl)
+        )
+      `)
+      .eq('id', conversation.id)
+      .single();
+
+    if (fetchError) throw fetchError;
+    return {
+      ...fullConversation,
+      participants: (fullConversation.participants || []).map((p: any) => p.user).filter(Boolean)
+    };
+  }
+
+  async editMessage(messageId: number, text: string) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: message, error } = await supabase
+      .from('Message')
+      .update({ text, isEdited: true })
+      .eq('id', messageId)
+      .eq('senderId', authUser.id)
+      .select(`
+        *,
+        sender:User!Message_senderId_fkey(id, username, avatarUrl)
+      `)
+      .single();
+
+    if (error) throw error;
+    return message;
+  }
+
+  async deleteMessage(messageId: number) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { error } = await supabase
+      .from('Message')
+      .delete()
+      .eq('id', messageId)
+      .eq('senderId', authUser.id);
+
+    if (error) throw error;
+    return true;
+  }
+
+  async reactToMessage(messageId: number, emoji: string) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: msg, error: fetchErr } = await supabase
+      .from('Message')
+      .select('reactions')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchErr) throw fetchErr;
+
+    const reactions = { ...(msg.reactions || {}) };
+    if (reactions[authUser.id] === emoji) {
+      delete reactions[authUser.id];
+    } else {
+      reactions[authUser.id] = emoji;
+    }
+
+    const { data: updatedMsg, error: updateErr } = await supabase
+      .from('Message')
+      .update({ reactions })
+      .eq('id', messageId)
+      .select(`
+        *,
+        sender:User!Message_senderId_fkey(id, username, avatarUrl)
+      `)
+      .single();
+
+    if (updateErr) throw updateErr;
+    return updatedMsg;
+  }
+
+  async uploadMessageMedia(file: File) {
+    const isVideo = file.type.startsWith('video/');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'auragram');
+
+    const uploadUrl = isVideo
+      ? 'https://api.cloudinary.com/v1_1/dj7pg5slk/video/upload'
+      : 'https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload';
+
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const cloudData = await res.json();
+    if (!cloudData.secure_url) throw new Error('File upload failed');
+    return {
+      url: cloudData.secure_url,
+      type: isVideo ? 'video' : 'image'
+    };
   }
 
   // ── Stories ──────────────────────────────────────────────────────────────────

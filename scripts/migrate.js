@@ -118,14 +118,41 @@ CREATE TABLE IF NOT EXISTS "Follow" (
   CONSTRAINT "Follow_followerId_followingId_key" UNIQUE ("followerId", "followingId")
 );
 
+-- ── Message (Cleanup old table) ──────────────────────────────────────────────
+DROP TABLE IF EXISTS "Message" CASCADE;
+
+-- ── Conversation ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "Conversation" (
+  "id"           SERIAL      PRIMARY KEY,
+  "name"         TEXT,
+  "avatarUrl"    TEXT,
+  "isGroup"      BOOLEAN     DEFAULT FALSE,
+  "createdBy"    UUID        CONSTRAINT "Conversation_createdBy_fkey" REFERENCES "User"("id") ON DELETE SET NULL,
+  "createdAt"    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── ConversationParticipant ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "ConversationParticipant" (
+  "id"             SERIAL      PRIMARY KEY,
+  "conversationId" INTEGER     NOT NULL CONSTRAINT "Participant_conversationId_fkey" REFERENCES "Conversation"("id") ON DELETE CASCADE,
+  "userId"         UUID        NOT NULL CONSTRAINT "Participant_userId_fkey"         REFERENCES "User"("id")         ON DELETE CASCADE,
+  "joinedAt"       TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT "Participant_conversationId_userId_key" UNIQUE ("conversationId", "userId")
+);
+
 -- ── Message ───────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS "Message" (
-  "id"         SERIAL      PRIMARY KEY,
-  "senderId"   UUID        NOT NULL CONSTRAINT "Message_senderId_fkey"   REFERENCES "User"("id") ON DELETE CASCADE,
-  "receiverId" UUID        NOT NULL CONSTRAINT "Message_receiverId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
-  "text"       TEXT        NOT NULL,
-  "status"     TEXT        DEFAULT 'SENT',
-  "createdAt"  TIMESTAMPTZ DEFAULT NOW()
+  "id"             SERIAL      PRIMARY KEY,
+  "conversationId" INTEGER     NOT NULL CONSTRAINT "Message_conversationId_fkey" REFERENCES "Conversation"("id") ON DELETE CASCADE,
+  "senderId"       UUID        NOT NULL CONSTRAINT "Message_senderId_fkey"       REFERENCES "User"("id")         ON DELETE CASCADE,
+  "text"           TEXT,
+  "mediaUrl"       TEXT,
+  "mediaType"      TEXT,
+  "replyToId"      INTEGER     CONSTRAINT "Message_replyToId_fkey"       REFERENCES "Message"("id")      ON DELETE SET NULL,
+  "reactions"      JSONB       DEFAULT '{}'::jsonb,
+  "isEdited"       BOOLEAN     DEFAULT FALSE,
+  "status"         TEXT        DEFAULT 'SENT',
+  "createdAt"      TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ── Reaction ──────────────────────────────────────────────────────────────────
@@ -256,32 +283,36 @@ CREATE TABLE IF NOT EXISTS "Report" (
 const rlsStatements = [
 
   // ── Enable RLS on every table ──────────────────────────────────────────────
-  `ALTER TABLE "User"        ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Post"        ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Like"        ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Comment"     ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "CommentLike" ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Share"       ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Save"        ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Follow"      ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Message"     ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Reaction"    ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Notification" ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Report"       ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "User"                    ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Post"                    ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Like"                    ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Comment"                 ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "CommentLike"             ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Share"                   ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Save"                    ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Follow"                  ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Message"                 ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Reaction"                ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Notification"            ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Report"                  ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Conversation"            ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "ConversationParticipant" ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
-  `ALTER TABLE "User"        FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Post"        FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Like"        FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Comment"     FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "CommentLike" FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Share"       FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Save"        FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Follow"      FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Message"     FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Reaction"    FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Notification" FORCE ROW LEVEL SECURITY`,
-  `ALTER TABLE "Report"       FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Post"                    FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Like"                    FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Comment"                 FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "CommentLike"             FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Share"                   FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Save"                    FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Follow"                  FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Message"                 FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Reaction"                FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Notification"            FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Report"                  FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Conversation"            FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "ConversationParticipant" FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -475,33 +506,72 @@ const rlsStatements = [
      USING (auth.uid() = "followerId")`,
 
   // ════════════════════════════════════════════════════════════════════════════
-  // Message table
-  //   • Only the sender or receiver can read their messages
-  //   • Authenticated users can send a message
-  //   • Only the sender can delete (unsend)
-  //   • Receiver can update status (mark as READ)
+  // Conversation, ConversationParticipant, and Message tables
   // ════════════════════════════════════════════════════════════════════════════
-  `DROP POLICY IF EXISTS "Message: participant read"    ON "Message"`,
-  `DROP POLICY IF EXISTS "Message: auth insert"         ON "Message"`,
-  `DROP POLICY IF EXISTS "Message: sender delete"       ON "Message"`,
-  `DROP POLICY IF EXISTS "Message: receiver status upd" ON "Message"`,
+  `DROP POLICY IF EXISTS "Conversation: participant select" ON "Conversation"`,
+  `DROP POLICY IF EXISTS "Conversation: auth insert" ON "Conversation"`,
+  `DROP POLICY IF EXISTS "Conversation: participant update" ON "Conversation"`,
+  `DROP POLICY IF EXISTS "ConversationParticipant: select" ON "ConversationParticipant"`,
+  `DROP POLICY IF EXISTS "ConversationParticipant: insert" ON "ConversationParticipant"`,
+  `DROP POLICY IF EXISTS "ConversationParticipant: delete" ON "ConversationParticipant"`,
+  `DROP POLICY IF EXISTS "Message: participant select" ON "Message"`,
+  `DROP POLICY IF EXISTS "Message: participant insert" ON "Message"`,
+  `DROP POLICY IF EXISTS "Message: participant update" ON "Message"`,
+  `DROP POLICY IF EXISTS "Message: sender delete" ON "Message"`,
 
-  `CREATE POLICY "Message: participant read"
-     ON "Message" FOR SELECT
-     USING (auth.uid() = "senderId" OR auth.uid() = "receiverId")`,
+  `CREATE POLICY "Conversation: participant select" ON "Conversation" FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM "ConversationParticipant" cp
+      WHERE cp."conversationId" = id AND cp."userId" = auth.uid()
+    )
+  )`,
+  `CREATE POLICY "Conversation: auth insert" ON "Conversation" FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL
+  )`,
+  `CREATE POLICY "Conversation: participant update" ON "Conversation" FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM "ConversationParticipant" cp
+      WHERE cp."conversationId" = id AND cp."userId" = auth.uid()
+    )
+  )`,
 
-  `CREATE POLICY "Message: auth insert"
-     ON "Message" FOR INSERT
-     WITH CHECK (auth.uid() = "senderId")`,
+  `CREATE POLICY "ConversationParticipant: select" ON "ConversationParticipant" FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM "ConversationParticipant" cp
+      WHERE cp."conversationId" = "conversationId" AND cp."userId" = auth.uid()
+    )
+  )`,
+  `CREATE POLICY "ConversationParticipant: insert" ON "ConversationParticipant" FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL
+  )`,
+  `CREATE POLICY "ConversationParticipant: delete" ON "ConversationParticipant" FOR DELETE USING (
+    "userId" = auth.uid() OR EXISTS (
+      SELECT 1 FROM "Conversation" c
+      WHERE c.id = "conversationId" AND c."createdBy" = auth.uid()
+    )
+  )`,
 
-  `CREATE POLICY "Message: sender delete"
-     ON "Message" FOR DELETE
-     USING (auth.uid() = "senderId")`,
-
-  `CREATE POLICY "Message: receiver status upd"
-     ON "Message" FOR UPDATE
-     USING  (auth.uid() = "receiverId")
-     WITH CHECK (auth.uid() = "receiverId")`,
+  `CREATE POLICY "Message: participant select" ON "Message" FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM "ConversationParticipant" cp
+      WHERE cp."conversationId" = "conversationId" AND cp."userId" = auth.uid()
+    )
+  )`,
+  `CREATE POLICY "Message: participant insert" ON "Message" FOR INSERT WITH CHECK (
+    auth.uid() = "senderId" AND EXISTS (
+      SELECT 1 FROM "ConversationParticipant" cp
+      WHERE cp."conversationId" = "conversationId" AND cp."userId" = auth.uid()
+    )
+  )`,
+  `CREATE POLICY "Message: participant update" ON "Message" FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM "ConversationParticipant" cp
+      WHERE cp."conversationId" = "conversationId" AND cp."userId" = auth.uid()
+    )
+  )`,
+  `CREATE POLICY "Message: sender delete" ON "Message" FOR DELETE USING (
+    auth.uid() = "senderId"
+  )`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // Reaction table

@@ -49,15 +49,29 @@ export interface MockPost {
 }
 
 export interface MockMessage {
+  id?: number;
   mine: boolean;
+  senderId?: string;
+  sender?: { id: string; username: string; fullName: string; avatarUrl: string };
   text: string;
   time: string;
   reel?: boolean;
+  mediaUrl?: string;
+  mediaType?: string;
+  replyToId?: number;
+  replyTo?: { id: number; text: string; senderName: string };
+  reactions?: Record<string, string>;
+  isEdited?: boolean;
 }
 
 export interface MockChatSession {
   id: number;
+  isGroup: boolean;
+  name?: string;
+  avatarUrl?: string;
+  createdBy?: string;
   user: MockUser;
+  participants: { id: string; username: string; fullName: string; avatarUrl: string }[];
   preview: string;
   time: string;
   unread: number;
@@ -88,7 +102,7 @@ export interface DbStory {
   mediaUrl: string;
   mediaType: string;
   caption: string;
-  bgColor: string;
+  bgColor?: string;
   expiresAt: string;
   createdAt: string;
   audioUrl?: string;
@@ -142,8 +156,13 @@ interface AppContextType {
   toggleFollow: (userId: string | number) => void;
   addComment: (postId: number, text: string) => void;
   clearPendingComments: (postId: number) => void;
-  sendMessage: (chatId: number, text: string) => void;
+  sendMessage: (chatId: number, text?: string, options?: { mediaUrl?: string; mediaType?: string; replyToId?: number }) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
+  loadMessages: (conversationId: number) => Promise<void>;
+  editMessage: (messageId: number, text: string) => Promise<void>;
+  deleteMessage: (messageId: number) => Promise<void>;
+  reactToMessage: (messageId: number, emoji: string) => Promise<void>;
+  createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => Promise<void>;
 
@@ -322,8 +341,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Core Arrays
   const [posts, setPosts] = useState<MockPost[]>([]);
-  const [chats, setChats] = useState<MockChatSession[]>(INITIAL_DM_DATA);
-  const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>(INITIAL_DM_MESSAGES);
+  const [chats, setChats] = useState<MockChatSession[]>([]);
+  const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>({});
   const [notifications, setNotifications] = useState<MockNotification[]>([]);
 
   // Pending (optimistic) comments — bridge between feed inline comment and PostModal
@@ -414,6 +433,108 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setStoryGroups(Object.values(groupsMap));
     } catch (err) {
       console.error("Failed to load stories:", err);
+    }
+  };
+
+  const loadChats = async () => {
+    if (!currentUser) return;
+    try {
+      const convs = await api.getConversations();
+      const mappedChats: MockChatSession[] = convs.map((conv: any) => {
+        let otherUser = conv.participants.find((p: any) => p.id !== currentUser.id);
+        if (!otherUser && conv.participants.length > 0) {
+          otherUser = conv.participants[0];
+        }
+        
+        const userObj: MockUser = {
+          id: otherUser?.id || "0",
+          name: conv.isGroup ? (conv.name || "Group Chat") : (otherUser?.username || "unknown"),
+          full: conv.isGroup ? "Group Conversation" : (otherUser?.fullName || "User"),
+          img: conv.isGroup 
+            ? (conv.avatarUrl || "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=120&h=120&fit=crop") 
+            : (otherUser?.avatarUrl || "https://i.pravatar.cc/80?img=1"),
+          followers: 0,
+          following: 0,
+          bio: "",
+          verified: false
+        };
+
+        const lastMsg = conv.lastMessage;
+        let previewText = "";
+        if (lastMsg) {
+          if (lastMsg.mediaUrl) {
+            previewText = lastMsg.mediaType === "video" ? "📹 Shared a video" : "📷 Shared a photo";
+          } else {
+            previewText = lastMsg.text || "";
+          }
+        }
+
+        const relativeTime = lastMsg?.createdAt
+          ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : "";
+
+        return {
+          id: conv.id,
+          isGroup: conv.isGroup,
+          name: conv.name,
+          avatarUrl: conv.avatarUrl,
+          createdBy: conv.createdBy,
+          user: userObj,
+          participants: conv.participants || [],
+          preview: previewText || "No messages yet",
+          time: relativeTime,
+          unread: 0,
+          online: conv.isGroup ? false : true
+        };
+      });
+      setChats(mappedChats);
+    } catch (err) {
+      console.error("Failed to load conversations:", err);
+    }
+  };
+
+  const loadMessages = async (conversationId: number) => {
+    try {
+      const dbMsgs = await api.getMessages(conversationId);
+      const mapped: MockMessage[] = dbMsgs.map((msg: any) => {
+        let replyObj = undefined;
+        if (msg.replyToId) {
+          const parentMsg = dbMsgs.find((m: any) => m.id === msg.replyToId);
+          if (parentMsg) {
+            replyObj = {
+              id: parentMsg.id,
+              text: parentMsg.text || (parentMsg.mediaUrl ? "Shared media" : ""),
+              senderName: parentMsg.senderId === currentUser?.id ? "You" : (parentMsg.sender?.username || "user")
+            };
+          }
+        }
+
+        const relativeTime = msg.createdAt
+          ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : "now";
+
+        return {
+          id: msg.id,
+          mine: msg.senderId === currentUser?.id,
+          senderId: msg.senderId,
+          sender: msg.sender,
+          text: msg.text || "",
+          mediaUrl: msg.mediaUrl,
+          mediaType: msg.mediaType,
+          replyToId: msg.replyToId,
+          replyTo: replyObj,
+          reactions: msg.reactions || {},
+          isEdited: msg.isEdited,
+          time: relativeTime
+        };
+      });
+
+      setChatMessages((prev) => ({
+        ...prev,
+        [conversationId]: mapped
+      }));
+    } catch (err) {
+      console.error("Failed to load messages for conversation:", conversationId, err);
     }
   };
 
@@ -533,6 +654,62 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       loadNotifications();
     }
   }, [activeTab, currentUser]);
+
+  // Load and subscribe to real-time chat & message updates
+  useEffect(() => {
+    if (!currentUser) {
+      setChats([]);
+      setChatMessages({});
+      return;
+    }
+
+    loadChats();
+
+    // Subscribe to Message changes (new/edited/deleted messages)
+    const messageChannel = supabase
+      .channel('public:Message-live')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Message'
+        },
+        (payload) => {
+          console.log("Realtime message change received:", payload);
+          loadChats();
+
+          const newMsg = payload.new as any;
+          const oldMsg = payload.old as any;
+          const convId = newMsg?.conversationId || oldMsg?.conversationId;
+          
+          if (convId) {
+            loadMessages(convId);
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to Conversation & Participant changes (new group created, etc)
+    const chatSyncChannel = supabase
+      .channel('public:chat-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'Conversation' },
+        () => loadChats()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ConversationParticipant' },
+        () => loadChats()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(chatSyncChannel);
+    };
+  }, [currentUser]);
 
   const createStory = async (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => {
     try {
@@ -891,74 +1068,58 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
-  const sendMessage = (chatId: number, text: string) => {
-    if (!text.trim()) return;
-
-    const newMsg: MockMessage = { mine: true, text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-    
-    // Update local messages history
-    setChatMessages((prev) => ({
-      ...prev,
-      [chatId]: [...(prev[chatId] || []), newMsg],
-    }));
-
-    // Update conversation preview in sidebar list
-    setChats((prevChats) =>
-      prevChats.map((c) => {
-        if (c.id === chatId) {
-          return {
-            ...c,
-            preview: text,
-            time: "now",
-            unread: 0,
-          };
-        }
-        return c;
-      })
-    );
-
-    // Simulate timed auto-reply
-    setTimeout(() => {
-      const replies = [
-        "That's awesome! 🙌",
-        "Haha totally! 😂",
-        "Let me get back to you soon on that.",
-        "Nice, let's catch up this weekend! ☕",
-        "Wow! 🔥",
-        "👍💯",
-      ];
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
-      const replyMsg: MockMessage = { mine: false, text: randomReply, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-      
-      setChatMessages((prev) => ({
-        ...prev,
-        [chatId]: [...(prev[chatId] || []), replyMsg],
-      }));
-
-      let partnerName = "";
-      setChats((prevChats) =>
-        prevChats.map((c) => {
-          if (c.id === chatId) {
-            partnerName = c.user.name;
-            return {
-              ...c,
-              preview: randomReply,
-              time: "now",
-            };
-          }
-          return c;
-        })
-      );
-
-      // Trigger a new message toast if the reply is successful!
-      if (partnerName) {
-        showToast(`New message from ${partnerName}: ${randomReply}`, "message");
-      }
-    }, 1200 + Math.random() * 800);
+  const sendMessage = async (chatId: number, text?: string, options?: { mediaUrl?: string; mediaType?: string; replyToId?: number }) => {
+    if (!text?.trim() && !options?.mediaUrl) return;
+    try {
+      await api.sendMessage({
+        conversationId: chatId,
+        text: text || undefined,
+        mediaUrl: options?.mediaUrl,
+        mediaType: options?.mediaType,
+        replyToId: options?.replyToId
+      });
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
   };
 
   const sendEmojiMessage = (chatId: number, emoji: string) => {
     sendMessage(chatId, emoji);
+  };
+
+  const editMessage = async (messageId: number, text: string) => {
+    try {
+      await api.editMessage(messageId, text);
+    } catch (err) {
+      console.error("Error editing message:", err);
+    }
+  };
+
+  const deleteMessage = async (messageId: number) => {
+    try {
+      await api.deleteMessage(messageId);
+    } catch (err) {
+      console.error("Error deleting message:", err);
+    }
+  };
+
+  const reactToMessage = async (messageId: number, emoji: string) => {
+    try {
+      await api.reactToMessage(messageId, emoji);
+    } catch (err) {
+      console.error("Error reacting to message:", err);
+    }
+  };
+
+  const createConversation = async (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => {
+    try {
+      const conv = await api.createConversation(options);
+      await loadChats();
+      return conv;
+    } catch (err) {
+      console.error("Error creating conversation:", err);
+      throw err;
+    }
   };
 
   const createPost = async (
@@ -1140,6 +1301,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         clearPendingComments,
         sendMessage,
         sendEmojiMessage,
+        loadMessages,
+        editMessage,
+        deleteMessage,
+        reactToMessage,
+        createConversation,
         createPost,
         saveProfileChanges,
         sharePostId,
