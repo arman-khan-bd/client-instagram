@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Hls from "hls.js";
 import { useApp, MockPost } from "../AppContext";
-import { Heart, MessageCircle, Send, MoreHorizontal, Music, Play, Pause, Volume2, VolumeX, X } from "lucide-react";
+import { Heart, MessageCircle, Send, MoreHorizontal, Music, Play, Pause, Volume2, VolumeX, X, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { REACTIONS } from "../feed/PostCard";
@@ -62,6 +62,28 @@ export default function Reels() {
   // Loop Button configuration (infinite, 1, 2, 3)
   const [loopLimit, setLoopLimit] = useState<"infinite" | 1 | 2 | 3>(1);
   const [reelPlayCounts, setReelPlayCounts] = useState<Record<number, number>>({});
+
+  // Dropdown for settings
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
+
+  // Handle scrolling to target reel from feed view
+  useEffect(() => {
+    const targetIdStr = localStorage.getItem("activeReelId");
+    if (targetIdStr && reelsList.length > 0) {
+      const targetId = Number(targetIdStr);
+      const targetIdx = reelsList.findIndex((r) => r.originalPostId === targetId || r.id === targetId);
+      if (targetIdx !== -1) {
+        setTimeout(() => {
+          const cards = containerRef.current?.querySelectorAll("[data-reel-card]");
+          if (cards && cards[targetIdx]) {
+            cards[targetIdx].scrollIntoView({ behavior: "auto" });
+            setActiveVideoIdx(targetIdx);
+          }
+        }, 150);
+      }
+      localStorage.removeItem("activeReelId");
+    }
+  }, [reelsList]);
 
   const resetHideTimer = useCallback(() => {
     setShowOverlays(true);
@@ -517,44 +539,82 @@ export default function Reels() {
 
   return (
     <div className="flex-1 bg-black h-full w-full relative flex items-center justify-center">
-      {/* Loop Cycle Toggle Button (Top-Left) */}
-      <button
-        onClick={toggleLoopLimit}
-        className={`absolute top-4 left-4 z-30 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-bold text-white hover:bg-white/15 transition shadow-lg ${overlayClass}`}
-      >
-        Loop: {loopLimit === "infinite" ? "Infinite" : `${loopLimit}x`}
-      </button>
-
-      {/* Floating Glassmorphic Auto-Scroll Toggle */}
-      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 select-none flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg ${overlayClass}`}>
-        <span className="text-[12px] font-bold tracking-wide text-white/95">Auto Scroll</span>
+      {/* Settings Dropdown on Left-Top */}
+      <div className="absolute top-4 left-4 z-30 flex flex-col items-start select-none">
         <button
           onClick={() => {
-            setAutoScroll(!autoScroll);
+            setShowSettingsDropdown(!showSettingsDropdown);
             resetHideTimer();
           }}
-          className={`w-9 h-5 rounded-full relative transition-colors ${
-            autoScroll ? "bg-white" : "bg-white/30"
-          }`}
+          className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition shadow-lg"
         >
-          <div
-            className={`w-3.5 h-3.5 rounded-full bg-black absolute top-[3px] transition-all ${
-              autoScroll ? "left-[18px]" : "left-[4px]"
-            }`}
-          />
+          <Settings size={18} />
         </button>
-      </div>
 
-      {/* Floating Volume Indicator Toggle */}
-      <button
-        onClick={() => {
-          setMuted(!muted);
-          resetHideTimer();
-        }}
-        className={`absolute top-4 right-4 z-30 w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition shadow-lg ${overlayClass}`}
-      >
-        {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-      </button>
+        <AnimatePresence>
+          {showSettingsDropdown && (
+            <>
+              {/* Click-away backdrop */}
+              <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowSettingsDropdown(false)} />
+              
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-11 left-0 z-50 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-xl p-4 flex flex-col gap-4 shadow-2xl text-white w-52"
+              >
+                {/* Auto Scroll Option */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-semibold text-zinc-300">Auto Scroll</span>
+                  <button
+                    onClick={() => {
+                      setAutoScroll(!autoScroll);
+                      resetHideTimer();
+                    }}
+                    className={`w-9 h-5 rounded-full relative transition-colors ${
+                      autoScroll ? "bg-white" : "bg-white/30"
+                    }`}
+                  >
+                    <div
+                      className={`w-3.5 h-3.5 rounded-full bg-black absolute top-[3px] transition-all ${
+                        autoScroll ? "left-[18px]" : "left-[4px]"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Mute Option */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-semibold text-zinc-300">Muted</span>
+                  <button
+                    onClick={() => {
+                      setMuted(!muted);
+                      resetHideTimer();
+                    }}
+                    className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white hover:bg-zinc-800 transition"
+                  >
+                    {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                  </button>
+                </div>
+
+                {/* Loop Option */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-semibold text-zinc-300">Loop</span>
+                  <button
+                    onClick={() => {
+                      toggleLoopLimit();
+                      resetHideTimer();
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-bold bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition"
+                  >
+                    {loopLimit === "infinite" ? "Infinite" : `${loopLimit}x`}
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Scrollable Reels Container */}
       <div
@@ -847,15 +907,15 @@ export default function Reels() {
                 animate={{ opacity: 0.5 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setDrawerPost(null)}
-                className="fixed inset-0 bg-black z-[120]"
+                className="fixed inset-0 bg-black z-[200]"
               />
               {/* Drawer Content */}
               <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
+                initial={{ y: "100%", x: "-50%" }}
+                animate={{ y: 0, x: "-50%" }}
+                exit={{ y: "100%", x: "-50%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 220 }}
-                className="fixed bottom-0 left-0 right-0 h-[65vh] bg-zinc-950 border-t border-zinc-850 rounded-t-3xl z-[130] flex flex-col overflow-hidden text-white"
+                className="fixed bottom-0 left-1/2 w-[calc(100%-32px)] max-w-[500px] h-[65vh] bg-zinc-950 border border-b-0 border-zinc-850 rounded-t-3xl z-[210] flex flex-col overflow-hidden text-white shadow-2xl"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900">

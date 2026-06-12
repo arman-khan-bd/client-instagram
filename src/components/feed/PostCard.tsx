@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Hls from "hls.js";
 import { useApp, MockPost } from "../AppContext";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import ReactionsModal from "../modals/ReactionsModal";
@@ -80,8 +80,9 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
 // ── Video Player in Feed ──────────────────────────────────────────────────────
 let globalMuted = true;
 
-function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void }) {
+function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void; postId: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { setActiveTab } = useApp();
   const [playing, setPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [muted, setMuted] = useState(globalMuted);
@@ -298,6 +299,18 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress }: { src: string; pos
         className="absolute bottom-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition z-10"
       >
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+      </button>
+      {/* View Full Screen button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          localStorage.setItem("activeReelId", String(postId));
+          setActiveTab("reels");
+        }}
+        className="absolute bottom-3 right-13 px-2.5 py-1 bg-black/60 hover:bg-black/80 rounded-full flex items-center gap-1.5 text-white text-[11px] font-bold transition z-10 border border-white/10"
+      >
+        <Maximize size={12} />
+        Full Screen
       </button>
       {/* Reel badge */}
       <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 z-10">
@@ -583,6 +596,7 @@ export default function PostCard({ post }: PostCardProps) {
                       <FeedVideo 
                         src={currentMediaUrl} 
                         poster={post.img || undefined} 
+                        postId={post.id}
                         onDoubleTap={() => {
                           setShowHeartPop(true);
                           setTimeout(() => setShowHeartPop(false), 850);

@@ -166,7 +166,7 @@ export default function PostModal() {
             animate={{ y: 0, x: "-50%" }}
             exit={{ y: "100%", x: "-50%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed bottom-0 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[500px] h-[65vh] bg-zinc-950 border border-b-0 border-zinc-850 rounded-t-3xl z-[210] flex flex-col overflow-hidden text-white shadow-2xl"
+            className="fixed bottom-0 left-1/2 w-[calc(100%-32px)] max-w-[500px] h-[65vh] bg-zinc-950 border border-b-0 border-zinc-850 rounded-t-3xl z-[210] flex flex-col overflow-hidden text-white shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900 shrink-0">
@@ -200,33 +200,43 @@ export default function PostModal() {
                   <span className="text-zinc-600 text-[11px]">Start the conversation!</span>
                 </div>
               ) : (
-                allComments.map((c) => (
-                  <div key={c.id} className="flex gap-3 items-start group">
-                    <img
-                      src={c.user?.avatarUrl || `https://i.pravatar.cc/80?u=${c.user.id}`}
-                      className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
-                      alt={c.user.username}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] leading-relaxed break-words text-zinc-200">
-                        <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
-                          {c.user.username}
-                        </span>
-                        {c.text}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 text-[10px] text-zinc-500">
-                        <span>{new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        {c.likeCount > 0 && <span>{c.likeCount} likes</span>}
-                        <button
-                          onClick={() => handleCommentLike(c.id)}
-                          className="ml-auto text-[11px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          {c.isLiked ? "❤️" : "🤍"}
-                        </button>
+                allComments.map((c, cIdx) => {
+                  const username = c.user?.username || c.user?.name || "user";
+                  const avatarUrl = c.user?.avatarUrl || c.user?.img || `https://i.pravatar.cc/80?u=${c.user?.id || cIdx}`;
+                  const displayTime = (() => {
+                    if (!c.createdAt) return "now";
+                    const date = new Date(c.createdAt);
+                    if (isNaN(date.getTime())) return c.createdAt;
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  })();
+                  return (
+                    <div key={c.id || cIdx} className="flex gap-3 items-start group">
+                      <img
+                        src={avatarUrl}
+                        className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
+                        alt={username}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] leading-relaxed break-words text-zinc-200">
+                          <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                            {username}
+                          </span>
+                          {c.text}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-[10px] text-zinc-500">
+                          <span>{displayTime}</span>
+                          {c.likeCount > 0 && <span>{c.likeCount} likes</span>}
+                          <button
+                            onClick={() => handleCommentLike(c.id)}
+                            className="ml-auto text-[11px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            {c.isLiked ? "❤️" : "🤍"}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               <div ref={commentsEndRef} />
             </div>
