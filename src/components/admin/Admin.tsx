@@ -21,7 +21,8 @@ import {
   Loader2,
   TrendingUp,
   Search,
-  Check
+  Check,
+  Menu
 } from "lucide-react";
 
 type AdminTab = "overview" | "users" | "posts" | "comments" | "reports" | "seo" | "settings" | "messages";
@@ -29,6 +30,7 @@ type AdminTab = "overview" | "users" | "posts" | "comments" | "reports" | "seo" 
 export default function Admin() {
   const { showToast, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Data States
   const [loading, setLoading] = useState(true);
@@ -209,18 +211,36 @@ export default function Admin() {
   }
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row h-full w-full bg-black text-white overflow-hidden select-none">
+    <div className="flex-1 flex flex-col md:flex-row h-full w-full bg-black text-white overflow-hidden select-none relative">
       
-      {/* Admin Panel Sidebar */}
-      <div className="w-full md:w-[240px] shrink-0 border-b md:border-b-0 md:border-r border-[#222] bg-[#0c0c0c] flex flex-col p-4">
-        <div className="flex items-center gap-2.5 mb-8 px-2">
-          <ShieldAlert className="text-insta-pink" size={24} />
-          <span className="font-bold text-[17px] tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Admin Console
-          </span>
+      {/* Mobile Drawer Overlay Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Admin Panel Sidebar / Mobile Drawer */}
+      <div className={`fixed inset-y-0 left-0 w-[260px] shrink-0 border-r border-[#222] bg-[#0c0c0c] flex flex-col p-4 z-50 transform transition-transform duration-300 ease-in-out md:relative md:transform-none md:translate-x-0 md:w-[240px] md:z-0 ${
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        <div className="flex items-center justify-between mb-8 px-2">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert className="text-insta-pink" size={24} />
+            <span className="font-bold text-[17px] tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              Admin Console
+            </span>
+          </div>
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden text-gray-400 hover:text-white p-1 cursor-pointer"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <nav className="flex flex-row md:flex-col gap-1 overflow-x-auto no-scrollbar pb-3 md:pb-0">
+        <nav className="flex flex-col gap-1 w-full pb-3 md:pb-0">
           {[
             { id: "overview", label: "Dashboard", icon: <Activity size={16} /> },
             { id: "users", label: `Users (${usersList.length})`, icon: <Users size={16} /> },
@@ -233,7 +253,11 @@ export default function Admin() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id as AdminTab); setSearchTerm(""); }}
+              onClick={() => { 
+                setActiveTab(tab.id as AdminTab); 
+                setSearchTerm(""); 
+                setIsMobileMenuOpen(false);
+              }}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[13px] font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === tab.id
                   ? "bg-insta-blue text-white shadow-lg shadow-insta-blue/20"
@@ -255,30 +279,51 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* Main Panel Content */}
-      <div className="flex-1 flex flex-col overflow-y-auto custom-scroll bg-black p-4 sm:p-8 h-full">
+      {/* Main Panel Content Container */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-black h-full">
         
-        {/* Active Tab View Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold capitalize text-gray-100">{activeTab}</h1>
-            <p className="text-xs text-zinc-400 mt-1">Manage, moderate, and monitor your social platform settings.</p>
+        {/* Sticky Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-[#222] bg-[#0c0c0c] sticky top-0 z-30 w-full">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="text-white p-1 hover:bg-[#1a1a1a] rounded-lg transition cursor-pointer"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="font-bold text-sm tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              Admin Console
+            </span>
           </div>
-
-          {/* Inline Search Bar for Management Lists */}
-          {["users", "posts", "comments", "reports"].includes(activeTab) && (
-            <div className="relative w-full sm:w-[260px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
-              <input
-                type="text"
-                placeholder={`Search ${activeTab}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#121212] border border-[#222] rounded-lg pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-insta-blue transition"
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 bg-insta-pink/15 text-insta-pink border border-insta-pink/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+            {activeTab}
+          </div>
         </div>
+
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto custom-scroll p-4 sm:p-8">
+          
+          {/* Active Tab View Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold capitalize text-gray-100">{activeTab}</h1>
+              <p className="text-xs text-zinc-400 mt-1">Manage, moderate, and monitor your social platform settings.</p>
+            </div>
+
+            {/* Inline Search Bar for Management Lists */}
+            {["users", "posts", "comments", "reports"].includes(activeTab) && (
+              <div className="relative w-full sm:w-[260px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
+                <input
+                  type="text"
+                  placeholder={`Search ${activeTab}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-[#121212] border border-[#222] rounded-lg pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-insta-blue transition"
+                />
+              </div>
+            )}
+          </div>
 
         {/* Dashboard Panels */}
 
@@ -871,6 +916,7 @@ export default function Admin() {
           </div>
         )}
 
+      </div>
       </div>
 
       {/* Detailed Post Preview Modal */}
