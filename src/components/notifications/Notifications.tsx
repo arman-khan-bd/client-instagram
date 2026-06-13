@@ -94,20 +94,36 @@ export default function Notifications() {
         )}
 
         {item.img && item.type !== "follow" && (
-          <img
-            src={item.img}
-            alt="Preview"
-            className="w-11 h-11 rounded-lg object-cover cursor-pointer shrink-0 border border-[#222] hover:opacity-85 transition"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (item.postId) {
-                setActivePostId(item.postId);
-              } else if (item.storyId) {
-                const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
-                if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
-              }
-            }}
-          />
+          item.isVideoStory ? (
+            <video
+              src={item.img}
+              className="w-11 h-11 rounded-lg object-cover cursor-pointer shrink-0 border border-[#222] hover:opacity-85 transition bg-zinc-900"
+              muted
+              playsInline
+              onClick={(e) => {
+                e.stopPropagation();
+                if (item.storyId) {
+                  const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
+                  if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
+                }
+              }}
+            />
+          ) : (
+            <img
+              src={item.img}
+              alt="Preview"
+              className="w-11 h-11 rounded-lg object-cover cursor-pointer shrink-0 border border-[#222] hover:opacity-85 transition"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (item.postId) {
+                  setActivePostId(item.postId);
+                } else if (item.storyId) {
+                  const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
+                  if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
+                }
+              }}
+            />
+          )
         )}
       </div>
     );

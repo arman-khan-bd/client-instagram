@@ -90,6 +90,7 @@ export interface MockNotification {
   postId?: number;
   storyId?: number;
   createdAt?: string;
+  isVideoStory?: boolean;
 }
 
 export interface ToastMessage {
@@ -590,6 +591,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         };
 
         let imgUrl = undefined;
+        let isVideoStory = false;
         if (n.post) {
           const mediaList: string[] = Array.isArray(n.post.mediaUrls) && n.post.mediaUrls.length > 0
             ? n.post.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
@@ -597,6 +599,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           imgUrl = n.post.thumbnailUrl || mediaList[0] || undefined;
         } else if (n.story) {
           imgUrl = n.story.mediaUrl || undefined;
+          isVideoStory = n.story.mediaType === "video";
         }
 
         return {
@@ -610,6 +613,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           postId: n.postId || undefined,
           storyId: n.storyId || undefined,
           createdAt: n.createdAt,
+          isVideoStory,
         };
       });
       setNotifications(mapped);

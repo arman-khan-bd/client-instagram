@@ -686,7 +686,7 @@ export default function Reels() {
       {/* Scrollable Reels Container */}
       <div
         ref={containerRef}
-        className="w-full h-full md:max-w-[420px] md:h-[calc(100vh-20px)] md:rounded-2xl md:border md:border-zinc-800 overflow-y-auto snap-y snap-mandatory scrollbar-none custom-scroll relative bg-zinc-950"
+        className="w-full h-full md:aspect-[9/16] md:h-[calc(100vh-40px)] md:w-auto md:rounded-2xl md:border md:border-zinc-800 overflow-y-auto snap-y snap-mandatory scrollbar-none custom-scroll relative bg-zinc-950"
       >
         {reelsList.map((post, idx) => {
           const origId = post.originalPostId || post.id;

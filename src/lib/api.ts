@@ -1337,7 +1337,7 @@ class ApiClient {
         *,
         notifier:User!Notification_notifierId_fkey(id, username, fullName, avatarUrl),
         post:Post(id, thumbnailUrl, mobileUrl, mediaUrls),
-        story:Story(id, mediaUrl)
+        story:Story(id, mediaUrl, mediaType)
       `)
       .eq('receiverId', authUser.id)
       .order('createdAt', { ascending: false });
