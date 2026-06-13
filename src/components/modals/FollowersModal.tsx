@@ -59,9 +59,9 @@ export default function FollowersModal() {
     setFollowersModal(null);
   };
 
-  const handleUserClick = (userId: string | number) => {
-    setViewingUserId(userId);
-    setActiveTab("profile");
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
     handleClose();
   };
 
@@ -108,13 +108,13 @@ export default function FollowersModal() {
                     <img
                       src={u.img}
                       alt={u.name}
-                      onClick={() => handleUserClick(u.id)}
+                      onClick={() => handleUserClick(u.name)}
                       className="w-10 h-10 rounded-full object-cover border border-[#222] cursor-pointer"
                     />
                     
                     <div className="flex-1 min-w-0">
                       <div
-                        onClick={() => handleUserClick(u.id)}
+                        onClick={() => handleUserClick(u.name)}
                         className="text-[13px] font-semibold hover:underline cursor-pointer truncate flex items-center gap-1"
                       >
                         {u.name}

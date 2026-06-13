@@ -55,7 +55,12 @@ export default function Profile() {
       };
     }
 
-    if (dbProfile) {
+    if (dbProfile && (
+      dbProfile.id === viewingUserId ||
+      dbProfile.username === viewingUserId ||
+      dbProfile.id.toString() === viewingUserId?.toString() ||
+      dbProfile.username.toLowerCase() === viewingUserId?.toString().toLowerCase()
+    )) {
       return {
         id: dbProfile.id,
         name: dbProfile.username,
@@ -110,7 +115,11 @@ export default function Profile() {
 
   // Fetch real profile details from Supabase
   useEffect(() => {
-    if (!profileUser?.name) return;
+    if (!profileUser?.name) {
+      setDbProfile(null);
+      return;
+    }
+    setDbProfile(null);
     setLoading(true);
     setNotFound(false);
     api.getProfile(profileUser.name)

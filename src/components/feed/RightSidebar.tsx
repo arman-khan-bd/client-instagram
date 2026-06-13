@@ -39,9 +39,9 @@ export default function RightSidebar() {
     setActiveTab("profile");
   };
 
-  const handleUserClick = (userId: number | string) => {
-    setViewingUserId(userId);
-    setActiveTab("profile");
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
   };
 
   return (
@@ -94,11 +94,11 @@ export default function RightSidebar() {
                 src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
                 className="w-[38px] h-[38px] rounded-full object-cover cursor-pointer border border-[#222]"
                 alt={u.username}
-                onClick={() => handleUserClick(u.id)}
+                onClick={() => handleUserClick(u.username)}
               />
               <div className="flex-1 min-w-0">
                 <div
-                  onClick={() => handleUserClick(u.id)}
+                  onClick={() => handleUserClick(u.username)}
                   className="text-[13px] font-semibold cursor-pointer hover:underline truncate flex items-center gap-1"
                 >
                   {u.username}

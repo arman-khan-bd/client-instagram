@@ -39,6 +39,12 @@ export default function PostModal() {
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLInputElement>(null);
 
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
+    setActivePostId(null);
+  };
+
   const [fetchedPost, setFetchedPost] = useState<any | null>(null);
   const [loadingPost, setLoadingPost] = useState(false);
 
@@ -337,12 +343,16 @@ export default function PostModal() {
                       <div className="flex gap-3 items-start">
                         <img
                           src={avatarUrl}
-                          className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
+                          className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0 cursor-pointer"
                           alt={username}
+                          onClick={() => handleUserClick(username)}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] leading-relaxed break-words text-zinc-200">
-                            <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                            <span 
+                              className="font-bold mr-1.5 text-white cursor-pointer hover:underline"
+                              onClick={() => handleUserClick(username)}
+                            >
                               {username}
                             </span>
                             {c.text}
@@ -384,12 +394,16 @@ export default function PostModal() {
                               <div key={reply.id || rIdx} className="flex gap-2.5 items-start">
                                 <img
                                   src={repAvatar}
-                                  className="w-6 h-6 rounded-full object-cover border border-[#222] shrink-0"
+                                  className="w-6 h-6 rounded-full object-cover border border-[#222] shrink-0 cursor-pointer"
                                   alt={repUsername}
+                                  onClick={() => handleUserClick(repUsername)}
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="text-[12.5px] leading-relaxed break-words text-zinc-300">
-                                    <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                                    <span 
+                                      className="font-bold mr-1.5 text-white cursor-pointer hover:underline"
+                                      onClick={() => handleUserClick(repUsername)}
+                                    >
                                       {repUsername}
                                     </span>
                                     {reply.text}

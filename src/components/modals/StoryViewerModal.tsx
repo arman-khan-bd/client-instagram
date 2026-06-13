@@ -30,7 +30,15 @@ export default function StoryViewerModal() {
     currentUser,
     loadStories,
     showToast,
+    setViewingUserId,
+    setActiveTab,
   } = useApp();
+
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
+    setStoryViewerIndex(null); // Close story viewer
+  };
 
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -366,10 +374,16 @@ export default function StoryViewerModal() {
             <img
               src={currentGroup.avatarUrl}
               alt={currentGroup.username}
-              className="w-9 h-9 rounded-full object-cover border border-white/40"
+              className="w-9 h-9 rounded-full object-cover border border-white/40 cursor-pointer"
+              onClick={() => handleUserClick(currentGroup.username)}
             />
             <div className="flex flex-col">
-              <span className="font-bold text-[14px] drop-shadow-md">{currentGroup.username}</span>
+              <span 
+                className="font-bold text-[14px] drop-shadow-md cursor-pointer hover:underline"
+                onClick={() => handleUserClick(currentGroup.username)}
+              >
+                {currentGroup.username}
+              </span>
               {activeStory.musicName && (
                 <span className="text-[10px] text-zinc-300 flex items-center gap-1 mt-0.5 truncate max-w-[150px]">
                   <Music size={9} className="animate-spin" /> {activeStory.musicName}
@@ -669,10 +683,16 @@ export default function StoryViewerModal() {
                             <img
                               src={avatar}
                               alt={username}
-                              className="w-8 h-8 rounded-full object-cover border border-[#222]"
+                              className="w-8 h-8 rounded-full object-cover border border-[#222] cursor-pointer"
+                              onClick={() => handleUserClick(username)}
                             />
                             <div className="flex flex-col">
-                              <span className="font-bold text-xs text-white">{username}</span>
+                              <span 
+                                className="font-bold text-xs text-white cursor-pointer hover:underline"
+                                onClick={() => handleUserClick(username)}
+                              >
+                                {username}
+                              </span>
                               <span className="text-[10px] text-zinc-500">
                                 {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>

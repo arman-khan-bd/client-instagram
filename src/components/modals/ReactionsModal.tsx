@@ -67,9 +67,9 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
     return REACTIONS.find((r) => r.type === type)?.emoji || "❤️";
   };
 
-  const handleUserClick = (userId: string) => {
-    setViewingUserId(userId);
-    setActiveTab("profile");
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
     onClose();
   };
 
@@ -150,7 +150,7 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
                     <img
                       src={u.avatarUrl || "https://i.pravatar.cc/80?img=1"}
                       alt={u.username}
-                      onClick={() => handleUserClick(u.id)}
+                      onClick={() => handleUserClick(u.username)}
                       className="w-[42px] h-[42px] rounded-full object-cover border border-[#222] cursor-pointer"
                     />
                     <div className="absolute -bottom-1 -right-1 bg-zinc-950 border border-zinc-800 rounded-full w-[18px] h-[18px] flex items-center justify-center text-[11px] leading-none shadow-md">
@@ -160,7 +160,7 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
 
                   <div className="flex-1 min-w-0">
                     <div
-                      onClick={() => handleUserClick(u.id)}
+                      onClick={() => handleUserClick(u.username)}
                       className="text-[13.5px] font-semibold hover:underline cursor-pointer truncate"
                     >
                       {u.username}

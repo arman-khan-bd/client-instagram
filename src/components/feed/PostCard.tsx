@@ -555,8 +555,9 @@ export default function PostCard({ post }: PostCardProps) {
     setCommentText("");
   };
 
-  const handleUserClick = (userId: number) => {
-    setViewingUserId(userId); setActiveTab("profile");
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
   };
 
   const formatCaption = (text: string) =>
@@ -592,11 +593,11 @@ export default function PostCard({ post }: PostCardProps) {
             post.hasStory ? "p-[2px] bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]" : "border border-[#222]"
           }`}
           alt={post.user.name}
-          onClick={() => handleUserClick(post.user.id)}
+          onClick={() => handleUserClick(post.user.name)}
         />
         <div className="flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span onClick={() => handleUserClick(post.user.id)} className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1">
+            <span onClick={() => handleUserClick(post.user.name)} className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1">
               {post.user.name}
               {post.user.verified && <span className="verified-badge" title="Verified" />}
             </span>
@@ -882,13 +883,13 @@ export default function PostCard({ post }: PostCardProps) {
       {/* Caption */}
       {!post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] leading-relaxed">
-          <span onClick={() => handleUserClick(post.user.id)} className="font-bold mr-2 cursor-pointer hover:underline">{post.user.name}</span>
+          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline">{post.user.name}</span>
           {formatCaption(post.caption)}
         </div>
       )}
       {post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] text-[#a8a8a8]">
-          <span onClick={() => handleUserClick(post.user.id)} className="font-bold mr-2 cursor-pointer hover:underline text-white">{post.user.name}</span>
+          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-white">{post.user.name}</span>
           Text post
         </div>
       )}

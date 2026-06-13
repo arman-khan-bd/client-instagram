@@ -38,9 +38,9 @@ export default function Notifications() {
     }
   };
 
-  const handleUserClick = (userId: string | number) => {
-    setViewingUserId(userId);
-    setActiveTab("profile");
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
   };
 
   const renderNotifItem = (item: MockNotification) => {
@@ -60,7 +60,7 @@ export default function Notifications() {
           className="w-11 h-11 rounded-full object-cover border border-[#222]"
           onClick={(e) => {
             e.stopPropagation();
-            handleUserClick(item.user.id);
+            handleUserClick(item.user.name);
           }}
         />
         
@@ -69,7 +69,7 @@ export default function Notifications() {
             className="hover:underline cursor-pointer mr-1"
             onClick={(e) => {
               e.stopPropagation();
-              handleUserClick(item.user.id);
+              handleUserClick(item.user.name);
             }}
           >
             {item.user.name}
