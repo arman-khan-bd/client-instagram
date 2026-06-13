@@ -307,6 +307,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [viewingUserId, setViewingUserId] = useState<string | number | null>(null);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
 
+  // Clear all video watch durations on reload / mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("video_time_")) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+      } catch (e) {
+        console.error("Error clearing video durations on reload:", e);
+      }
+    }
+  }, []);
+
   // Sync activeTab when pathname changes externally (back/forward)
   useEffect(() => {
     const isProfileUser = pathname.startsWith("/profile/") && pathname !== "/profile";
@@ -328,17 +346,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const username = decodeURIComponent(parts[parts.length - 1]);
       setViewingUserId(username);
     } else if (pathname === "/profile") {
-      setViewingUserId(null);
+      if (currentUser?.name) {
+        router.replace(`/profile/${currentUser.name}`);
+      } else {
+        setViewingUserId(null);
+      }
     }
-  }, [pathname]);
+  }, [pathname, currentUser, router]);
 
   // setActiveTab pushes to router AND updates local state
   const setActiveTab = useCallback((tab: string, customViewingUserId?: string | number | null) => {
     setActiveTabState(tab);
     let target = TAB_TO_PATHNAME[tab] || "/";
     const vId = customViewingUserId !== undefined ? customViewingUserId : viewingUserId;
-    if (tab === "profile" && vId && currentUser && vId.toString() !== currentUser.id.toString() && vId.toString() !== currentUser.name.toString()) {
-      target = `/profile/${vId}`;
+    if (tab === "profile") {
+      const username = vId || currentUser?.name;
+      if (username) {
+        target = `/profile/${username}`;
+      }
     }
     if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
       router.push(target);

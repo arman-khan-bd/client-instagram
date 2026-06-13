@@ -543,7 +543,7 @@ export default function Reels() {
     setVideoCurrentTimes((prev) => ({ ...prev, [idx]: el.currentTime }));
     const post = reelsList[idx];
     if (post && el.currentTime > 0) {
-      localStorage.setItem(`video_time_${post.id}`, String(el.currentTime));
+      localStorage.setItem(`video_time_${post.id}`, JSON.stringify({ time: el.currentTime, savedAt: Date.now() }));
     }
   };
 
@@ -553,9 +553,18 @@ export default function Reels() {
     if (post) {
       const savedTime = localStorage.getItem(`video_time_${post.id}`);
       if (savedTime) {
-        const parsed = parseFloat(savedTime);
-        if (!isNaN(parsed) && parsed > 0) {
-          el.currentTime = parsed;
+        try {
+          const data = JSON.parse(savedTime);
+          if (Date.now() - data.savedAt < 60000) {
+            el.currentTime = data.time;
+          } else {
+            localStorage.removeItem(`video_time_${post.id}`);
+          }
+        } catch (e) {
+          const parsed = parseFloat(savedTime);
+          if (!isNaN(parsed) && parsed > 0) {
+            el.currentTime = parsed;
+          }
         }
       }
     }

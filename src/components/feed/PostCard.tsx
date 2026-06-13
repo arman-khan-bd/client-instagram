@@ -154,9 +154,18 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
 
     const savedTime = localStorage.getItem(`video_time_${postId}`);
     if (savedTime) {
-      const parsed = parseFloat(savedTime);
-      if (!isNaN(parsed) && parsed > 0) {
-        video.currentTime = parsed;
+      try {
+        const data = JSON.parse(savedTime);
+        if (Date.now() - data.savedAt < 60000) {
+          video.currentTime = data.time;
+        } else {
+          localStorage.removeItem(`video_time_${postId}`);
+        }
+      } catch (e) {
+        const parsed = parseFloat(savedTime);
+        if (!isNaN(parsed) && parsed > 0) {
+          video.currentTime = parsed;
+        }
       }
     }
   };
@@ -304,7 +313,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         onTimeUpdate={(e) => {
           const video = e.currentTarget;
           if (video.currentTime > 0) {
-            localStorage.setItem(`video_time_${postId}`, String(video.currentTime));
+            localStorage.setItem(`video_time_${postId}`, JSON.stringify({ time: video.currentTime, savedAt: Date.now() }));
           }
         }}
         onPlay={() => {

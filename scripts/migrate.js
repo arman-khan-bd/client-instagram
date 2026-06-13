@@ -539,10 +539,7 @@ const rlsStatements = [
   )`,
 
   `CREATE POLICY "ConversationParticipant: select" ON "ConversationParticipant" FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM "ConversationParticipant" cp
-      WHERE cp."conversationId" = "conversationId" AND cp."userId" = auth.uid()
-    )
+    auth.uid() IS NOT NULL
   )`,
   `CREATE POLICY "ConversationParticipant: insert" ON "ConversationParticipant" FOR INSERT WITH CHECK (
     auth.uid() IS NOT NULL
