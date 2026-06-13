@@ -784,13 +784,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ? p.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
             : [];
 
-          // A text-only post: no media, and thumbnailUrl stores the CSS gradient string
-          const isTextOnly =
-            mediaList.length === 0 &&
+          // A text-only post: thumbnailUrl stores the CSS gradient string
+          // Use gradient detection as the canonical signal — no real image/video has a gradient thumbnailUrl
+          const isGradient =
             typeof p.thumbnailUrl === "string" &&
             (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+          const isTextOnly = isGradient;
 
-          const isVideo = mediaList.some(
+          const isVideo = !isTextOnly && mediaList.some(
             (m) =>
               typeof m === "string" &&
               (m.endsWith(".mp4") ||

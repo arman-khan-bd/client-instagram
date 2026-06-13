@@ -203,12 +203,15 @@ export default function Profile() {
         const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
           ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
           : [];
-        const isTextOnly =
-          mediaList.length === 0 &&
+
+        // Detect color/text posts by thumbnailUrl being a CSS gradient — this is the canonical signal
+        // regardless of mediaUrls, since no real image/video has a gradient thumbnailUrl
+        const isGradient =
           typeof p.thumbnailUrl === "string" &&
           (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+        const isTextOnly = isGradient;
 
-        const isVideo = mediaList.some(
+        const isVideo = !isTextOnly && mediaList.some(
           (m) =>
             typeof m === "string" &&
             (m.endsWith(".mp4") ||
@@ -540,10 +543,10 @@ export default function Profile() {
                 onClick={() => setActivePostId(post.id)}
                 className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg"
               >
-                {post.isTextOnly ? (
+                {post.isTextOnly || post.bgGradient ? (
                   <div
-                    style={{ background: post.bgGradient }}
-                    className="w-full h-full flex items-center justify-center p-4 text-center font-semibold text-xs md:text-sm break-words select-none text-white border border-[#222]"
+                    style={{ background: post.bgGradient || "linear-gradient(135deg,#667eea,#764ba2)" }}
+                    className="w-full h-full flex items-center justify-center p-4 text-center font-semibold text-xs md:text-sm break-words select-none text-white"
                   >
                     <span className="line-clamp-4">{post.caption}</span>
                   </div>
@@ -553,6 +556,14 @@ export default function Profile() {
                     alt="Profile content"
                     className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                     loading="lazy"
+                    onError={(e) => {
+                      const t = e.currentTarget;
+                      t.style.display = "none";
+                      const parent = t.parentElement;
+                      if (parent) {
+                        parent.style.background = "linear-gradient(135deg,#1a1a2e,#16213e)";
+                      }
+                    }}
                   />
                 )}
                 
