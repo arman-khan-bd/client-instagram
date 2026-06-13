@@ -536,6 +536,9 @@ export default function PostCard({ post }: PostCardProps) {
   };
   const cancelHoverHide = () => { if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current); };
 
+  // Double-tap vs Single-tap delay trigger
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onImagePointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     isLongPress.current = false;
@@ -546,14 +549,30 @@ export default function PostCard({ post }: PostCardProps) {
     if (showLongPicker) return;
     if (!isLongPress.current) {
       const now = Date.now();
-      if (now - lastTap.current < 300) {
-        setShowHeartPop(true); setTimeout(() => setShowHeartPop(false), 850);
-        commitReaction("love"); lastTap.current = 0;
-      } else { lastTap.current = now; }
+      if (now - lastTap.current < 280) {
+        // Double tap confirmed: clear single tap timer and like the post
+        if (singleTapTimer.current) {
+          clearTimeout(singleTapTimer.current);
+          singleTapTimer.current = null;
+        }
+        setShowHeartPop(true);
+        setTimeout(() => setShowHeartPop(false), 850);
+        commitReaction("love");
+        lastTap.current = 0;
+      } else {
+        lastTap.current = now;
+        // Start a delay before opening the dialog, to verify if it's a single or double tap
+        if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = setTimeout(() => {
+          setActivePostId(post.id);
+          singleTapTimer.current = null;
+        }, 280);
+      }
     }
   };
   const onImagePointerCancel = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
     if (!showLongPicker) isLongPress.current = false;
   };
 
