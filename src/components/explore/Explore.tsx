@@ -4,6 +4,8 @@ import React, { useMemo } from "react";
 import { useApp } from "../AppContext";
 import { Heart, MessageCircle, Film, Layers } from "lucide-react";
 
+import { VideoThumbnailCard } from "../search/Search";
+
 export default function Explore() {
   const { posts, setActivePostId } = useApp();
 
@@ -68,18 +70,7 @@ export default function Explore() {
                   </div>
                 ) : isVideo ? (
                   <div className="w-full h-full relative bg-zinc-900">
-                    <img
-                      src={
-                        item.thumbnailUrls?.[0] || 
-                        (typeof item.img === "string" && item.img.includes("/video/upload/") 
-                          ? item.img.replace("/video/upload/", "/video/upload/c_fill,w_300,h_400,so_0/") + ".jpg"
-                          : item.img) ||
-                        "/placeholder-video.jpg"
-                      }
-                      alt="Video thumbnail"
-                      className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
+                    <VideoThumbnailCard videoUrl={item.img || item.imgs?.[0] || ""} thumbnailUrl={item.thumbnailUrls?.[0]} />
                     {/* Play symbol/Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>

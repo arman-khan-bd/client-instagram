@@ -5,6 +5,9 @@ import { useApp, MockPost, MockUser } from "../AppContext";
 import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus } from "lucide-react";
 import { api } from "../../lib/api";
 
+const profileCache: Record<string, { data: any; timestamp: number }> = {};
+const PROFILE_CACHE_TTL = 30 * 1000; // 30 seconds cache
+
 export default function Profile() {
   const {
     posts,
@@ -120,19 +123,36 @@ export default function Profile() {
       setDbProfile(null);
       return;
     }
+
+    let active = true;
+
+    // Check cache
+    const cached = profileCache[profileUser.name];
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < PROFILE_CACHE_TTL)) {
+      setDbProfile(cached.data);
+      setLoading(false);
+      return;
+    }
     
-    // Only clear and show spinner if we're switching users to keep transition smooth
+    // Background loading: do not set loading=true so page doesn't show loading spinner/skeleton
+    // unless we don't even have basic user details.
     if (dbProfile?.username !== profileUser.name) {
       setDbProfile(null);
-      setLoading(true);
+      // We only show full screen skeleton if profileUser doesn't have basic data.
+      // Since profileUser always falls back to viewingUserId placeholder, it's safe to load in background.
+      setLoading(false);
     }
     
     setNotFound(false);
     api.getProfile(profileUser.name)
       .then((data) => {
+        if (!active) return;
+        profileCache[profileUser.name] = { data, timestamp: Date.now() };
         setDbProfile(data);
       })
       .catch((err) => {
+        if (!active) return;
         console.error("Failed to load profile from database:", err);
         const isMockOrInFeed = users.some(u => u.name === profileUser.name) || posts.some(p => p.user.name === profileUser.name);
         if (!isMockOrInFeed) {
@@ -140,8 +160,13 @@ export default function Profile() {
         }
       })
       .finally(() => {
+        if (!active) return;
         setLoading(false);
       });
+
+    return () => {
+      active = false;
+    };
   }, [profileUser?.name]);
 
   // Handle follow / follow back

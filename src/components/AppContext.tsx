@@ -46,6 +46,7 @@ export interface MockPost {
   originalPostId?: number;
   isAdult?: boolean;
   isAdultUnmarked?: boolean;
+  commentsCount?: number;
 }
 
 export interface MockMessage {
@@ -503,10 +504,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const lastMsg = conv.lastMessage;
         let previewText = "";
         if (lastMsg) {
+          const isMine = String(lastMsg.senderId) === String(currentUser.id);
           if (lastMsg.mediaUrl) {
-            previewText = lastMsg.mediaType === "video" ? "📹 Shared a video" : "📷 Shared a photo";
+            if (isMine) {
+              previewText = lastMsg.mediaType === "video" ? "You sent a video" : "You sent a photo";
+            } else {
+              previewText = lastMsg.mediaType === "video" ? "📹 Shared a video" : "📷 Shared a photo";
+            }
           } else {
-            previewText = lastMsg.text || "";
+            previewText = isMine ? `You: ${lastMsg.text || ""}` : (lastMsg.text || "");
           }
         }
 
@@ -831,6 +837,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             caption: p.caption || "",
             likes: p._count?.likes ?? 0,
             comments: [],
+            commentsCount: p._count?.comments ?? 0,
             time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
             hasStory: false,
             location: p.location || "",

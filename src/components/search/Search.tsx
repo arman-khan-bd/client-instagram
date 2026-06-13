@@ -6,7 +6,7 @@ import { Search as SearchIcon, Heart, MessageCircle } from "lucide-react";
 import { api } from "../../lib/api";
 
 // Canvas capture fallback for video files without static thumbnails
-function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: string; thumbnailUrl?: string }) {
+export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: string; thumbnailUrl?: string }) {
   const [imgSrc, setImgSrc] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
 

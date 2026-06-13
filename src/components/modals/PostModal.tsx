@@ -2,11 +2,93 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useApp } from "../AppContext";
-import { X, Heart, MessageCircle, Send, Bookmark } from "lucide-react";
+import { X, Heart, MessageCircle, Send, Bookmark, Play, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { REACTIONS } from "../feed/PostCard";
 import ReactionsModal from "./ReactionsModal";
+
+function ModalVideo({ src, poster, postId }: { src: string; poster?: string; postId: number }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(true);
+  const [muted, setMuted] = useState(false); // Auto unmute in dialog
+
+  useEffect(() => {
+    // Mute feed videos when modal video starts
+    window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: true }));
+    // Dispatch play event to pause feed videos
+    window.dispatchEvent(new CustomEvent("feedVideoPlay", { detail: { src: "modal" } }));
+  }, []);
+
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    const savedTime = localStorage.getItem(`video_time_${postId}`);
+    if (savedTime) {
+      try {
+        const data = JSON.parse(savedTime);
+        video.currentTime = data.time;
+      } catch (err) {
+        const parsed = parseFloat(savedTime);
+        if (!isNaN(parsed) && parsed > 0) {
+          video.currentTime = parsed;
+        }
+      }
+    }
+    video.play().catch(() => {});
+  };
+
+  const handlePlayPause = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+      setPlaying(true);
+    } else {
+      video.pause();
+      setPlaying(false);
+    }
+  };
+
+  return (
+    <div className="relative w-full h-full bg-black cursor-pointer" onClick={handlePlayPause}>
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        className="w-full h-full object-contain"
+        playsInline
+        muted={muted}
+        loop
+        autoPlay
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={(e) => {
+          const video = e.currentTarget;
+          if (video.currentTime > 0) {
+            localStorage.setItem(`video_time_${postId}`, JSON.stringify({ time: video.currentTime, savedAt: Date.now() }));
+          }
+        }}
+      />
+      
+      {!playing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/25 pointer-events-none z-10">
+          <div className="w-16 h-16 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
+            <Play size={28} className="text-white ml-1" fill="white" />
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setMuted(!muted);
+        }}
+        className="absolute bottom-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition z-10"
+      >
+        {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+      </button>
+    </div>
+  );
+}
 
 type ReactionType = typeof REACTIONS[number]["type"] | null;
 
@@ -301,8 +383,18 @@ export default function PostModal() {
               <X size={18} />
             </button>
 
-            {/* Left Column: Visual Media Display */}
-            <div className="w-full md:w-[60%] h-[40%] md:h-full bg-black flex items-center justify-center relative select-none border-b md:border-b-0 md:border-r border-zinc-900 shrink-0">
+            {/* Left Column: Visual Media Display with pull down gesture to close */}
+            <motion.div
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0.1, bottom: 0.8 }}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100) {
+                  handleClose();
+                }
+              }}
+              className="w-full md:w-[60%] h-[40%] md:h-full bg-black flex items-center justify-center relative select-none border-b md:border-b-0 md:border-r border-zinc-900 shrink-0 cursor-grab active:cursor-grabbing"
+            >
               {activePost.isTextOnly ? (
                 <div
                   className="w-full h-full flex items-center justify-center p-8 text-center font-bold text-white leading-relaxed break-words"
@@ -322,17 +414,10 @@ export default function PostModal() {
                     const isVideo = typeof currentMediaUrl === "string" && (
                       currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
                     );
-
+ 
                     if (isVideo) {
                       return (
-                        <video
-                          src={currentMediaUrl}
-                          controls
-                          autoPlay
-                          muted
-                          playsInline
-                          className="w-full h-full object-contain"
-                        />
+                        <ModalVideo src={currentMediaUrl} poster={activePost.img || undefined} postId={activePost.id} />
                       );
                     }
                     return (
@@ -345,7 +430,7 @@ export default function PostModal() {
                   })()}
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Right Column: Profile Header & Comments List Section */}
             <div className="flex-1 flex flex-col h-[60%] md:h-full min-w-0 bg-[#0c0c0c]">
@@ -404,15 +489,13 @@ export default function PostModal() {
 
               {/* Comments list (Scrollable Section) */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll">
-                {loadingComments && dbComments.length === 0 ? (
+                {loadingComments && dbComments.length === 0 && (activePost.commentsCount ?? 0) > 0 ? (
                   <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
                     Loading comments…
                   </div>
                 ) : parentComments.length === 0 ? (
                   <div className="text-center text-[12px] text-zinc-500 py-10 select-none">
-                    No comments yet.
-                    <br />
-                    <span className="text-zinc-600 text-[11px]">Start the conversation!</span>
+                    not comment
                   </div>
                 ) : (
                   parentComments.map((c, cIdx) => {

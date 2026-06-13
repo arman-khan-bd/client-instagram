@@ -1018,15 +1018,13 @@ export default function Reels() {
 
                 {/* Comments List */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll">
-                  {loadingComments && drawerComments.length === 0 ? (
+                  {loadingComments && drawerComments.length === 0 && (drawerPost.commentsCount ?? drawerPost.comments?.length ?? 0) > 0 ? (
                     <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
                       Loading comments…
                     </div>
                   ) : parentComments.length === 0 ? (
                     <div className="text-center text-[12px] text-zinc-500 py-10">
-                      No comments yet.
-                      <br />
-                      <span className="text-zinc-600 text-[11px]">Start the conversation!</span>
+                      not comment
                     </div>
                   ) : (
                     parentComments.map((c, cIdx) => {
