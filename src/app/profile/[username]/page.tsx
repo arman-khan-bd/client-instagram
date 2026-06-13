@@ -21,9 +21,5 @@ function ProfileLoader() {
 }
 
 export default function UserProfilePage() {
-  return (
-    <AppProvider>
-      <ProfileLoader />
-    </AppProvider>
-  );
+  return <ProfileLoader />;
 }

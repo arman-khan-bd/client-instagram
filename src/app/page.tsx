@@ -244,9 +244,5 @@ export function AppContent() {
 }
 
 export default function Home() {
-  return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
-  );
+  return <AppContent />;
 }
