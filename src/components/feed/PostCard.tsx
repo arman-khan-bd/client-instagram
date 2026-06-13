@@ -439,18 +439,67 @@ export default function PostCard({ post }: PostCardProps) {
   const reactionInfo = getReactionInfo(currentReaction);
 
   const touchStart = useRef<number | null>(null);
+  const [zoomStyle, setZoomStyle] = useState<React.CSSProperties>({});
+  const touchStartDist = useRef<number | null>(null);
+  const touchStartCenter = useRef<{ x: number; y: number } | null>(null);
+  const isZooming = useRef(false);
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = e.touches[0].clientX;
+    if (e.touches.length === 2) {
+      isZooming.current = true;
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      touchStartDist.current = dist;
+
+      const centerX = (t1.clientX + t2.clientX) / 2;
+      const centerY = (t1.clientY + t2.clientY) / 2;
+      touchStartCenter.current = { x: centerX, y: centerY };
+    } else if (e.touches.length === 1) {
+      touchStart.current = e.touches[0].clientX;
+    }
   };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isZooming.current && e.touches.length === 2 && touchStartDist.current && touchStartCenter.current) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const scale = Math.max(1, dist / touchStartDist.current);
+
+      const centerX = (t1.clientX + t2.clientX) / 2;
+      const centerY = (t1.clientY + t2.clientY) / 2;
+      const translateX = centerX - touchStartCenter.current.x;
+      const translateY = centerY - touchStartCenter.current.y;
+
+      setZoomStyle({
+        transform: `scale(${scale}) translate(${translateX / scale}px, ${translateY / scale}px)`,
+        transformOrigin: "center",
+        zIndex: 50,
+        position: "relative",
+        transition: "none"
+      });
+    }
+  };
+
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart.current === null) return;
-    const diff = touchStart.current - e.changedTouches[0].clientX;
-    const threshold = 50;
-    if (post.imgs && post.imgs.length > 1) {
-      if (diff > threshold && activeImgIndex < post.imgs.length - 1) {
-        setActiveImgIndex((p) => p + 1);
-      } else if (diff < -threshold && activeImgIndex > 0) {
-        setActiveImgIndex((p) => p - 1);
+    if (isZooming.current) {
+      isZooming.current = false;
+      touchStartDist.current = null;
+      touchStartCenter.current = null;
+      setZoomStyle({
+        transform: "scale(1) translate(0px, 0px)",
+        transition: "transform 0.2s ease-out"
+      });
+    } else if (touchStart.current !== null && e.changedTouches.length > 0) {
+      const diff = touchStart.current - e.changedTouches[0].clientX;
+      const threshold = 50;
+      if (post.imgs && post.imgs.length > 1) {
+        if (diff > threshold && activeImgIndex < post.imgs.length - 1) {
+          setActiveImgIndex((p) => p + 1);
+        } else if (diff < -threshold && activeImgIndex > 0) {
+          setActiveImgIndex((p) => p - 1);
+        }
       }
     }
     touchStart.current = null;
@@ -677,6 +726,7 @@ export default function PostCard({ post }: PostCardProps) {
         className="relative aspect-square overflow-hidden select-none"
         onContextMenu={(e) => e.preventDefault()}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {post.isTextOnly ? (
@@ -741,7 +791,7 @@ export default function PostCard({ post }: PostCardProps) {
                         <img
                           src={currentMediaUrl}
                           className="w-full h-full object-cover transition-all duration-300"
-                          style={{ filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
+                          style={{ ...zoomStyle, filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
                           alt="post"
                           draggable={false}
                           onPointerDown={onImagePointerDown}
@@ -937,16 +987,21 @@ export default function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Comment input */}
-      <form onSubmit={handlePostComment} className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15">
-        <span className="text-[20px] cursor-pointer" onClick={() => setCommentText((p) => p + "😊")}>😊</span>
+      <form 
+        onClick={(e) => {
+          e.preventDefault();
+          setActivePostId(post.id);
+        }}
+        className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15 cursor-pointer"
+      >
+        <span className="text-[20px] cursor-pointer">😊</span>
         <input
           type="text"
           placeholder="Add a comment…"
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          className="flex-1 bg-transparent border-none text-[13px] text-white outline-none placeholder-[#666]"
+          readOnly
+          className="flex-1 bg-transparent border-none text-[13px] text-white outline-none placeholder-[#666] cursor-pointer"
         />
-        <button type="submit" disabled={!commentText.trim()} className="text-[#3897f0] font-bold text-[13px] disabled:opacity-40 disabled:cursor-default">
+        <button type="button" className="text-[#3897f0] font-bold text-[13px]">
           Post
         </button>
       </form>
