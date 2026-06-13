@@ -123,7 +123,7 @@ export interface StoryGroup {
 interface AppContextType {
   // Navigation & Auth
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: string, customViewingUserId?: string | number | null) => void;
   currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string } | null;
   doLogin: (email: string, pass: string) => Promise<void>;
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
@@ -333,11 +333,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [pathname]);
 
   // setActiveTab pushes to router AND updates local state
-  const setActiveTab = useCallback((tab: string) => {
+  const setActiveTab = useCallback((tab: string, customViewingUserId?: string | number | null) => {
     setActiveTabState(tab);
     let target = TAB_TO_PATHNAME[tab] || "/";
-    if (tab === "profile" && viewingUserId && currentUser && viewingUserId.toString() !== currentUser.id.toString() && viewingUserId.toString() !== currentUser.name.toString()) {
-      target = `/profile/${viewingUserId}`;
+    const vId = customViewingUserId !== undefined ? customViewingUserId : viewingUserId;
+    if (tab === "profile" && vId && currentUser && vId.toString() !== currentUser.id.toString() && vId.toString() !== currentUser.name.toString()) {
+      target = `/profile/${vId}`;
     }
     if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
       router.push(target);
@@ -974,7 +975,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const doLogout = () => {
-    api.clearToken(); // calls supabase.auth.signOut() → onAuthStateChange fires
+    api.clearToken();
+    setCurrentUser(null);
+    setViewingUserId(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('insta_me');
+      localStorage.removeItem('token');
+    }
+    setActiveTabState('home');
+    router.push('/');
   };
 
   // Actions

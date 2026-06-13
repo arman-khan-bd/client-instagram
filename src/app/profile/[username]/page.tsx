@@ -13,7 +13,7 @@ function ProfileLoader() {
     if (username) {
       const name = decodeURIComponent(username as string);
       setViewingUserId(name);
-      setActiveTab("profile");
+      setActiveTab("profile", name);
     }
   }, [username, setViewingUserId, setActiveTab]);
 
