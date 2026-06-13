@@ -128,6 +128,8 @@ interface AppContextType {
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
   doLoginWithGoogle: () => Promise<void>;
   doLogout: () => void;
+  activeChatId: number | null;
+  setActiveChatId: (id: number | null) => void;
 
   // Viewing other users profiles
   viewingUserId: string | number | null;
@@ -302,6 +304,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return null;
   });
   const [viewingUserId, setViewingUserId] = useState<string | number | null>(null);
+  const [activeChatId, setActiveChatId] = useState<number | null>(null);
 
   // Sync activeTab when pathname changes externally (back/forward)
   useEffect(() => {
@@ -1286,6 +1289,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         doRegister,
         doLoginWithGoogle,
         doLogout,
+        activeChatId,
+        setActiveChatId,
         viewingUserId,
         setViewingUserId,
         users: MOCK_USERS,

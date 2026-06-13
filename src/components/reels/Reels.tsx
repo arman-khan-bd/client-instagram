@@ -537,10 +537,24 @@ export default function Reels() {
   // Custom Seekbar Handlers
   const handleTimeUpdate = (idx: number, el: HTMLVideoElement) => {
     setVideoCurrentTimes((prev) => ({ ...prev, [idx]: el.currentTime }));
+    const post = reelsList[idx];
+    if (post && el.currentTime > 0) {
+      localStorage.setItem(`video_time_${post.id}`, String(el.currentTime));
+    }
   };
 
   const handleLoadedMetadata = (idx: number, el: HTMLVideoElement) => {
     setVideoDurations((prev) => ({ ...prev, [idx]: el.duration }));
+    const post = reelsList[idx];
+    if (post) {
+      const savedTime = localStorage.getItem(`video_time_${post.id}`);
+      if (savedTime) {
+        const parsed = parseFloat(savedTime);
+        if (!isNaN(parsed) && parsed > 0) {
+          el.currentTime = parsed;
+        }
+      }
+    }
   };
 
   const handleSeek = (idx: number, e: React.MouseEvent<HTMLDivElement>) => {

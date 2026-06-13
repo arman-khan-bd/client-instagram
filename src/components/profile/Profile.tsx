@@ -24,6 +24,7 @@ export default function Profile() {
     storyGroups,
     setChats,
     showToast,
+    setActiveChatId,
   } = useApp();
 
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
@@ -31,7 +32,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const isSelf = viewingUserId === null || (currentUser && viewingUserId === currentUser.id);
+  const isSelf = viewingUserId === null || 
+    (currentUser && (
+      viewingUserId === currentUser.id || 
+      viewingUserId === currentUser.name || 
+      viewingUserId.toString().toLowerCase() === currentUser.name.toLowerCase()
+    ));
 
   // Determine which user profile reference to resolve first
   const profileUser = useMemo(() => {
@@ -46,6 +52,20 @@ export default function Profile() {
         bio: currentUser?.bio || "Welcome to AuraGram! ✨",
         verified: false,
         web: currentUser?.web || "",
+      };
+    }
+
+    if (dbProfile) {
+      return {
+        id: dbProfile.id,
+        name: dbProfile.username,
+        full: dbProfile.fullName || dbProfile.username,
+        img: dbProfile.avatarUrl || "https://i.pravatar.cc/80?img=1",
+        followers: dbProfile._count?.followers || 0,
+        following: dbProfile._count?.following || 0,
+        bio: dbProfile.bio || "",
+        verified: dbProfile.isVerified || false,
+        web: "",
       };
     }
     
@@ -86,7 +106,7 @@ export default function Profile() {
     }
 
     return null;
-  }, [viewingUserId, users, currentUser, posts, isSelf]);
+  }, [viewingUserId, users, currentUser, posts, isSelf, dbProfile]);
 
   // Fetch real profile details from Supabase
   useEffect(() => {
@@ -227,29 +247,18 @@ export default function Profile() {
   const userStoryGroup = storyGroups.find(g => g.userId.toString() === profileUser.id.toString());
   const activeStories = userStoryGroup?.stories || [];
 
-  const handleMessageUser = () => {
-    setChats((prevChats) => {
-      const exists = prevChats.some((c) => c.user.id.toString() === profileUser.id.toString());
-      if (exists) return prevChats;
-
-      const newSession = {
-        id: Date.now(),
-        user: profileUser as unknown as MockUser,
-        preview: "Start a conversation",
-        time: "now",
-        unread: 0,
-        online: Math.random() > 0.5,
+  const handleMessageUser = async () => {
+    try {
+      const conv = await api.createConversation({
         isGroup: false,
-        participants: [{
-          id: profileUser.id.toString(),
-          username: profileUser.name,
-          fullName: profileUser.full,
-          avatarUrl: profileUser.img,
-        }],
-      };
-      return [newSession, ...prevChats];
-    });
-    setActiveTab("messages");
+        participantIds: [profileUser.id.toString()],
+      });
+      setActiveChatId(conv.id);
+      setActiveTab("messages");
+    } catch (err) {
+      console.error("Failed to start conversation:", err);
+      setActiveTab("messages");
+    }
   };
 
   const handleOpenFollowers = (type: "followers" | "following") => {

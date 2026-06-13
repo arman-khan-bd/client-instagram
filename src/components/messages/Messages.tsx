@@ -24,9 +24,10 @@ export default function Messages() {
     setViewingUserId,
     setActiveTab,
     showToast,
+    activeChatId,
+    setActiveChatId,
   } = useApp();
 
-  const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [inputText, setInputText] = useState("");
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   
@@ -206,11 +207,22 @@ export default function Messages() {
     }
   };
 
-  const filteredFollowers = followers.filter(
-    (f) =>
-      f.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const delayDebounce = setTimeout(() => {
+      api.searchUsers(searchQuery)
+        .then(setSearchResults)
+        .catch((err) => console.error("Failed to search users:", err));
+    }, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  const displayUsers = searchQuery.trim() ? searchResults : followers;
 
   return (
     <div className="flex-1 bg-black h-full w-full select-none text-white flex relative">
@@ -750,12 +762,12 @@ export default function Messages() {
 
             {/* Followers List */}
             <div className="flex-1 overflow-y-auto custom-scroll p-2 flex flex-col gap-1">
-              {filteredFollowers.length === 0 ? (
+              {displayUsers.length === 0 ? (
                 <div className="py-8 text-center text-zinc-500 text-xs">
-                  No followers found.
+                  No users found.
                 </div>
               ) : (
-                filteredFollowers.map((user) => {
+                displayUsers.map((user) => {
                   const isSelected = selectedParticipants.includes(user.id);
                   return (
                     <div

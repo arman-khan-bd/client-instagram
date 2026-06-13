@@ -151,6 +151,14 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
     } else {
       setIsVertical(false);
     }
+
+    const savedTime = localStorage.getItem(`video_time_${postId}`);
+    if (savedTime) {
+      const parsed = parseFloat(savedTime);
+      if (!isNaN(parsed) && parsed > 0) {
+        video.currentTime = parsed;
+      }
+    }
   };
 
   const handlePointerDown = () => {
@@ -293,6 +301,12 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         muted={muted}
         loop
         onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={(e) => {
+          const video = e.currentTarget;
+          if (video.currentTime > 0) {
+            localStorage.setItem(`video_time_${postId}`, String(video.currentTime));
+          }
+        }}
         onPlay={() => {
           setPlaying(true);
           setHasStarted(true);
@@ -362,7 +376,7 @@ export default function PostCard({ post }: PostCardProps) {
     toggleSave, toggleFollow,
     addComment, setViewingUserId, setActiveTab,
     setActivePostId, showToast, setSharePostId,
-    setPosts,
+    setPosts, followStates,
   } = useApp();
 
   const [commentText, setCommentText] = useState("");
@@ -581,10 +595,27 @@ export default function PostCard({ post }: PostCardProps) {
           onClick={() => handleUserClick(post.user.id)}
         />
         <div className="flex-1">
-          <span onClick={() => handleUserClick(post.user.id)} className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1">
-            {post.user.name}
-            {post.user.verified && <span className="verified-badge" title="Verified" />}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span onClick={() => handleUserClick(post.user.id)} className="text-[14px] font-semibold cursor-pointer hover:underline flex items-center gap-1">
+              {post.user.name}
+              {post.user.verified && <span className="verified-badge" title="Verified" />}
+            </span>
+            {currentUser && String(currentUser.id) !== String(post.user.id) && (
+              <>
+                <span className="text-zinc-500 text-[12px]">•</span>
+                <button
+                  onClick={() => toggleFollow(post.user.id)}
+                  className={`text-[12px] font-bold cursor-pointer transition ${
+                    followStates[post.user.id] || followStates[post.user.name]
+                      ? "text-zinc-500 hover:text-white"
+                      : "text-insta-blue hover:text-white"
+                  }`}
+                >
+                  {followStates[post.user.id] || followStates[post.user.name] ? "Following" : "Follow"}
+                </button>
+              </>
+            )}
+          </div>
           {post.location && <div className="text-[11px] text-[#a8a8a8]">{post.location}</div>}
         </div>
         <div className="relative">
