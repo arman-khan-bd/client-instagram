@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { validateUsernameAndFullName } from './nameValidator';
 
 class ApiClient {
   private token: string | null = null;
@@ -36,6 +37,23 @@ class ApiClient {
   }
 
   async register(data: { username: string; email: string; password: string; fullName: string }) {
+    // 1. Validate username and fullName terms
+    const validation = validateUsernameAndFullName(data.username, data.fullName);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+
+    // 2. Check if username is already taken
+    const { data: existingUser } = await supabase
+      .from('User')
+      .select('id')
+      .eq('username', data.username.trim().toLowerCase())
+      .maybeSingle();
+
+    if (existingUser) {
+      throw new Error('Username is already taken.');
+    }
+
     const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -1101,6 +1119,39 @@ class ApiClient {
   async updateProfile(data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
+
+    let usernameToValidate = data.username;
+    let fullNameToValidate = data.fullName;
+
+    if (usernameToValidate !== undefined || fullNameToValidate !== undefined) {
+      // Fetch current profile to validate the combination
+      const { data: currentProfile } = await supabase
+        .from('User')
+        .select('username, fullName')
+        .eq('id', authUser.id)
+        .single();
+      
+      const checkUsername = usernameToValidate !== undefined ? usernameToValidate : (currentProfile?.username || '');
+      const checkFullName = fullNameToValidate !== undefined ? fullNameToValidate : (currentProfile?.fullName || '');
+
+      const validation = validateUsernameAndFullName(checkUsername, checkFullName);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+
+      // Check duplicate username if username is being changed
+      if (usernameToValidate !== undefined && usernameToValidate.trim().toLowerCase() !== currentProfile?.username?.toLowerCase()) {
+        const { data: existingUser } = await supabase
+          .from('User')
+          .select('id')
+          .eq('username', usernameToValidate.trim().toLowerCase())
+          .maybeSingle();
+        
+        if (existingUser) {
+          throw new Error('Username is already taken.');
+        }
+      }
+    }
 
     const { data: updatedUser, error } = await supabase
       .from('User')

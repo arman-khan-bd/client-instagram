@@ -387,7 +387,7 @@ export default function Messages() {
                               <Edit2 size={13} />
                             </button>
                             <button
-                              onClick={() => initiateDelete(msg.id)}
+                              onClick={() => initiateDelete(msg.id!)}
                               className="p-1 hover:text-red-400 transition cursor-pointer"
                               title="Delete message"
                             >
