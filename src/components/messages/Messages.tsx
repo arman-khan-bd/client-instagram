@@ -64,7 +64,7 @@ export default function Messages() {
   const groupPhotoInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeChatSession = chats.find((c) => c.id === activeChatId);
+  const activeChatSession = chats.find((c) => String(c.id) === String(activeChatId));
   const currentMessages = activeChatId ? chatMessages[activeChatId] || [] : [];
 
   // Fetch followers list for conversation creation
@@ -305,8 +305,14 @@ export default function Messages() {
           activeChatId === null ? "hidden md:flex" : "flex"
         }`}
       >
-        {activeChatId !== null && activeChatSession ? (
-          <>
+        {activeChatId !== null ? (
+          !activeChatSession ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 bg-black">
+              <div className="w-8 h-8 border-2 border-insta-blue border-t-transparent rounded-full animate-spin"></div>
+              <div className="text-[14px] text-zinc-400">Loading conversation...</div>
+            </div>
+          ) : (
+            <>
             {/* Chat Header */}
             <div className="px-4.5 py-3 border-b border-[#222] flex items-center gap-3.5 bg-[#111] z-20">
               <button
@@ -627,6 +633,7 @@ export default function Messages() {
               </form>
             </div>
           </>
+          )
         ) : (
           /* Empty Chat Selected State */
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 p-6 select-none bg-black">

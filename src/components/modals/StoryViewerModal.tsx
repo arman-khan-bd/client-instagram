@@ -32,6 +32,7 @@ export default function StoryViewerModal() {
     showToast,
     setViewingUserId,
     setActiveTab,
+    createConversation,
   } = useApp();
 
   const handleUserClick = (username: string) => {
@@ -222,7 +223,7 @@ export default function StoryViewerModal() {
     try {
       await api.recordStoryInteraction(activeStory.id, 'message', text);
       if (currentGroup?.userId && currentUser?.id && currentGroup.userId !== currentUser.id) {
-        const conv = await api.createConversation({ isGroup: false, participantIds: [currentGroup.userId] });
+        const conv = await createConversation({ isGroup: false, participantIds: [currentGroup.userId] });
         await api.sendMessage({ conversationId: conv.id, text: `Replied to your story: "${text}" 📸` });
       }
       loadInteractions();
@@ -263,7 +264,7 @@ export default function StoryViewerModal() {
     try {
       await api.recordStoryInteraction(activeStory.id, 'reaction', emoji);
       if (currentGroup?.userId && currentUser?.id && currentGroup.userId !== currentUser.id) {
-        const conv = await api.createConversation({ isGroup: false, participantIds: [currentGroup.userId] });
+        const conv = await createConversation({ isGroup: false, participantIds: [currentGroup.userId] });
         await api.sendMessage({ conversationId: conv.id, text: `Reacted ${emoji} to your story 📸` });
       }
       loadInteractions();

@@ -25,6 +25,7 @@ export default function Profile() {
     setChats,
     showToast,
     setActiveChatId,
+    createConversation,
   } = useApp();
 
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
@@ -258,7 +259,7 @@ export default function Profile() {
 
   const handleMessageUser = async () => {
     try {
-      const conv = await api.createConversation({
+      const conv = await createConversation({
         isGroup: false,
         participantIds: [profileUser.id.toString()],
       });
