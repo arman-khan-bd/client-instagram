@@ -704,17 +704,24 @@ class ApiClient {
     if (msgError) throw msgError;
 
     const lastMsgMap = new Map<number, any>();
+    const unreadCountMap = new Map<number, number>();
     (lastMessages || []).forEach((msg: any) => {
       if (!lastMsgMap.has(msg.conversationId)) {
         lastMsgMap.set(msg.conversationId, msg);
+      }
+      if (msg.senderId !== authUser.id && msg.status !== 'READ') {
+        const count = unreadCountMap.get(msg.conversationId) || 0;
+        unreadCountMap.set(msg.conversationId, count + 1);
       }
     });
 
     return (conversations || []).map((conv: any) => {
       const lastMsg = lastMsgMap.get(conv.id);
+      const unreadCount = unreadCountMap.get(conv.id) || 0;
       return {
         ...conv,
         lastMessage: lastMsg || null,
+        unreadCount,
         participants: (conv.participants || []).map((p: any) => p.user).filter(Boolean)
       };
     });

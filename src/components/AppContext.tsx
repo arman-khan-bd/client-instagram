@@ -514,7 +514,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           participants: conv.participants || [],
           preview: previewText || "No messages yet",
           time: relativeTime,
-          unread: 0,
+          unread: conv.unreadCount || 0,
           online: conv.isGroup ? false : true
         };
       });
@@ -1123,6 +1123,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         replyToId: options?.replyToId,
         expiresAt
       });
+      await loadMessages(chatId);
+      await loadChats();
     } catch (err) {
       console.error("Error sending message:", err);
     }

@@ -31,6 +31,12 @@ export default function Messages() {
   const [inputText, setInputText] = useState("");
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   
+  // New features
+  const [chatTheme, setChatTheme] = useState<string>("default");
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [msgSearchQuery, setMsgSearchQuery] = useState("");
+  const [showMsgSearch, setShowMsgSearch] = useState(false);
+  
   // Replying & Editing States
   const [replyingToMsg, setReplyingToMsg] = useState<MockMessage | null>(null);
   const [editingMsg, setEditingMsg] = useState<MockMessage | null>(null);
@@ -66,6 +72,11 @@ export default function Messages() {
 
   const activeChatSession = chats.find((c) => String(c.id) === String(activeChatId));
   const currentMessages = activeChatId ? chatMessages[activeChatId] || [] : [];
+  
+  const filteredMessages = currentMessages.filter((msg) => {
+    if (!msgSearchQuery.trim()) return true;
+    return msg.text?.toLowerCase().includes(msgSearchQuery.toLowerCase()) || false;
+  });
 
   // Fetch followers list for conversation creation
   useEffect(() => {
@@ -291,6 +302,11 @@ export default function Messages() {
 
                   <div className="flex flex-col items-end gap-1 shrink-0 select-none">
                     <span className="text-[11px] text-[#666]">{dm.time}</span>
+                    {dm.unread > 0 && (
+                      <span className="bg-insta-blue text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {dm.unread}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -350,21 +366,101 @@ export default function Messages() {
                 >
                   <PlusCircle size={18} />
                 </button>
+                <button
+                  onClick={() => setShowMsgSearch(!showMsgSearch)}
+                  className={`p-1 transition cursor-pointer ${showMsgSearch ? "text-insta-blue" : "hover:text-white"}`}
+                  title="Search Messages"
+                >
+                  🔍
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowThemeMenu(!showThemeMenu)}
+                    className="p-1 hover:text-white transition cursor-pointer"
+                    title="Change Theme"
+                  >
+                    🎨
+                  </button>
+                  {showThemeMenu && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setShowThemeMenu(false)} />
+                      <div className="absolute right-0 mt-2 bg-[#1c1c1e] border border-zinc-800 rounded-xl p-1.5 flex flex-col gap-0.5 shadow-2xl z-30 w-36">
+                        {[
+                          { name: "Dark Mode", value: "default" },
+                          { name: "Sunset", value: "sunset" },
+                          { name: "Ocean", value: "ocean" },
+                          { name: "Forest", value: "forest" },
+                          { name: "Neon Cyber", value: "cyber" },
+                        ].map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => {
+                              setChatTheme(t.value);
+                              setShowThemeMenu(false);
+                            }}
+                            className={`text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition ${
+                              chatTheme === t.value ? "text-insta-blue font-bold" : "text-zinc-300"
+                            }`}
+                          >
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button className="p-1 hover:text-white transition"><Phone size={18} /></button>
                 <button className="p-1 hover:text-white transition"><Video size={18} /></button>
                 <button className="p-1 hover:text-white transition"><Info size={18} /></button>
               </div>
             </div>
 
+            {showMsgSearch && (
+              <div className="px-4.5 py-2 bg-[#161616] border-b border-[#222] flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Search in conversation..."
+                  value={msgSearchQuery}
+                  onChange={(e) => setMsgSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent text-xs outline-none text-white placeholder-zinc-500"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    setShowMsgSearch(false);
+                    setMsgSearchQuery("");
+                  }}
+                  className="text-xs text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
             {/* Messages Log */}
-            <div className="flex-1 overflow-y-auto px-4.5 py-5 flex flex-col gap-5 custom-scroll z-10 bg-black">
-              {currentMessages.length === 0 ? (
+            <div
+              className={`flex-1 overflow-y-auto px-4.5 py-5 flex flex-col gap-5 custom-scroll z-10 transition-all duration-300 ${
+                chatTheme === "sunset"
+                  ? "bg-gradient-to-b from-[#1a0e1a] via-[#2a0f1d] to-[#3a1a1a]"
+                  : chatTheme === "ocean"
+                  ? "bg-gradient-to-b from-[#071926] via-[#0b2b3a] to-[#0d1f2d]"
+                  : chatTheme === "forest"
+                  ? "bg-gradient-to-b from-[#091f15] via-[#0d2a1b] to-[#0a1510]"
+                  : chatTheme === "cyber"
+                  ? "bg-gradient-to-b from-[#180828] via-[#240c3c] to-[#0f051a]"
+                  : "bg-black"
+              }`}
+            >
+              {filteredMessages.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-[#555]">
                   <span>✨</span>
-                  <div className="text-[13px]">No messages yet. Send a message to start!</div>
+                  <div className="text-[13px]">
+                    {msgSearchQuery ? "No matching messages found." : "No messages yet. Send a message to start!"}
+                  </div>
                 </div>
               ) : (
-                currentMessages.map((msg, i) => {
+                filteredMessages.map((msg, i) => {
                   const reactionsList = Object.entries(msg.reactions || {});
                   const isTemp = !!msg.expiresAt;
                   let secondsLeft = 0;
