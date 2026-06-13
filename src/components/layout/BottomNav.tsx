@@ -5,7 +5,7 @@ import { useApp } from "../AppContext";
 import { Home, Search, Film, MessageCircle, ShieldAlert } from "lucide-react";
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, setViewingUserId, currentUser, chats } = useApp();
+  const { activeTab, setActiveTab, setViewingUserId, currentUser, chats, isFeedLoaded } = useApp();
 
   const unreadMessages = chats.reduce((acc, c) => acc + c.unread, 0);
 
@@ -21,6 +21,12 @@ export default function BottomNav() {
 
   return (
     <nav className="sm:hidden flex bg-[#111] border-t border-[#222] fixed bottom-0 left-0 right-0 py-2 px-1 select-none z-50 justify-around items-center">
+      {/* Top Loader Bar */}
+      {!isFeedLoaded && (
+        <div className="absolute top-0 left-0 right-0 h-[2.5px] overflow-hidden bg-zinc-900">
+          <div className="h-full bg-gradient-to-r from-insta-blue via-violet-500 to-[#bc1888] animate-[loadingProgress_1.5s_infinite_ease-in-out]" style={{ width: "35%" }} />
+        </div>
+      )}
       <button
         onClick={() => handleNav("home")}
         className={`flex flex-col items-center p-2 rounded-xl transition ${

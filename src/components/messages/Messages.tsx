@@ -558,13 +558,15 @@ export default function Messages() {
                       <div className={`relative flex items-center gap-2 group ${msg.mine ? "flex-row" : "flex-row-reverse"}`}>
                         {/* Always visible Reply and Reaction Smile trigger next to the bubble */}
                         <div className="flex items-center gap-1 select-none opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => setReplyingToMsg(msg)}
-                            className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
-                            title="Reply"
-                          >
-                            <Reply size={14} />
-                          </button>
+                          {!msg.mine && (
+                            <button
+                              onClick={() => setReplyingToMsg(msg)}
+                              className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
+                              title="Reply"
+                            >
+                              <Reply size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.preventDefault();
@@ -675,24 +677,6 @@ export default function Messages() {
                             } left
                           </span>
                         )}
-
-                        {/* Reactions quick emoji picker trigger */}
-                        <div className="relative group/react-picker">
-                          <button className="hover:text-zinc-300 transition cursor-pointer">
-                            React
-                          </button>
-                          <div className="hidden group-hover/react-picker:flex absolute bottom-4 left-0 bg-[#1e1e1e] border border-[#333] rounded-full px-2 py-1 gap-1.5 shadow-2xl z-30">
-                            {["❤️", "😂", "😮", "😢", "👍", "🔥"].map((emoji) => (
-                              <span
-                                key={`emoji-${emoji}`}
-                                onClick={() => msg.id !== undefined && handleReaction(msg.id, emoji)}
-                                className="text-[14px] cursor-pointer hover:scale-125 transition active:scale-95"
-                              >
-                                {emoji}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   );

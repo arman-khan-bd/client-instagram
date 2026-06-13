@@ -1,9 +1,76 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useApp } from "../AppContext";
 import { Search as SearchIcon, Heart, MessageCircle } from "lucide-react";
 import { api } from "../../lib/api";
+
+// Canvas capture fallback for video files without static thumbnails
+function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: string; thumbnailUrl?: string }) {
+  const [imgSrc, setImgSrc] = useState<string>("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // If a static thumbnail already exists (precompiled), use it
+    if (thumbnailUrl) {
+      setImgSrc(thumbnailUrl);
+      return;
+    }
+
+    // Cloudinary video thumbnail transformations helper
+    if (videoUrl.includes("cloudinary.com")) {
+      const transformed = videoUrl.replace("/video/upload/", "/video/upload/c_fill,w_400,h_400,so_0.1/") + ".jpg";
+      setImgSrc(transformed);
+      return;
+    }
+
+    // Fallback: HTML5 Video Canvas frame capture logic for local/direct video paths
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.crossOrigin = "anonymous";
+    video.currentTime = 0.2; // seek to 0.2s to capture a non-black frame
+    video.muted = true;
+    video.playsInline = true;
+    
+    const onSeeked = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 320;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/jpeg");
+          setImgSrc(dataUrl);
+        }
+      } catch (err) {
+        console.warn("Failed to generate video thumbnail with canvas:", err);
+      } finally {
+        video.removeEventListener("seeked", onSeeked);
+      }
+    };
+
+    video.addEventListener("seeked", onSeeked);
+    video.load();
+
+    return () => {
+      video.removeEventListener("seeked", onSeeked);
+    };
+  }, [videoUrl, thumbnailUrl]);
+
+  return (
+    <img
+      src={imgSrc || "/placeholder-video.jpg"}
+      alt="Video thumbnail"
+      className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+      loading="lazy"
+      onError={(e) => {
+        // Fallback placeholder if extraction fails completely
+        e.currentTarget.src = "https://picsum.photos/seed/videothumb/400/400";
+      }}
+    />
+  );
+}
 
 export default function Search() {
   const { posts, setViewingUserId, setActiveTab, setActivePostId } = useApp();
@@ -98,13 +165,19 @@ export default function Search() {
         {/* Results / Explore Grid */}
         {searchQuery.trim() !== "" ? (
           <div className="flex flex-col gap-1.5">
-            {searching && (
-              <div className="text-center py-4 text-xs text-[#a8a8a8] animate-pulse">
-                Searching AuraGram...
+            {searching ? (
+              <div className="flex flex-col gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={`search-skeleton-${i}`} className="flex items-center gap-3.5 p-3 animate-pulse">
+                    <div className="w-11 h-11 rounded-full bg-zinc-800 shrink-0" />
+                    <div className="flex-1 flex flex-col gap-2">
+                      <div className="h-4 w-24 bg-zinc-800 rounded-md" />
+                      <div className="h-3 w-36 bg-zinc-800 rounded-md" />
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
-            
-            {!searching && dbUsers.length === 0 ? (
+            ) : dbUsers.length === 0 ? (
               <div className="text-center py-12 text-[#a8a8a8] text-[14px]">
                 No accounts found for "{searchQuery}"
               </div>
@@ -144,18 +217,7 @@ export default function Search() {
               >
                 {item.mediaType === "video" || item.isReel ? (
                   <div className="w-full h-full relative bg-zinc-900">
-                    <img
-                      src={
-                        item.thumbnailUrls?.[0] || 
-                        (typeof item.img === "string" && item.img.includes("/video/upload/") 
-                          ? item.img.replace("/video/upload/", "/video/upload/c_fill,w_400,h_400,so_0/") + ".jpg"
-                          : item.img) ||
-                        "/placeholder-video.jpg"
-                      }
-                      alt="Video thumbnail"
-                      className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
+                    <VideoThumbnailCard videoUrl={item.img || item.imgs?.[0] || ""} thumbnailUrl={item.thumbnailUrls?.[0]} />
                   </div>
                 ) : (
                   <img

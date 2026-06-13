@@ -135,3 +135,15 @@ body {
 .verified-badge:hover {
   transform: scale(1.18) rotate(10deg);
 }
+
+@keyframes loadingProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
