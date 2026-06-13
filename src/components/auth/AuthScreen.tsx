@@ -69,35 +69,35 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_#2b1055_0%,_#050505_70%)] text-white relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_#2b1055_0%,_#050505_70%)] text-white relative overflow-hidden font-sans">
       {/* Decorative Aura Blobs */}
       <div className="absolute top-[20%] left-[20%] w-[250px] h-[250px] bg-gradient-to-tr from-[#9E00FF] to-[#FF2E93] rounded-full blur-[100px] opacity-30 select-none pointer-events-none animate-pulse" />
       <div className="absolute bottom-[20%] right-[20%] w-[300px] h-[300px] bg-gradient-to-br from-[#FF8A00] to-[#FF2E93] rounded-full blur-[120px] opacity-25 select-none pointer-events-none animate-pulse [animation-delay:2s]" />
 
-      <div className="w-full max-w-[390px] flex flex-col gap-4 relative z-10">
+      <div className="w-full max-w-[340px] flex flex-col gap-2.5 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-8 flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
+          className="bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-5 flex flex-col shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]"
         >
           {/* Brand Header */}
-          <div className="flex flex-col items-center mb-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] p-[2px] shadow-lg mb-3 flex items-center justify-center select-none">
-              <div className="w-full h-full bg-[#050505] rounded-[10px] flex items-center justify-center text-lg">
+          <div className="flex flex-col items-center mb-3.5">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] p-[2px] shadow-lg mb-2 flex items-center justify-center select-none">
+              <div className="w-full h-full bg-[#050505] rounded-[7px] flex items-center justify-center text-sm">
                 ✨
               </div>
             </div>
-            <h1 className="text-center text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] select-none">
+            <h1 className="text-center text-2xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] select-none">
               AuraGram
             </h1>
           </div>
 
           {/* Form Tabs */}
-          <div className="flex bg-white/[0.04] p-1 rounded-xl mb-6 border border-white/[0.05]">
+          <div className="flex bg-white/[0.04] p-1 rounded-lg mb-4 border border-white/[0.05]">
             <button
               onClick={() => setAuthMode("login")}
-              className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`flex-1 py-1.5 rounded-md text-[12px] font-semibold transition cursor-pointer ${
                 authMode === "login" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
               }`}
             >
@@ -105,7 +105,7 @@ export default function AuthScreen() {
             </button>
             <button
               onClick={() => setAuthMode("register")}
-              className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`flex-1 py-1.5 rounded-md text-[12px] font-semibold transition cursor-pointer ${
                 authMode === "register" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-white"
               }`}
             >
@@ -123,14 +123,14 @@ export default function AuthScreen() {
                 exit={{ opacity: 0, x: 10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleLoginSubmit}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-2"
               >
                 <input
                   type="email"
                   placeholder="Email address"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={loading}
                 />
@@ -139,7 +139,7 @@ export default function AuthScreen() {
                   placeholder="Password"
                   value={loginPass}
                   onChange={(e) => setLoginPass(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={loading}
                 />
@@ -147,7 +147,7 @@ export default function AuthScreen() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] text-white text-[13px] font-bold cursor-pointer hover:opacity-95 active:scale-[0.98] transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 mt-1 rounded-lg bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] text-white text-[12px] font-bold cursor-pointer hover:opacity-95 active:scale-[0.98] transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? <ButtonSpinner /> : "Log In"}
                 </button>
@@ -160,14 +160,14 @@ export default function AuthScreen() {
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.2 }}
                 onSubmit={handleRegisterSubmit}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-2"
               >
                 <input
                   type="email"
                   placeholder="Email Address"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={loading}
                 />
@@ -176,7 +176,7 @@ export default function AuthScreen() {
                   placeholder="Full Name"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={loading}
                 />
@@ -185,7 +185,7 @@ export default function AuthScreen() {
                   placeholder="Username"
                   value={regUser}
                   onChange={(e) => setRegUser(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={loading}
                 />
@@ -194,7 +194,7 @@ export default function AuthScreen() {
                   placeholder="Password"
                   value={regPass}
                   onChange={(e) => setRegPass(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white outline-none focus:border-[#FF2E93]/60 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={loading}
                 />
@@ -202,7 +202,7 @@ export default function AuthScreen() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] text-white text-[13px] font-bold cursor-pointer hover:opacity-95 active:scale-[0.98] transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 mt-1 rounded-lg bg-gradient-to-r from-[#FF8A00] via-[#FF2E93] to-[#9E00FF] text-white text-[12px] font-bold cursor-pointer hover:opacity-95 active:scale-[0.98] transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? <ButtonSpinner /> : "Sign Up"}
                 </button>
@@ -210,7 +210,7 @@ export default function AuthScreen() {
             )}
           </AnimatePresence>
 
-          <div className="flex items-center gap-3 my-5 text-[11px] text-gray-500 w-full select-none">
+          <div className="flex items-center gap-3 my-3.5 text-[11px] text-gray-500 w-full select-none">
             <div className="flex-1 h-[1px] bg-white/[0.08]" />
             OR
             <div className="flex-1 h-[1px] bg-white/[0.08]" />
@@ -220,14 +220,14 @@ export default function AuthScreen() {
           <button
             onClick={handleGoogleSubmit}
             disabled={loading}
-            className="w-full py-3 bg-white text-black hover:bg-gray-100 rounded-xl text-[13px] font-semibold cursor-pointer transition-all duration-300 shadow-sm flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 bg-white text-black hover:bg-gray-100 rounded-lg text-[12px] font-semibold cursor-pointer transition-all duration-300 shadow-sm flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <ButtonSpinner />
             ) : (
               <>
                 {/* Google Icon SVG */}
-                <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
                     fill="#EA4335"
                     d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.37 3.67 1.39 7.56l3.89 3.02C6.21 7.57 8.87 5.04 12 5.04z"
@@ -250,12 +250,12 @@ export default function AuthScreen() {
             )}
           </button>
 
-          <p className="text-[10.5px] text-gray-500 text-center mt-6 leading-relaxed select-none">
+          <p className="text-[10px] text-gray-500 text-center mt-4 leading-relaxed select-none">
             By signing up, you agree to our <span className="text-gray-400 cursor-pointer hover:underline">Terms</span> and <span className="text-gray-400 cursor-pointer hover:underline">Privacy Policy</span>.
           </p>
         </motion.div>
 
-        <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl py-4 px-6 text-center text-[12px] text-gray-400 shadow-md">
+        <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl py-2.5 px-4 text-center text-[11px] text-gray-400 shadow-md">
           Need support?{" "}
           <span
             onClick={() => alert("Support coming soon!")}
