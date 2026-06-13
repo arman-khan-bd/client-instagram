@@ -523,9 +523,11 @@ export default function Messages() {
                       onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        const xPos = e.clientX > window.innerWidth - 220 ? e.clientX - 220 : e.clientX;
+                        const yPos = e.clientY > window.innerHeight - 250 ? e.clientY - 250 : e.clientY;
                         setContextMenu({
-                          x: e.clientX,
-                          y: e.clientY,
+                          x: xPos,
+                          y: yPos,
                           msg,
                         });
                       }}
@@ -551,9 +553,9 @@ export default function Messages() {
                       )}
 
                       {/* Content Bubble */}
-                      <div className="relative flex items-center gap-2 group">
+                      <div className={`relative flex items-center gap-2 group ${msg.mine ? "flex-row" : "flex-row-reverse"}`}>
                         {/* Always visible Reply and Reaction Smile trigger next to the bubble */}
-                        <div className="flex items-center gap-1 order-last select-none">
+                        <div className="flex items-center gap-1 select-none opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => setReplyingToMsg(msg)}
                             className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
@@ -565,9 +567,12 @@ export default function Messages() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              // Adjust coordinates dynamically to prevent screen edge overflow
+                              const xPos = e.clientX > window.innerWidth - 220 ? e.clientX - 220 : e.clientX;
+                              const yPos = e.clientY > window.innerHeight - 250 ? e.clientY - 250 : e.clientY;
                               setContextMenu({
-                                x: e.clientX,
-                                y: e.clientY,
+                                x: xPos,
+                                y: yPos,
                                 msg,
                               });
                             }}
@@ -580,7 +585,7 @@ export default function Messages() {
 
                         {/* Text / Media Bubble */}
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed word-break relative select-text ${
+                          className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed word-break relative select-none ${
                             msg.mine
                               ? "bg-insta-blue text-white rounded-br-[6px]"
                               : "bg-[#1c1c1e] text-white rounded-bl-[6px]"

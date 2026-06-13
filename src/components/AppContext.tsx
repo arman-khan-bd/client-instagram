@@ -176,6 +176,10 @@ interface AppContextType {
   sharePostId: number | null;
   setSharePostId: (id: number | null) => void;
 
+  // Report dialog
+  reportPostId: number | null;
+  setReportPostId: (id: number | null) => void;
+
   // Modals state
   storyViewerIndex: number | null;
   setStoryViewerIndex: (idx: number | null) => void;
@@ -384,6 +388,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Share dialog
   const [sharePostId, setSharePostId] = useState<number | null>(null);
+
+  // Report dialog
+  const [reportPostId, setReportPostId] = useState<number | null>(null);
 
   // User states
   const [likedPosts, setLikedPosts] = useState<Record<number, boolean>>({});
@@ -1374,6 +1381,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         saveProfileChanges,
         sharePostId,
         setSharePostId,
+        reportPostId,
+        setReportPostId,
         storyViewerIndex,
         setStoryViewerIndex,
         activePostId,

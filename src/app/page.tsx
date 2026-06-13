@@ -22,6 +22,7 @@ import FollowersModal from "../components/modals/FollowersModal";
 import CreatePostModal from "../components/modals/CreatePostModal";
 import StoryCreateModal from "../components/modals/StoryCreateModal";
 import ShareModal from "../components/modals/ShareModal";
+import ReportModal from "../components/modals/ReportModal";
 
 import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -209,6 +210,7 @@ export function AppContent() {
       <CreatePostModal />
       <StoryCreateModal />
       <ShareModal />
+      <ReportModal />
 
       {/* Unique Glassmorphic Toast Notifications Container */}
       <div className="fixed top-4 right-4 md:right-6 left-4 md:left-auto z-[9999] flex flex-col gap-3 max-w-sm w-full md:w-[350px] pointer-events-none">

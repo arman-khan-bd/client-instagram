@@ -385,7 +385,7 @@ export default function PostCard({ post }: PostCardProps) {
     toggleSave, toggleFollow,
     addComment, setViewingUserId, setActiveTab,
     setActivePostId, showToast, setSharePostId,
-    setPosts, followStates,
+    setPosts, followStates, setReportPostId,
   } = useApp();
 
   const [commentText, setCommentText] = useState("");
@@ -641,7 +641,7 @@ export default function PostCard({ post }: PostCardProps) {
                   exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.1 }}
                   className="absolute right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl w-40 shadow-xl overflow-hidden z-50 text-[13px]"
                 >
-                  <div onClick={() => setShowMenu(false)} className="p-3 text-red-500 hover:bg-[#222] cursor-pointer">🚩 Report</div>
+                  <div onClick={() => { setReportPostId(post.id); setShowMenu(false); }} className="p-3 text-red-500 hover:bg-[#222] cursor-pointer">🚩 Report</div>
                   <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🚫 Not interested</div>
                   <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">➕ Follow</div>
                   <div onClick={() => { setSharePostId(post.id); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🔗 Share</div>

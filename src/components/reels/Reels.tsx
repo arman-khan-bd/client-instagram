@@ -26,7 +26,8 @@ export default function Reels() {
     addComment,
     pendingComments,
     currentUser,
-    showToast
+    showToast,
+    setReportPostId
   } = useApp();
 
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -913,6 +914,7 @@ export default function Reels() {
                     <button
                       onClick={() => {
                         setShowMenuId(null);
+                        setReportPostId(post.id);
                         resetHideTimer();
                       }}
                       className="py-3.5 text-red-500 font-bold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
