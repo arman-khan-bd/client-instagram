@@ -9,6 +9,8 @@ import {
   Timer
 } from "lucide-react";
 
+import { motion } from "framer-motion";
+
 export default function Messages() {
   const {
     chats,
@@ -583,43 +585,79 @@ export default function Messages() {
                           </button>
                         </div>
 
-                        {/* Text / Media Bubble */}
-                        <div
-                          className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed word-break relative select-none ${
-                            msg.mine
-                              ? "bg-insta-blue text-white rounded-br-[6px]"
-                              : "bg-[#1c1c1e] text-white rounded-bl-[6px]"
-                          }`}
-                        >
-                          {msg.mediaUrl ? (
-                            msg.mediaType === "video" ? (
-                              <video
-                                src={msg.mediaUrl}
-                                controls
-                                className="max-w-[240px] rounded-lg border border-[#222]"
-                              />
-                            ) : (
-                              <img
-                                src={msg.mediaUrl}
-                                alt="Media message"
-                                className="max-w-[240px] max-h-[300px] object-cover rounded-lg border border-[#222]"
-                              />
-                            )
-                          ) : (
-                            msg.text
-                          )}
+                        {/* Interactive Swipe-to-Reply Bubble wrapper */}
+                        <div className="relative flex items-center">
+                          {/* Floating back-icon indicator when swiping */}
+                          <div 
+                            className={`absolute y-1/2 -translate-y-1/2 flex items-center justify-center text-insta-blue transition-opacity duration-150 pointer-events-none ${
+                              msg.mine ? "right-[-32px]" : "left-[-32px]"
+                            }`}
+                          >
+                            <Reply size={16} className="animate-pulse" />
+                          </div>
 
-                          {/* Reaction emojis rendering */}
-                          {reactionsList.length > 0 && (
-                            <div className="absolute bottom-[-10px] right-2 bg-[#222] border border-[#333] rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-[10px] shadow-lg">
-                              {Array.from(new Set(reactionsList.map(([_, emoji]) => emoji))).map((emoji) => (
-                                <span key={`r-emoji-${emoji}`}>{emoji}</span>
-                              ))}
-                              {reactionsList.length > 1 && (
-                                <span className="text-[#888] font-bold ml-0.5">{reactionsList.length}</span>
-                              )}
-                            </div>
-                          )}
+                          <motion.div
+                            drag="x"
+                            dragConstraints={
+                              msg.mine 
+                                ? { left: -75, right: 0 } 
+                                : { left: 0, right: 75 }
+                            }
+                            dragElastic={0.45}
+                            dragSnapToOrigin
+                            onDragEnd={(_, info) => {
+                              const offset = info.offset.x;
+                              // Received message swiped left-to-right
+                              if (!msg.mine && offset > 48) {
+                                setReplyingToMsg(msg);
+                                if (typeof window !== "undefined" && window.navigator.vibrate) {
+                                  window.navigator.vibrate(15);
+                                }
+                              }
+                              // Sent message swiped right-to-left
+                              if (msg.mine && offset < -48) {
+                                setReplyingToMsg(msg);
+                                if (typeof window !== "undefined" && window.navigator.vibrate) {
+                                  window.navigator.vibrate(15);
+                                }
+                              }
+                            }}
+                            className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed word-break relative select-none cursor-grab active:cursor-grabbing ${
+                              msg.mine
+                                ? "bg-insta-blue text-white rounded-br-[6px]"
+                                : "bg-[#1c1c1e] text-white rounded-bl-[6px]"
+                            }`}
+                          >
+                            {msg.mediaUrl ? (
+                              msg.mediaType === "video" ? (
+                                <video
+                                  src={msg.mediaUrl}
+                                  controls
+                                  className="max-w-[240px] rounded-lg border border-[#222]"
+                                />
+                              ) : (
+                                <img
+                                  src={msg.mediaUrl}
+                                  alt="Media message"
+                                  className="max-w-[240px] max-h-[300px] object-cover rounded-lg border border-[#222]"
+                                />
+                              )
+                            ) : (
+                              msg.text
+                            )}
+
+                            {/* Reaction emojis rendering */}
+                            {reactionsList.length > 0 && (
+                              <div className="absolute bottom-[-10px] right-2 bg-[#222] border border-[#333] rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-[10px] shadow-lg">
+                                {Array.from(new Set(reactionsList.map(([_, emoji]) => emoji))).map((emoji) => (
+                                  <span key={`r-emoji-${emoji}`}>{emoji}</span>
+                                ))}
+                                {reactionsList.length > 1 && (
+                                  <span className="text-[#888] font-bold ml-0.5">{reactionsList.length}</span>
+                                )}
+                              </div>
+                            )}
+                          </motion.div>
                         </div>
                       </div>
 
