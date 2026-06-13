@@ -36,6 +36,43 @@ export default function Messages() {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [msgSearchQuery, setMsgSearchQuery] = useState("");
   const [showMsgSearch, setShowMsgSearch] = useState(false);
+
+  // Context Menu & Locally deleted messages states
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    msg: MockMessage | null;
+  } | null>(null);
+
+  const [locallyDeletedMsgIds, setLocallyDeletedMsgIds] = useState<number[]>(() => {
+    if (typeof window !== "undefined" && currentUser) {
+      const saved = localStorage.getItem(`deleted_msgs_${currentUser.id}`);
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  const deleteMessageFromMySide = (msgId: number) => {
+    setLocallyDeletedMsgIds((prev) => {
+      const updated = [...prev, msgId];
+      if (currentUser) {
+        localStorage.setItem(`deleted_msgs_${currentUser.id}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleBumpMessage = (msg: MockMessage) => {
+    if (activeChatId !== null && msg.text) {
+      sendMessage(activeChatId, `BUMP: ${msg.text}`);
+    }
+  };
+
+  useEffect(() => {
+    const handleCloseMenu = () => setContextMenu(null);
+    window.addEventListener("click", handleCloseMenu);
+    return () => window.removeEventListener("click", handleCloseMenu);
+  }, []);
   
   // Replying & Editing States
   const [replyingToMsg, setReplyingToMsg] = useState<MockMessage | null>(null);
@@ -74,6 +111,7 @@ export default function Messages() {
   const currentMessages = activeChatId ? chatMessages[activeChatId] || [] : [];
   
   const filteredMessages = currentMessages.filter((msg) => {
+    if (msg.id && locallyDeletedMsgIds.includes(msg.id)) return false;
     if (!msgSearchQuery.trim()) return true;
     return msg.text?.toLowerCase().includes(msgSearchQuery.toLowerCase()) || false;
   });
@@ -126,6 +164,11 @@ export default function Messages() {
     const file = e.target.files?.[0];
     if (!file || activeChatId === null) return;
 
+    if (file.type.startsWith("video/") && file.size > 10 * 1024 * 1024) {
+      showToast("Video file size exceeds the 10 MB limit.", "info");
+      return;
+    }
+ 
     setUploadingMedia(true);
     try {
       const uploaded = await api.uploadMessageMedia(file);
@@ -477,6 +520,15 @@ export default function Messages() {
                   return (
                     <div
                       key={`msg-${msg.id}-${i}`}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setContextMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          msg,
+                        });
+                      }}
                       className={`flex flex-col gap-1 group/msg max-w-[70%] ${
                         msg.mine ? "self-end items-end" : "self-start items-start"
                       }`}
@@ -500,34 +552,29 @@ export default function Messages() {
 
                       {/* Content Bubble */}
                       <div className="relative flex items-center gap-2 group">
-                        {/* Actions Context Menu (Hover actions) */}
-                        {msg.mine && (
-                          <div className="hidden group-hover/msg:flex items-center gap-1 bg-[#1a1a1a] px-1 py-0.5 rounded-lg border border-[#2a2a2a] order-first text-zinc-400">
-                            <button
-                              onClick={() => initiateEdit(msg)}
-                              className="p-1 hover:text-white transition cursor-pointer"
-                              title="Edit message"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                            <button
-                              onClick={() => initiateDelete(msg.id!)}
-                              className="p-1 hover:text-red-400 transition cursor-pointer"
-                              title="Delete message"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Reply trigger (Hover) */}
-                        <div className="hidden group-hover/msg:block order-last">
+                        {/* Always visible Reply and Reaction Smile trigger next to the bubble */}
+                        <div className="flex items-center gap-1 order-last select-none">
                           <button
                             onClick={() => setReplyingToMsg(msg)}
-                            className="p-1 text-zinc-400 hover:text-white transition cursor-pointer"
+                            className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
                             title="Reply"
                           >
                             <Reply size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setContextMenu({
+                                x: e.clientX,
+                                y: e.clientY,
+                                msg,
+                              });
+                            }}
+                            className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
+                            title="React / Options"
+                          >
+                            <Smile size={14} />
                           </button>
                         </div>
 
@@ -922,6 +969,110 @@ export default function Messages() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Message Options / Reaction Context Menu */}
+      {contextMenu && contextMenu.msg && (
+        <div
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          className="fixed bg-[#1c1c1e] border border-zinc-800 rounded-2xl p-2.5 shadow-2xl z-50 w-52 flex flex-col gap-1 text-[13px] text-white"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Reaction Emoji Row */}
+          <div className="flex justify-around border-b border-zinc-800 pb-2 mb-1.5">
+            {["❤️", "😂", "😮", "😢", "👍", "🔥"].map((emoji) => (
+              <span
+                key={`context-emoji-${emoji}`}
+                onClick={() => {
+                  if (contextMenu.msg?.id !== undefined) {
+                    handleReaction(contextMenu.msg.id, emoji);
+                  }
+                  setContextMenu(null);
+                }}
+                className="text-[18px] cursor-pointer hover:scale-125 transition active:scale-90"
+              >
+                {emoji}
+              </span>
+            ))}
+          </div>
+
+          {/* Copy Option */}
+          {contextMenu.msg.text && (
+            <button
+              onClick={() => {
+                if (contextMenu.msg?.text) {
+                  navigator.clipboard.writeText(contextMenu.msg.text);
+                  showToast("Message copied to clipboard!", "success");
+                }
+                setContextMenu(null);
+              }}
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+            >
+              📋 Copy
+            </button>
+          )}
+
+          {/* Reply Option */}
+          <button
+            onClick={() => {
+              if (contextMenu.msg) {
+                setReplyingToMsg(contextMenu.msg);
+              }
+              setContextMenu(null);
+            }}
+            className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+          >
+            💬 Reply
+          </button>
+
+          {/* Edit Option (Own only) */}
+          {contextMenu.msg.mine && contextMenu.msg.text && (
+            <button
+              onClick={() => {
+                if (contextMenu.msg) {
+                  initiateEdit(contextMenu.msg);
+                }
+                setContextMenu(null);
+              }}
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+            >
+              ✏️ Edit
+            </button>
+          )}
+
+          {/* Bump Option */}
+          {contextMenu.msg.text && (
+            <button
+              onClick={() => {
+                if (contextMenu.msg) {
+                  handleBumpMessage(contextMenu.msg);
+                }
+                setContextMenu(null);
+              }}
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+            >
+              ⚡ Bump
+            </button>
+          )}
+
+          {/* Delete Option */}
+          <button
+            onClick={() => {
+              if (contextMenu.msg) {
+                if (contextMenu.msg.mine) {
+                  initiateDelete(contextMenu.msg.id!);
+                } else {
+                  deleteMessageFromMySide(contextMenu.msg.id!);
+                  showToast("Deleted from your side", "info");
+                }
+              }
+              setContextMenu(null);
+            }}
+            className="text-left px-3 py-1.5 rounded-lg hover:bg-red-950/30 text-red-400 transition flex items-center gap-2"
+          >
+            🗑️ Delete {contextMenu.msg.mine ? "for everyone" : "for me"}
+          </button>
         </div>
       )}
     </div>

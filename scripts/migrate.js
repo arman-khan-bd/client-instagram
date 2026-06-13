@@ -675,6 +675,19 @@ const rlsStatements = [
      ON "Report" FOR UPDATE
      USING (true)
      WITH CHECK (true)`,
+
+  // Enable supabase realtime for Message table
+  `do $$
+  begin
+    if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+      create publication supabase_realtime;
+    end if;
+    alter publication supabase_realtime add table "Message";
+  exception
+    when others then
+      null;
+  end;
+  $$;`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
