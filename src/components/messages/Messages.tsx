@@ -334,6 +334,16 @@ export default function Messages() {
               </div>
 
               <div className="flex items-center gap-3 text-[#a8a8a8]">
+                <button
+                  onClick={() => {
+                    setModalMode("dm");
+                    setShowNewChatModal(true);
+                  }}
+                  className="md:hidden p-1 hover:text-white transition cursor-pointer"
+                  title="Create Message / Group"
+                >
+                  <PlusCircle size={18} />
+                </button>
                 <button className="p-1 hover:text-white transition"><Phone size={18} /></button>
                 <button className="p-1 hover:text-white transition"><Video size={18} /></button>
                 <button className="p-1 hover:text-white transition"><Info size={18} /></button>

@@ -113,10 +113,25 @@ export default function Notifications() {
     );
   };
 
-  // Group notifications
-  const todayNotifs = notifications.slice(0, 3);
-  const weekNotifs = notifications.slice(3, 6);
-  const monthNotifs = notifications.slice(6);
+  // Group notifications dynamically by date
+  const todayNotifs: MockNotification[] = [];
+  const weekNotifs: MockNotification[] = [];
+  const monthNotifs: MockNotification[] = [];
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const oneWeekAgo = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  notifications.forEach((item) => {
+    const itemDate = item.createdAt ? new Date(item.createdAt) : new Date();
+    if (itemDate >= startOfToday) {
+      todayNotifs.push(item);
+    } else if (itemDate >= oneWeekAgo) {
+      weekNotifs.push(item);
+    } else {
+      monthNotifs.push(item);
+    }
+  });
 
   return (
     <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">

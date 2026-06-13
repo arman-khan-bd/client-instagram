@@ -89,6 +89,7 @@ export interface MockNotification {
   unread: boolean;
   postId?: number;
   storyId?: number;
+  createdAt?: string;
 }
 
 export interface ToastMessage {
@@ -582,6 +583,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           unread: n.unread,
           postId: n.postId || undefined,
           storyId: n.storyId || undefined,
+          createdAt: n.createdAt,
         };
       });
       setNotifications(mapped);

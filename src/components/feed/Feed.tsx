@@ -6,18 +6,59 @@ import StoriesBar from "./StoriesBar";
 import PostCard from "./PostCard";
 import RightSidebar from "./RightSidebar";
 
+const PostSkeleton = () => (
+  <div className="bg-[#121212] border border-zinc-900 rounded-[24px] mb-6 p-4 w-full animate-pulse select-none">
+    {/* Header Skeleton */}
+    <div className="flex items-center gap-3 mb-4">
+      <div className="w-[38px] h-[38px] rounded-full bg-zinc-800" />
+      <div className="flex-1 space-y-2">
+        <div className="h-3.5 bg-zinc-800 rounded w-1/3" />
+        <div className="h-2.5 bg-zinc-800 rounded w-1/4" />
+      </div>
+    </div>
+    {/* Media Image Skeleton */}
+    <div className="aspect-square bg-zinc-900 rounded-2xl mb-4 w-full" />
+    {/* Actions Skeleton */}
+    <div className="flex items-center gap-4 mb-4">
+      <div className="w-6 h-6 bg-zinc-800 rounded-full" />
+      <div className="w-6 h-6 bg-zinc-800 rounded-full" />
+      <div className="w-6 h-6 bg-zinc-800 rounded-full" />
+      <div className="w-6 h-6 bg-zinc-800 rounded-full ml-auto" />
+    </div>
+    {/* Likes Skeleton */}
+    <div className="h-3 bg-zinc-800 rounded w-1/4 mb-3" />
+    {/* Caption Skeleton */}
+    <div className="space-y-2">
+      <div className="h-3 bg-zinc-800 rounded w-5/6" />
+      <div className="h-3 bg-zinc-800 rounded w-2/3" />
+    </div>
+  </div>
+);
+
 export default function Feed() {
   const { posts } = useApp();
-  const [visibleCount, setVisibleCount] = useState(8);
+  const [visibleCount, setVisibleCount] = useState(3);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [feedPage, setFeedPage] = useState(0);
+  const [loading, setLoading] = useState(posts.length === 0);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync loading state with posts availability
+  useEffect(() => {
+    if (posts.length > 0) {
+      setLoading(false);
+    } else {
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [posts]);
 
   // Load more posts as user scrolls near the end
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
-    if (!container || isLoadingMore || feedPage >= 3) return;
+    if (!container || isLoadingMore || visibleCount >= posts.length) return;
 
     const scrollTop = container.scrollTop;
     const clientHeight = container.clientHeight;
@@ -26,12 +67,11 @@ export default function Feed() {
     if (scrollTop + clientHeight >= scrollHeight - 200) {
       setIsLoadingMore(true);
       setTimeout(() => {
-        setVisibleCount((prev) => Math.min(prev + 4, posts.length));
-        setFeedPage((prev) => prev + 1);
+        setVisibleCount((prev) => Math.min(prev + 3, posts.length));
         setIsLoadingMore(false);
-      }, 800);
+      }, 600);
     }
-  }, [isLoadingMore, feedPage, posts.length]);
+  }, [isLoadingMore, visibleCount, posts.length]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -56,14 +96,26 @@ export default function Feed() {
 
           {/* Posts list */}
           <div className="w-full flex flex-col items-center">
-            {posts.slice(0, visibleCount).map((post) => (
-              <div
-                key={post.id}
-                className="w-full mb-4"
-              >
-                <PostCard post={post} />
+            {loading ? (
+              <>
+                <PostSkeleton />
+                <PostSkeleton />
+                <PostSkeleton />
+              </>
+            ) : posts.length === 0 ? (
+              <div className="text-center text-zinc-500 py-12 text-sm select-none">
+                No posts to show. Follow some users or create a post!
               </div>
-            ))}
+            ) : (
+              posts.slice(0, visibleCount).map((post) => (
+                <div
+                  key={post.id}
+                  className="w-full mb-4"
+                >
+                  <PostCard post={post} />
+                </div>
+              ))
+            )}
           </div>
 
           {/* Infinite Scroll Loader */}

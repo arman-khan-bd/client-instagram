@@ -1239,6 +1239,66 @@ class ApiClient {
     if (!authUser) return null;
     if (authUser.id === data.receiverId) return null;
 
+    // Check if we should update an existing notification to prevent duplicates/clutter
+    let existingNotif = null;
+
+    if (data.postId && ['like', 'comment', 'reply'].includes(data.type)) {
+      const { data: found } = await supabase
+        .from('Notification')
+        .select('*')
+        .eq('receiverId', data.receiverId)
+        .eq('postId', data.postId)
+        .eq('type', data.type)
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      existingNotif = found;
+    } else if (data.storyId && ['story_view', 'story_reaction', 'reply', 'like'].includes(data.type)) {
+      const { data: found } = await supabase
+        .from('Notification')
+        .select('*')
+        .eq('receiverId', data.receiverId)
+        .eq('storyId', data.storyId)
+        .eq('type', data.type)
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      existingNotif = found;
+    }
+
+    if (existingNotif) {
+      let updatedText = data.text || '';
+      if (existingNotif.notifierId !== authUser.id) {
+        if (data.type === 'like') {
+          updatedText = `liked your post.`;
+        } else if (data.type === 'comment') {
+          updatedText = `commented on your post.`;
+        } else if (data.type === 'story_view') {
+          updatedText = `viewed your story.`;
+        } else if (data.type === 'story_reaction') {
+          updatedText = `reacted to your story.`;
+        }
+      }
+
+      const { data: updated, error } = await supabase
+        .from('Notification')
+        .update({
+          notifierId: authUser.id,
+          text: updatedText,
+          unread: true,
+          createdAt: new Date().toISOString()
+        })
+        .eq('id', existingNotif.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.warn("Failed to update notification:", error.message);
+        return null;
+      }
+      return updated;
+    }
+
     const { data: notif, error } = await supabase
       .from('Notification')
       .insert({
@@ -1269,8 +1329,8 @@ class ApiClient {
       .select(`
         *,
         notifier:User!Notification_notifierId_fkey(id, username, fullName, avatarUrl),
-        post:Post!Notification_postId_fkey(id, thumbnailUrl, mobileUrl, mediaUrls),
-        story:Story!Notification_storyId_fkey(id, mediaUrl)
+        post:Post(id, thumbnailUrl, mobileUrl, mediaUrls),
+        story:Story(id, mediaUrl)
       `)
       .eq('receiverId', authUser.id)
       .order('createdAt', { ascending: false });
