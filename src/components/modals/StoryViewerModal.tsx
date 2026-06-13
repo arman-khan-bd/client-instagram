@@ -214,7 +214,8 @@ export default function StoryViewerModal() {
     try {
       await api.recordStoryInteraction(activeStory.id, 'message', text);
       if (currentGroup?.userId && currentUser?.id && currentGroup.userId !== currentUser.id) {
-        await api.sendMessage(currentGroup.userId, `Replied to your story: "${text}" 📸`);
+        const conv = await api.createConversation({ isGroup: false, participantIds: [currentGroup.userId] });
+        await api.sendMessage({ conversationId: conv.id, text: `Replied to your story: "${text}" 📸` });
       }
       loadInteractions();
     } catch (err) {
@@ -254,7 +255,8 @@ export default function StoryViewerModal() {
     try {
       await api.recordStoryInteraction(activeStory.id, 'reaction', emoji);
       if (currentGroup?.userId && currentUser?.id && currentGroup.userId !== currentUser.id) {
-        await api.sendMessage(currentGroup.userId, `Reacted ${emoji} to your story 📸`);
+        const conv = await api.createConversation({ isGroup: false, participantIds: [currentGroup.userId] });
+        await api.sendMessage({ conversationId: conv.id, text: `Reacted ${emoji} to your story 📸` });
       }
       loadInteractions();
     } catch (err) {

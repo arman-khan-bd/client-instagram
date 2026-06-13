@@ -471,7 +471,7 @@ export default function Messages() {
                             {["❤️", "😂", "😮", "😢", "👍", "🔥"].map((emoji) => (
                               <span
                                 key={`emoji-${emoji}`}
-                                onClick={() => handleReaction(msg.id, emoji)}
+                                onClick={() => msg.id !== undefined && handleReaction(msg.id, emoji)}
                                 className="text-[14px] cursor-pointer hover:scale-125 transition active:scale-95"
                               >
                                 {emoji}

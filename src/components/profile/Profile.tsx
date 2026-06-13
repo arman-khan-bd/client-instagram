@@ -239,6 +239,13 @@ export default function Profile() {
         time: "now",
         unread: 0,
         online: Math.random() > 0.5,
+        isGroup: false,
+        participants: [{
+          id: profileUser.id.toString(),
+          username: profileUser.name,
+          fullName: profileUser.full,
+          avatarUrl: profileUser.img,
+        }],
       };
       return [newSession, ...prevChats];
     });
