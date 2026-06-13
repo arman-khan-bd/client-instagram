@@ -154,8 +154,13 @@ export function AppContent() {
                   <button
                     key={item.name}
                     onClick={() => {
-                      if (item.tab === "profile") setViewingUserId(null);
-                      setActiveTab(item.tab);
+                      if (item.tab === "profile") {
+                        setViewingUserId(null);
+                        setActiveTab("profile", null);
+                      } else {
+                        setViewingUserId(null);
+                        setActiveTab(item.tab);
+                      }
                       setShowDrawer(false);
                     }}
                     className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left text-sm ${

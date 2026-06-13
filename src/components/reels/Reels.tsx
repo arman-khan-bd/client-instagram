@@ -170,13 +170,16 @@ export default function Reels() {
     }
   }, [reelsList]);
 
-  // Synchronize browser URL to /reels/r/<id> when active reel changes, without Next.js router navigation
+  // Synchronize browser URL and page title to /reels/r/<id> when active reel changes, without Next.js router navigation
   useEffect(() => {
     if (reelsList.length > 0 && reelsList[activeVideoIdx]) {
       const post = reelsList[activeVideoIdx];
       const origId = post.originalPostId || post.id;
       const newUrl = `/reels/r/${origId}`;
       window.history.replaceState(null, "", newUrl);
+      
+      // Update page title
+      document.title = `@${post.user.name}'s Reel • AuraGram`;
     }
   }, [activeVideoIdx, reelsList]);
 
@@ -303,6 +306,7 @@ export default function Reels() {
 
         if (entry.isIntersecting) {
           setActiveVideoIdx(idx);
+          video.currentTime = 0;
           video.play().catch(() => {});
           setIsPlaying((prev) => ({ ...prev, [idx]: true }));
         } else {
@@ -699,7 +703,7 @@ export default function Reels() {
               onPointerCancel={handlePointerUpVideo}
               onPointerLeave={handlePointerUpVideo}
               onContextMenu={(e) => e.preventDefault()}
-              className="w-full h-full snap-start snap-always relative flex items-center justify-center overflow-hidden select-none bg-black"
+              className="w-full h-full snap-start snap-always relative flex items-center justify-center overflow-hidden select-none bg-black group"
               style={{ height: "100%" }}
             >
               {/* Video Element - Changed styling to object-contain bg-black to stop zooming */}
@@ -719,7 +723,7 @@ export default function Reels() {
 
               {/* Custom Seekbar - Only renders if duration > 60s */}
               {duration > 60 && (
-                <div className={`absolute bottom-3 left-4 right-14 z-20 flex items-center gap-2 ${overlayClass}`}>
+                <div className={`absolute bottom-3 left-4 right-14 z-20 flex items-center gap-2 ${overlayClass} md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-300`}>
                   <span className="text-[10px] font-semibold text-white/95 select-none drop-shadow-md">{formatTime(currentTime)}</span>
                   <div 
                     onClick={(e) => handleSeek(idx, e)}
@@ -751,7 +755,7 @@ export default function Reels() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none z-10" />
 
               {/* Reels Sidebar (Right Action Panel) */}
-              <div className={`absolute right-3.5 bottom-24 flex flex-col gap-5 items-center z-20 text-white select-none ${overlayClass}`}>
+              <div className={`absolute right-3.5 bottom-24 flex flex-col gap-5 items-center z-20 text-white select-none ${overlayClass} md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-300`}>
                 {/* React Button & Picker */}
                 <div 
                   className="relative"
@@ -844,7 +848,7 @@ export default function Reels() {
               </div>
 
               {/* Reels Info Details (Bottom Left) */}
-              <div className={`absolute left-4.5 bottom-6 max-w-[calc(100%-75px)] z-20 text-white select-none ${overlayClass}`}>
+              <div className={`absolute left-4.5 bottom-6 max-w-[calc(100%-75px)] z-20 text-white select-none ${overlayClass} md:opacity-0 md:group-hover:opacity-100 md:pointer-events-none md:group-hover:pointer-events-auto transition-opacity duration-300`}>
                 {/* User Info Row */}
                 <div className="flex items-center gap-3 mb-2.5">
                   <img

@@ -12,8 +12,11 @@ export default function BottomNav() {
   const handleNav = (tab: string) => {
     if (tab === "profile") {
       setViewingUserId(null); // Show self profile
+      setActiveTab("profile", null);
+    } else {
+      setViewingUserId(null);
+      setActiveTab(tab);
     }
-    setActiveTab(tab);
   };
 
   return (
