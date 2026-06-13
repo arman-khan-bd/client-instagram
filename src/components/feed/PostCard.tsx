@@ -662,8 +662,12 @@ export default function PostCard({ post }: PostCardProps) {
       >
         {post.isTextOnly ? (
           <div
-            className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words"
+            className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words cursor-pointer select-none relative"
             style={{ background: post.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)", fontSize: "clamp(18px, 5vw, 30px)", textShadow: "0 2px 12px rgba(0,0,0,0.35)" }}
+            onPointerDown={onImagePointerDown}
+            onPointerUp={onImagePointerUp}
+            onPointerCancel={onImagePointerCancel}
+            onPointerLeave={onImagePointerCancel}
           >
             {post.caption}
           </div>
