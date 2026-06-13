@@ -95,7 +95,7 @@ export default function Messages() {
     if (activeChatId === null) return;
 
     if (editingMsg) {
-      if (!inputText.trim()) return;
+      if (!inputText.trim() || editingMsg.id === undefined) return;
       await editMessage(editingMsg.id, inputText);
       setEditingMsg(null);
       setInputText("");
