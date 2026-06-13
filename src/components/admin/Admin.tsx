@@ -54,8 +54,11 @@ export default function Admin() {
   // Detailed Modal Viewing
   const [selectedPost, setSelectedPost] = useState<any>(null);
 
+  const isAdmin = currentUser?.role === "admin";
+
   // Fetch all dashboard data
   const loadDashboardData = async () => {
+    if (!isAdmin) return;
     setLoading(true);
     try {
       const [u, p, c, r] = await Promise.all([
@@ -76,8 +79,27 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (isAdmin) {
+      loadDashboardData();
+    }
+  }, [isAdmin]);
+
+  // Strict Access Control Guard view
+  if (!isAdmin) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-black text-white h-full px-6 text-center select-none">
+        <div className="max-w-md bg-[#111] border border-zinc-800 rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 text-3xl">
+            🔒
+          </div>
+          <h2 className="text-xl font-bold tracking-tight text-zinc-100">Access Restricted</h2>
+          <p className="text-xs leading-relaxed text-zinc-400">
+            This dashboard console requires administrative authorization credentials. If you believe this is an error, please contact your platform operator.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Action Helpers
   const handleToggleVerify = async (userId: string, currentStatus: boolean) => {

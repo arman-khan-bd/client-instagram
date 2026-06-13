@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS "User" (
   "bio"          TEXT        DEFAULT 'Welcome to my profile! ✨',
   "avatarUrl"    TEXT,
   "isVerified"   BOOLEAN     DEFAULT FALSE,
+  "role"         TEXT        DEFAULT 'user',
   "createdAt"    TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -286,6 +287,8 @@ CREATE TABLE IF NOT EXISTS "Report" (
 const rlsStatements = [
 
   // ── Enable RLS on every table ──────────────────────────────────────────────
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "role" TEXT DEFAULT 'user'`,
+  `UPDATE "User" SET "role" = 'admin' WHERE "email" ILIKE '%admin%' OR "username" ILIKE '%admin%'`,
   `ALTER TABLE "User"                    ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Post"                    ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Like"                    ENABLE ROW LEVEL SECURITY`,

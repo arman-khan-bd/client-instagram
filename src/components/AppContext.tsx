@@ -125,7 +125,7 @@ interface AppContextType {
   // Navigation & Auth
   activeTab: string;
   setActiveTab: (tab: string, customViewingUserId?: string | number | null) => void;
-  currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string } | null;
+  currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string; role?: string } | null;
   doLogin: (email: string, pass: string) => Promise<void>;
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
   doLoginWithGoogle: () => Promise<void>;
@@ -881,7 +881,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               // Try to load existing profile first (fastest path)
               let { data: dbUser } = await supabase
                 .from('User')
-                .select('id, username, fullName, bio, avatarUrl, isVerified')
+                .select('id, username, fullName, bio, avatarUrl, isVerified, role')
                 .eq('id', session.user.id)
                 .maybeSingle();
 
@@ -898,6 +898,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   username = `${username}_${Math.floor(Math.random() * 9000 + 1000)}`;
                 }
 
+                // If user email or username indicates an admin role, initialize it as admin
+                const initialRole = (session.user.email?.toLowerCase().includes("admin") || username.toLowerCase().includes("admin")) ? "admin" : "user";
+
                 const { data: newUser, error: insertErr } = await supabase
                   .from('User')
                   .upsert({
@@ -909,8 +912,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     passwordHash: '',
                     bio: 'Welcome to AuraGram! ✨',
                     isVerified: false,
+                    role: initialRole,
                   }, { onConflict: 'id' })
-                  .select('id, username, fullName, bio, avatarUrl, isVerified')
+                  .select('id, username, fullName, bio, avatarUrl, isVerified, role')
                   .maybeSingle();
 
                 if (insertErr) {
@@ -918,7 +922,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   // Last resort: try to fetch again in case of race condition
                   const { data: retryUser } = await supabase
                     .from('User')
-                    .select('id, username, fullName, bio, avatarUrl, isVerified')
+                    .select('id, username, fullName, bio, avatarUrl, isVerified, role')
                     .eq('id', session.user.id)
                     .maybeSingle();
                   dbUser = retryUser;
@@ -936,6 +940,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   bio: dbUser.bio || 'Welcome to AuraGram! ✨',
                   web: '',
                   gender: 'Prefer not to say',
+                  role: dbUser.role || 'user',
                 };
                 setCurrentUser(user);
                 if (typeof window !== 'undefined') {

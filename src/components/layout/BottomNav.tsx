@@ -68,14 +68,16 @@ export default function BottomNav() {
         )}
       </button>
 
-      <button
-        onClick={() => handleNav("admin")}
-        className={`flex flex-col items-center p-2 rounded-xl transition ${
-          activeTab === "admin" ? "text-white" : "text-[#a8a8a8]"
-        }`}
-      >
-        <ShieldAlert size={24} />
-      </button>
+      {currentUser?.role === "admin" && (
+        <button
+          onClick={() => handleNav("admin")}
+          className={`flex flex-col items-center p-2 rounded-xl transition ${
+            activeTab === "admin" ? "text-white" : "text-[#a8a8a8]"
+          }`}
+        >
+          <ShieldAlert size={24} />
+        </button>
+      )}
 
       <button
         onClick={() => handleNav("profile")}
