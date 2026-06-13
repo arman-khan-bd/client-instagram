@@ -584,56 +584,82 @@ class ApiClient {
 
     if (userError || !user) throw new Error('User not found');
 
-    const { count: postsCount } = await supabase.from('Post').select('id', { count: 'exact', head: true }).eq('userId', user.id);
-    const { count: followersCount } = await supabase.from('Follow').select('id', { count: 'exact', head: true }).eq('followingId', user.id);
-    const { count: followingCount } = await supabase.from('Follow').select('id', { count: 'exact', head: true }).eq('followerId', user.id);
+    if (userError || !user) throw new Error('User not found');
 
-    const { data: posts } = await supabase
-      .from('Post')
-      .select('id, thumbnailUrl, mobileUrl, mediaUrls, caption')
-      .eq('userId', user.id)
-      .order('createdAt', { ascending: false })
-      .limit(30);
+    // Run basic counts and posts queries in parallel
+    const [
+      postsCountRes,
+      followersCountRes,
+      followingCountRes,
+      postsRes,
+      authRes
+    ] = await Promise.all([
+      supabase.from('Post').select('id', { count: 'exact', head: true }).eq('userId', user.id),
+      supabase.from('Follow').select('id', { count: 'exact', head: true }).eq('followingId', user.id),
+      supabase.from('Follow').select('id', { count: 'exact', head: true }).eq('followerId', user.id),
+      supabase.from('Post')
+        .select(`
+          id, 
+          thumbnailUrl, 
+          mobileUrl, 
+          mediaUrls, 
+          caption,
+          likesCount:Like(count),
+          commentsCount:Comment(count)
+        `)
+        .eq('userId', user.id)
+        .order('createdAt', { ascending: false })
+        .limit(30),
+      supabase.auth.getUser()
+    ]);
 
-    const postsWithCounts = await Promise.all((posts || []).map(async (p: any) => {
-      const { count: likesCount } = await supabase.from('Like').select('id', { count: 'exact', head: true }).eq('postId', p.id);
-      const { count: commentsCount } = await supabase.from('Comment').select('id', { count: 'exact', head: true }).eq('postId', p.id);
+    const posts = postsRes.data || [];
+    const authUser = authRes.data?.user;
+
+    const postsWithCounts = posts.map((p: any) => {
+      const likesCount = p.likesCount?.[0]?.count ?? 0;
+      const commentsCount = p.commentsCount?.[0]?.count ?? 0;
       return {
-        ...p,
+        id: p.id,
+        thumbnailUrl: p.thumbnailUrl,
+        mobileUrl: p.mobileUrl,
+        mediaUrls: p.mediaUrls,
+        caption: p.caption,
         _count: {
-          likes: likesCount || 0,
-          comments: commentsCount || 0,
+          likes: likesCount,
+          comments: commentsCount,
         }
       };
-    }));
+    });
 
-    const { data: { user: authUser } } = await supabase.auth.getUser();
     let isFollowing = false;
     let followsMe = false;
-    if (authUser) {
-      const { data: followRecord } = await supabase
-        .from('Follow')
-        .select('id')
-        .eq('followerId', authUser.id)
-        .eq('followingId', user.id)
-        .maybeSingle();
-      isFollowing = !!followRecord;
 
-      const { data: followsMeRecord } = await supabase
-        .from('Follow')
-        .select('id')
-        .eq('followerId', user.id)
-        .eq('followingId', authUser.id)
-        .maybeSingle();
-      followsMe = !!followsMeRecord;
+    if (authUser) {
+      const [followRecordRes, followsMeRecordRes] = await Promise.all([
+        supabase
+          .from('Follow')
+          .select('id')
+          .eq('followerId', authUser.id)
+          .eq('followingId', user.id)
+          .maybeSingle(),
+        supabase
+          .from('Follow')
+          .select('id')
+          .eq('followerId', user.id)
+          .eq('followingId', authUser.id)
+          .maybeSingle()
+      ]);
+      isFollowing = !!followRecordRes.data;
+      followsMe = !!followsMeRecordRes.data;
     }
 
     return {
       ...user,
       _count: {
-        posts: postsCount || 0,
-        followers: followersCount || 0,
-        following: followingCount || 0,
+        posts: postsCountRes.count || 0,
+        followers: followersCountRes.count || 0,
+        following: followingCountRes.count || 0,
       },
       posts: postsWithCounts,
       isFollowing,

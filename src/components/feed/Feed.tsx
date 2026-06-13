@@ -36,24 +36,19 @@ const PostSkeleton = () => (
 );
 
 export default function Feed() {
-  const { posts } = useApp();
+  const { posts, isFeedLoaded } = useApp();
   const [visibleCount, setVisibleCount] = useState(3);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [loading, setLoading] = useState(posts.length === 0);
+  const [loading, setLoading] = useState(!isFeedLoaded && posts.length === 0);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Sync loading state with posts availability
+  // Sync loading state with posts availability and load completion status
   useEffect(() => {
-    if (posts.length > 0) {
+    if (isFeedLoaded || posts.length > 0) {
       setLoading(false);
-    } else {
-      const timer = setTimeout(() => {
-        setLoading(false);
-      }, 2500);
-      return () => clearTimeout(timer);
     }
-  }, [posts]);
+  }, [posts, isFeedLoaded]);
 
   // Load more posts as user scrolls near the end
   const handleScroll = useCallback(() => {

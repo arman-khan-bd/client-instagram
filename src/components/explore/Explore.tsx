@@ -67,19 +67,29 @@ export default function Explore() {
                     <span className="line-clamp-4 px-1">{item.caption}</span>
                   </div>
                 ) : isVideo ? (
-                  <div className="w-full h-full relative">
-                    <video
-                      src={item.img || item.imgs?.[0]}
-                      className="w-full h-full object-cover"
-                      muted
-                      playsInline
+                  <div className="w-full h-full relative bg-zinc-900">
+                    <img
+                      src={
+                        item.thumbnailUrls?.[0] || 
+                        (typeof item.img === "string" && item.img.includes("/video/upload/") 
+                          ? item.img.replace("/video/upload/", "/video/upload/c_fill,w_300,h_400,so_0/") + ".jpg"
+                          : item.img) ||
+                        "/placeholder-video.jpg"
+                      }
+                      alt="Video thumbnail"
+                      className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                      loading="lazy"
                     />
-                    {/* Shadow overlay at bottom */}
+                    {/* Play symbol/Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
                 ) : (
                   <img
-                    src={item.img}
+                    src={
+                      typeof item.img === "string" && item.img.includes("cloudinary.com")
+                        ? item.img.replace("/image/upload/", `/image/upload/c_fill,w_${item.isTall ? "600,h_800" : "400,h_400"}/`)
+                        : item.img
+                    }
                     alt="Explore item"
                     className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                     loading="lazy"

@@ -142,20 +142,34 @@ export default function Search() {
                 onClick={() => setActivePostId(item.id)}
                 className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in"
               >
-                {item.mediaType === "video" ? (
-                  <video
-                    src={item.img}
-                    className="w-full h-full object-cover"
-                  />
+                {item.mediaType === "video" || item.isReel ? (
+                  <div className="w-full h-full relative bg-zinc-900">
+                    <img
+                      src={
+                        item.thumbnailUrls?.[0] || 
+                        (typeof item.img === "string" && item.img.includes("/video/upload/") 
+                          ? item.img.replace("/video/upload/", "/video/upload/c_fill,w_400,h_400,so_0/") + ".jpg"
+                          : item.img) ||
+                        "/placeholder-video.jpg"
+                      }
+                      alt="Video thumbnail"
+                      className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </div>
                 ) : (
                   <img
-                    src={item.img || "https://picsum.photos/400/400"}
+                    src={
+                      typeof item.img === "string" && item.img.includes("cloudinary.com")
+                        ? item.img.replace("/image/upload/", "/image/upload/c_fill,w_400,h_400/")
+                        : (item.img || "https://picsum.photos/400/400")
+                    }
                     alt="Explore"
                     className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                     loading="lazy"
                   />
                 )}
-                {item.mediaType === "video" && (
+                {(item.mediaType === "video" || item.isReel) && (
                   <span className="absolute top-2 right-2 text-sm z-10">🎬</span>
                 )}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-6 text-[14px] font-bold">

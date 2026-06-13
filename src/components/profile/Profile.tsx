@@ -120,8 +120,13 @@ export default function Profile() {
       setDbProfile(null);
       return;
     }
-    setDbProfile(null);
-    setLoading(true);
+    
+    // Only clear and show spinner if we're switching users to keep transition smooth
+    if (dbProfile?.username !== profileUser.name) {
+      setDbProfile(null);
+      setLoading(true);
+    }
+    
     setNotFound(false);
     api.getProfile(profileUser.name)
       .then((data) => {
@@ -129,7 +134,6 @@ export default function Profile() {
       })
       .catch((err) => {
         console.error("Failed to load profile from database:", err);
-        // If it's not a mock user or in feed, it's not found
         const isMockOrInFeed = users.some(u => u.name === profileUser.name) || posts.some(p => p.user.name === profileUser.name);
         if (!isMockOrInFeed) {
           setNotFound(true);
@@ -138,7 +142,7 @@ export default function Profile() {
       .finally(() => {
         setLoading(false);
       });
-  }, [profileUser?.name, viewingUserId, users, posts]);
+  }, [profileUser?.name]);
 
   // Handle follow / follow back
   const handleFollowToggle = async () => {

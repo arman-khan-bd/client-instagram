@@ -141,6 +141,7 @@ interface AppContextType {
   users: MockUser[];
   posts: MockPost[];
   setPosts: React.Dispatch<React.SetStateAction<MockPost[]>>;
+  isFeedLoaded: boolean;
   chats: MockChatSession[];
   setChats: React.Dispatch<React.SetStateAction<MockChatSession[]>>;
   chatMessages: Record<number, MockMessage[]>;
@@ -373,6 +374,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Core Arrays
   const [posts, setPosts] = useState<MockPost[]>([]);
+  const [isFeedLoaded, setIsFeedLoaded] = useState<boolean>(false);
   const [chats, setChats] = useState<MockChatSession[]>([]);
   const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>({});
   const [notifications, setNotifications] = useState<MockNotification[]>([]);
@@ -840,8 +842,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setPosts(mapped);
       } catch (err) {
         console.error("Failed to load feed:", err);
+      } finally {
+        setIsFeedLoaded(true);
       }
     };
+    
+    if (globalCachedPosts && (Date.now() - globalLastFetchTime < FETCH_CACHE_TTL)) {
+      setIsFeedLoaded(true);
+    }
+    
     loadFeed();
 
 
@@ -1339,6 +1348,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         users: MOCK_USERS,
         posts,
         setPosts,
+        isFeedLoaded,
         chats,
         setChats,
         chatMessages,
