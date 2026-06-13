@@ -523,7 +523,7 @@ const rlsStatements = [
   `DROP POLICY IF EXISTS "Message: sender delete" ON "Message"`,
 
   `CREATE POLICY "Conversation: participant select" ON "Conversation" FOR SELECT USING (
-    EXISTS (
+    "createdBy" = auth.uid() OR EXISTS (
       SELECT 1 FROM "ConversationParticipant" cp
       WHERE cp."conversationId" = id AND cp."userId" = auth.uid()
     )
