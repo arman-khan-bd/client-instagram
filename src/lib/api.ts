@@ -713,6 +713,7 @@ class ApiClient {
         sender:User!Message_senderId_fkey(id, username, avatarUrl)
       `)
       .eq('conversationId', conversationId)
+      .or(`expiresAt.is.null,expiresAt.gt.${new Date().toISOString()}`)
       .order('createdAt', { ascending: true });
 
     if (error) throw error;
@@ -729,7 +730,7 @@ class ApiClient {
     return messages || [];
   }
 
-  async sendMessage(options: { conversationId: number; text?: string; mediaUrl?: string; mediaType?: string; replyToId?: number }) {
+  async sendMessage(options: { conversationId: number; text?: string; mediaUrl?: string; mediaType?: string; replyToId?: number; expiresAt?: string }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
@@ -743,6 +744,7 @@ class ApiClient {
         mediaType: options.mediaType || null,
         replyToId: options.replyToId || null,
         reactions: {},
+        expiresAt: options.expiresAt || null,
       })
       .select(`
         *,

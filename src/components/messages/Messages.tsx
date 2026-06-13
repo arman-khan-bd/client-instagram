@@ -5,7 +5,8 @@ import { useApp, MockChatSession, MockMessage, MockUser } from "../AppContext";
 import { api } from "../../lib/api";
 import { 
   Phone, Video, Info, Camera, Image as ImageIcon, Mic, Smile, 
-  Trash2, Edit2, Reply, X, PlusCircle, CheckCircle, Send, MoreVertical, ShieldAlert
+  Trash2, Edit2, Reply, X, PlusCircle, CheckCircle, Send, MoreVertical, ShieldAlert,
+  Timer
 } from "lucide-react";
 
 export default function Messages() {
@@ -32,6 +33,19 @@ export default function Messages() {
   // Replying & Editing States
   const [replyingToMsg, setReplyingToMsg] = useState<MockMessage | null>(null);
   const [editingMsg, setEditingMsg] = useState<MockMessage | null>(null);
+
+  // Disappearing Messages States
+  const [tempDuration, setTempDuration] = useState<number | null>(null);
+  const [showTimerMenu, setShowTimerMenu] = useState(false);
+  const [nowTime, setNowTime] = useState(Date.now());
+
+  // Tick for countdown timers
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Message Delete Confirmation State
   const [deletingMsgId, setDeletingMsgId] = useState<number | null>(null);
@@ -88,7 +102,8 @@ export default function Messages() {
     } else {
       if (!inputText.trim()) return;
       sendMessage(activeChatId, inputText, {
-        replyToId: replyingToMsg?.id || undefined
+        replyToId: replyingToMsg?.id || undefined,
+        duration: tempDuration || undefined
       });
       setInputText("");
       setReplyingToMsg(null);
@@ -102,10 +117,15 @@ export default function Messages() {
     setUploadingMedia(true);
     try {
       const uploaded = await api.uploadMessageMedia(file);
+      const expiresAt = tempDuration
+        ? new Date(Date.now() + tempDuration * 1000).toISOString()
+        : null;
+        
       await api.sendMessage({
         conversationId: activeChatId,
         mediaUrl: uploaded.url,
-        mediaType: uploaded.type
+        mediaType: uploaded.type,
+        expiresAt: expiresAt || undefined
       });
     } catch (err: any) {
       console.error("Failed to send media message:", err);
@@ -318,6 +338,18 @@ export default function Messages() {
               ) : (
                 currentMessages.map((msg, i) => {
                   const reactionsList = Object.entries(msg.reactions || {});
+                  const isTemp = !!msg.expiresAt;
+                  let secondsLeft = 0;
+                  if (isTemp && msg.expiresAt) {
+                    const expiry = new Date(msg.expiresAt).getTime();
+                    secondsLeft = Math.max(0, Math.ceil((expiry - nowTime) / 1000));
+                  }
+
+                  if (isTemp && secondsLeft <= 0 && msg.id) {
+                    deleteMessage(msg.id);
+                    return null;
+                  }
+
                   return (
                     <div
                       key={`msg-${msg.id}-${i}`}
@@ -419,6 +451,16 @@ export default function Messages() {
                       <div className="flex items-center gap-2.5 mt-1 text-[9px] text-[#666]">
                         <span>{msg.time}</span>
                         {msg.isEdited && <span>(edited)</span>}
+                        {isTemp && (
+                          <span className="text-amber-500 font-bold flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">
+                            ⏱️ {secondsLeft >= 3600 
+                              ? `${Math.floor(secondsLeft/3600)}h ${Math.floor((secondsLeft%3600)/60)}m` 
+                              : secondsLeft >= 60 
+                                ? `${Math.floor(secondsLeft/60)}m ${secondsLeft%60}s` 
+                                : `${secondsLeft}s`
+                            } left
+                          </span>
+                        )}
 
                         {/* Reactions quick emoji picker trigger */}
                         <div className="relative group/react-picker">
@@ -477,7 +519,7 @@ export default function Messages() {
                 </div>
               )}
 
-              <form onSubmit={handleSend} className="flex items-center gap-3 bg-[#1c1c1e] rounded-full px-4 py-2">
+              <form onSubmit={handleSend} className="flex items-center gap-3 bg-[#1c1c1e] rounded-full px-4 py-2 relative">
                 {/* Media Button */}
                 <button
                   type="button"
@@ -495,9 +537,59 @@ export default function Messages() {
                   onChange={handleFileChange}
                 />
 
+                {/* Disappearing Message Timer Button */}
+                <div className="relative flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowTimerMenu(!showTimerMenu)}
+                    className={`${tempDuration ? "text-amber-500 animate-pulse font-bold" : "text-[#a8a8a8] hover:text-white"} transition cursor-pointer flex items-center justify-center`}
+                    title="Disappearing messages"
+                  >
+                    <Timer size={20} />
+                  </button>
+                  {showTimerMenu && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setShowTimerMenu(false)} />
+                      <div className="absolute bottom-10 left-0 bg-[#1e1e20] border border-zinc-800 rounded-xl p-2 flex flex-col gap-1 shadow-2xl z-30 w-44 backdrop-blur-md bg-opacity-90">
+                        <div className="text-[10px] text-zinc-500 font-bold px-2 py-1 uppercase tracking-wider">
+                          Message Expiration
+                        </div>
+                        {[
+                          { label: "Off", value: null },
+                          { label: "10 Seconds", value: 10 },
+                          { label: "1 Minute", value: 60 },
+                          { label: "1 Hour", value: 3600 },
+                          { label: "24 Hours", value: 86400 },
+                        ].map((opt) => (
+                          <button
+                            key={`duration-${opt.label}`}
+                            type="button"
+                            onClick={() => {
+                              setTempDuration(opt.value);
+                              setShowTimerMenu(false);
+                            }}
+                            className={`text-left text-xs px-2 py-1.5 rounded-lg hover:bg-zinc-850 transition flex items-center justify-between ${
+                              tempDuration === opt.value ? "text-amber-400 font-bold bg-white/5" : "text-zinc-300"
+                            }`}
+                          >
+                            <span>{opt.label}</span>
+                            {tempDuration === opt.value && <span className="text-[10px]">●</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <input
                   type="text"
-                  placeholder={editingMsg ? "Edit message..." : "Message..."}
+                  placeholder={
+                    editingMsg
+                      ? "Edit message..."
+                      : tempDuration
+                      ? `Disappearing in ${tempDuration >= 3600 ? `${tempDuration/3600}h` : tempDuration >= 60 ? `${tempDuration/60}m` : `${tempDuration}s`}...`
+                      : "Message..."
+                  }
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   className="flex-1 bg-transparent text-[14px] outline-none text-white placeholder-zinc-500"

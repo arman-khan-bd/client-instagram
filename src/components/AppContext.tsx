@@ -62,6 +62,7 @@ export interface MockMessage {
   replyTo?: { id: number; text: string; senderName: string };
   reactions?: Record<string, string>;
   isEdited?: boolean;
+  expiresAt?: string;
 }
 
 export interface MockChatSession {
@@ -156,7 +157,7 @@ interface AppContextType {
   toggleFollow: (userId: string | number) => void;
   addComment: (postId: number, text: string) => void;
   clearPendingComments: (postId: number) => void;
-  sendMessage: (chatId: number, text?: string, options?: { mediaUrl?: string; mediaType?: string; replyToId?: number }) => void;
+  sendMessage: (chatId: number, text?: string, options?: { mediaUrl?: string; mediaType?: string; replyToId?: number; duration?: number }) => void;
   sendEmojiMessage: (chatId: number, emoji: string) => void;
   loadMessages: (conversationId: number) => Promise<void>;
   editMessage: (messageId: number, text: string) => Promise<void>;
@@ -1068,15 +1069,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
-  const sendMessage = async (chatId: number, text?: string, options?: { mediaUrl?: string; mediaType?: string; replyToId?: number }) => {
+  const sendMessage = async (chatId: number, text?: string, options?: { mediaUrl?: string; mediaType?: string; replyToId?: number; duration?: number }) => {
     if (!text?.trim() && !options?.mediaUrl) return;
     try {
+      const expiresAt = options?.duration
+        ? new Date(Date.now() + options.duration * 1000).toISOString()
+        : undefined;
+
       await api.sendMessage({
         conversationId: chatId,
         text: text || undefined,
         mediaUrl: options?.mediaUrl,
         mediaType: options?.mediaType,
-        replyToId: options?.replyToId
+        replyToId: options?.replyToId,
+        expiresAt
       });
     } catch (err) {
       console.error("Error sending message:", err);
