@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -34,7 +34,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
   }, [onComplete]);
 
   // Framer Motion Variants for letters/elements
-  const containerVariants = {
+  const containerVariants: Variants = {
     initial: {},
     animate: {
       transition: {
@@ -43,7 +43,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     },
   };
 
-  const letterVariants = {
+  const letterVariants: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: {
       opacity: 1,
@@ -55,14 +55,14 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     },
   };
 
-  const logoVariants = {
+  const logoVariants: Variants = {
     initial: { scale: 0.8, opacity: 0 },
     animate: {
       scale: 1,
       opacity: 1,
       transition: {
         duration: 0.8,
-        ease: [0.16, 1, 0.3, 1] as [number, number, number, number], // easeOutExpo
+        ease: [0.16, 1, 0.3, 1], // easeOutExpo
       },
     },
   };
