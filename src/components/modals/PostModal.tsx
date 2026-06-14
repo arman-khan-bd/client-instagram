@@ -109,6 +109,7 @@ export default function PostModal() {
     toggleLike,
     setViewingUserId, setActiveTab,
     showToast, pendingComments, clearPendingComments,
+    addComment,
   } = useApp();
 
   const [commentText, setCommentText]         = useState("");
@@ -334,6 +335,7 @@ export default function PostModal() {
     try {
       const newComment = await api.addComment(activePost.id, text, { parentId });
       setDbComments((prev) => [...prev, newComment as DbComment]);
+      addComment(activePost.id, text);
     } catch {
       showToast("Log in to comment", "info");
     }

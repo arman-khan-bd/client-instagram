@@ -296,6 +296,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (pathname.startsWith("/profile/") && pathname !== "/profile") {
       return "profile";
     }
+    if (pathname.startsWith("/messages/") || pathname.startsWith("/message/")) {
+      return "messages";
+    }
     return PATHNAME_TO_TAB[pathname] || "home";
   });
   const [currentUser, setCurrentUser] = useState<AppContextType["currentUser"]>(() => {
@@ -312,7 +315,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return null;
   });
   const [viewingUserId, setViewingUserId] = useState<string | number | null>(null);
-  const [activeChatId, setActiveChatId] = useState<number | null>(null);
+  
+  const [activeChatId, setActiveChatIdState] = useState<number | null>(() => {
+    const isMessagesUser = pathname.startsWith("/messages/") || pathname.startsWith("/message/");
+    if (isMessagesUser) {
+      const parts = pathname.split("/");
+      const chatIdStr = parts[parts.length - 1];
+      if (chatIdStr) {
+        const id = parseInt(chatIdStr, 10);
+        if (!isNaN(id)) return id;
+      }
+    }
+    return null;
+  });
+
+  const setActiveChatId = useCallback((id: number | null) => {
+    setActiveChatIdState(id);
+    if (id !== null) {
+      router.push(`/messages/${id}`);
+    } else {
+      router.push("/messages");
+    }
+  }, [router]);
 
   // Clear all video watch durations on reload / mount
   useEffect(() => {
@@ -335,11 +359,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Sync activeTab when pathname changes externally (back/forward)
   useEffect(() => {
     const isProfileUser = pathname.startsWith("/profile/") && pathname !== "/profile";
+    const isMessagesUser = pathname.startsWith("/messages/") || pathname.startsWith("/message/");
     const tab = pathname.startsWith("/reels/r/") 
       ? "reels" 
       : isProfileUser 
         ? "profile" 
-        : (PATHNAME_TO_TAB[pathname] || "home");
+        : isMessagesUser
+          ? "messages"
+          : (PATHNAME_TO_TAB[pathname] || "home");
     setActiveTabState(tab);
 
     if (pathname.startsWith("/reels/r/")) {
@@ -352,6 +379,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const parts = pathname.split("/");
       const username = decodeURIComponent(parts[parts.length - 1]);
       setViewingUserId(username);
+    } else if (isMessagesUser) {
+      const parts = pathname.split("/");
+      const chatIdStr = parts[parts.length - 1];
+      if (chatIdStr) {
+        const id = parseInt(chatIdStr, 10);
+        if (!isNaN(id)) {
+          setActiveChatIdState(id);
+        }
+      }
     } else if (pathname === "/profile") {
       if (currentUser?.name) {
         router.replace(`/profile/${currentUser.name}`);
@@ -1115,11 +1151,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       time: "now",
       liked: false,
     };
-    // Update post.comments in feed
     setPosts((prevPosts) =>
       prevPosts.map((p) => {
         if (p.id === postId) {
-          return { ...p, comments: [...p.comments, newComment] };
+          return {
+            ...p,
+            comments: [...p.comments, newComment],
+            commentsCount: (p.commentsCount ?? 0) + 1,
+          };
         }
         return p;
       })

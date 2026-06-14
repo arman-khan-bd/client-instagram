@@ -26,6 +26,7 @@ import ReportModal from "../components/modals/ReportModal";
 
 import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import SplashScreen from "../components/layout/SplashScreen";
 
 export function AppContent() {
   const {
@@ -246,5 +247,16 @@ export function AppContent() {
 }
 
 export default function Home() {
-  return <AppContent />;
+  const [showSplash, setShowSplash] = useState(true);
+
+  return (
+    <>
+      <AppContent />
+      <AnimatePresence>
+        {showSplash && (
+          <SplashScreen onComplete={() => setShowSplash(false)} />
+        )}
+      </AnimatePresence>
+    </>
+  );
 }

@@ -978,7 +978,7 @@ export default function PostCard({ post }: PostCardProps) {
 
       {/* Comments link */}
       <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[#a8a8a8] cursor-pointer hover:text-white transition">
-        {post.comments.length > 0 ? `View all ${post.comments.length} comments` : "Add a comment…"}
+        {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
       </div>
 
       {/* Time */}

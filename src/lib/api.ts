@@ -435,6 +435,9 @@ class ApiClient {
       }
     }
 
+    // Invalidate Redis feed cache
+    await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
+
     return comment;
   }
 
