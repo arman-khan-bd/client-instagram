@@ -106,6 +106,7 @@ export default function Search() {
       api.searchUsers(searchQuery)
         .then((res) => {
           setDbUsers(res);
+          api.logSearch(searchQuery);
         })
         .catch((err) => {
           console.error("Failed to query database users:", err);

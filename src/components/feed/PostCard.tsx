@@ -92,6 +92,24 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevActivePostId = useRef<number | null>(null);
 
+  const playStartTimeRef = useRef<number | null>(null);
+
+  const logSessionDuration = () => {
+    if (playStartTimeRef.current !== null) {
+      const duration = (Date.now() - playStartTimeRef.current) / 1000;
+      playStartTimeRef.current = null;
+      if (duration > 0.5) {
+        api.logWatchDuration(postId, duration);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      logSessionDuration();
+    };
+  }, []);
+
   // Resume playback from modal's current time with sound when modal is closed
   useEffect(() => {
     if (prevActivePostId.current !== null && String(prevActivePostId.current) === String(postId) && activePostId === null) {
@@ -240,6 +258,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
             // Unmute globally on first video interaction, but do NOT pause if already playing
             globalMuted = false;
             window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: false }));
+            api.logUnmute(postId, 'feed');
           } else {
             // Otherwise, play/pause normally
             if (el.paused) {
@@ -265,6 +284,9 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
     const newMuteState = !el.muted;
     globalMuted = newMuteState;
     window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: newMuteState }));
+    if (!newMuteState) {
+      api.logUnmute(postId, 'feed');
+    }
   };
 
   // Convert video URLs in poster to Cloudinary thumbnail images if applicable
@@ -357,8 +379,13 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         onPlay={() => {
           setPlaying(true);
           setHasStarted(true);
+          playStartTimeRef.current = Date.now();
         }}
-        onPause={() => setPlaying(false)}
+        onPause={() => {
+          setPlaying(false);
+          logSessionDuration();
+        }}
+        onEnded={logSessionDuration}
         onContextMenu={(e) => e.preventDefault()}
       />
 

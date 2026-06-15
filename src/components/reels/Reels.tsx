@@ -77,7 +77,33 @@ export default function Reels() {
   // Dropdown for settings
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
 
+  const playStartTimes = useRef<Record<number, number>>({});
 
+  const handleReelPlay = (postId: number) => {
+    playStartTimes.current[postId] = Date.now();
+  };
+
+  const handleReelPause = (postId: number) => {
+    const startTime = playStartTimes.current[postId];
+    if (startTime) {
+      const duration = (Date.now() - startTime) / 1000;
+      delete playStartTimes.current[postId];
+      if (duration > 0.5) {
+        api.logWatchDuration(postId, duration);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.entries(playStartTimes.current).forEach(([postIdStr, startTime]) => {
+        const duration = (Date.now() - startTime) / 1000;
+        if (duration > 0.5) {
+          api.logWatchDuration(Number(postIdStr), duration);
+        }
+      });
+    };
+  }, []);
 
   const resetHideTimer = useCallback(() => {
     setShowOverlays(true);
@@ -357,7 +383,13 @@ export default function Reels() {
     if (video.paused) {
       video.play().catch(() => {});
       setIsPlaying((prev) => ({ ...prev, [idx]: true }));
-      setMuted(false); // Auto-unmute on play button click
+      if (muted) {
+        setMuted(false); // Auto-unmute on play button click
+        const post = reelsList[idx];
+        if (post) {
+          api.logUnmute(post.id, 'reels');
+        }
+      }
     } else {
       video.pause();
       setIsPlaying((prev) => ({ ...prev, [idx]: false }));
@@ -677,8 +709,15 @@ export default function Reels() {
                   <span className="text-[12px] font-semibold text-zinc-300">Muted</span>
                   <button
                     onClick={() => {
-                      setMuted(!muted);
+                      const nextMute = !muted;
+                      setMuted(nextMute);
                       resetHideTimer();
+                      if (!nextMute) {
+                        const post = reelsList[activeVideoIdx];
+                        if (post) {
+                          api.logUnmute(post.id, 'reels');
+                        }
+                      }
                     }}
                     className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white hover:bg-zinc-800 transition"
                   >
@@ -737,7 +776,6 @@ export default function Reels() {
               className="w-full h-full snap-start snap-always relative flex items-center justify-center overflow-hidden select-none bg-black group"
               style={{ height: "100%" }}
             >
-              {/* Video Element - Changed styling to object-contain bg-black to stop zooming */}
               <video
                 ref={(el) => {
                   videoRefs.current[idx] = el;
@@ -745,7 +783,12 @@ export default function Reels() {
                 muted={muted}
                 playsInline
                 onClick={() => handleReelClick(idx, post)}
-                onEnded={() => handleVideoEnded(idx, post)}
+                onPlay={() => handleReelPlay(post.id)}
+                onPause={() => handleReelPause(post.id)}
+                onEnded={() => {
+                  handleReelPause(post.id);
+                  handleVideoEnded(idx, post);
+                }}
                 onTimeUpdate={(e) => handleTimeUpdate(idx, e.currentTarget)}
                 onLoadedMetadata={(e) => handleLoadedMetadata(idx, e.currentTarget)}
                 onContextMenu={(e) => e.preventDefault()}

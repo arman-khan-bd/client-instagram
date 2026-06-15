@@ -236,6 +236,35 @@ CREATE TRIGGER on_auth_user_created
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdult" BOOLEAN DEFAULT FALSE;
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdultUnmarked" BOOLEAN DEFAULT FALSE;
 
+-- ── Post Category update ──────────────────────────────────────────────────────
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "category" TEXT DEFAULT 'personal';
+
+-- ── UserSearchHistory ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "UserSearchHistory" (
+  "id"        SERIAL      PRIMARY KEY,
+  "userId"    UUID        NOT NULL CONSTRAINT "SearchHistory_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "query"     TEXT        NOT NULL,
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── VideoWatchLog ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "VideoWatchLog" (
+  "id"        SERIAL      PRIMARY KEY,
+  "userId"    UUID        NOT NULL CONSTRAINT "WatchLog_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "postId"    INTEGER     NOT NULL CONSTRAINT "WatchLog_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
+  "duration"  DOUBLE PRECISION NOT NULL,
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── VideoUnmuteLog ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "VideoUnmuteLog" (
+  "id"        SERIAL      PRIMARY KEY,
+  "userId"    UUID        NOT NULL CONSTRAINT "UnmuteLog_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "postId"    INTEGER     NOT NULL CONSTRAINT "UnmuteLog_postId_fkey" REFERENCES "Post"("id") ON DELETE CASCADE,
+  "videoType" TEXT        NOT NULL DEFAULT 'feed',
+  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── Message Custom Updates ────────────────────────────────────────────────────
 ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMPTZ;
 
@@ -303,6 +332,9 @@ const rlsStatements = [
   `ALTER TABLE "Report"                  ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Conversation"            ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "ConversationParticipant" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "UserSearchHistory"       ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "VideoWatchLog"           ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "VideoUnmuteLog"          ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
@@ -319,6 +351,9 @@ const rlsStatements = [
   `ALTER TABLE "Report"                  FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "Conversation"            FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "ConversationParticipant" FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "UserSearchHistory"       FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "VideoWatchLog"           FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "VideoUnmuteLog"          FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -656,10 +691,22 @@ const rlsStatements = [
      ON "Notification" FOR INSERT
      WITH CHECK (auth.uid() = "notifierId")`,
 
-  `CREATE POLICY "Notification: receiver update"
-     ON "Notification" FOR UPDATE
-     USING (auth.uid() = "receiverId")
-     WITH CHECK (auth.uid() = "receiverId")`,
+  `CREATE POLICY "Notification: receiver update" ON "Notification" FOR UPDATE USING (auth.uid() = "receiverId") WITH CHECK (auth.uid() = "receiverId")`,
+
+  // ── UserSearchHistory policies ──────────────────────────────────────────────
+  `CREATE POLICY "SearchHistory: owner select" ON "UserSearchHistory" FOR SELECT USING (auth.uid() = "userId")`,
+  `CREATE POLICY "SearchHistory: owner insert" ON "UserSearchHistory" FOR INSERT WITH CHECK (auth.uid() = "userId")`,
+  `CREATE POLICY "SearchHistory: admin select" ON "UserSearchHistory" FOR SELECT USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
+
+  // ── VideoWatchLog policies ──────────────────────────────────────────────────
+  `CREATE POLICY "WatchLog: owner select" ON "VideoWatchLog" FOR SELECT USING (auth.uid() = "userId")`,
+  `CREATE POLICY "WatchLog: owner insert" ON "VideoWatchLog" FOR INSERT WITH CHECK (auth.uid() = "userId")`,
+  `CREATE POLICY "WatchLog: admin select" ON "VideoWatchLog" FOR SELECT USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
+
+  // ── VideoUnmuteLog policies ─────────────────────────────────────────────────
+  `CREATE POLICY "UnmuteLog: owner select" ON "VideoUnmuteLog" FOR SELECT USING (auth.uid() = "userId")`,
+  `CREATE POLICY "UnmuteLog: owner insert" ON "VideoUnmuteLog" FOR INSERT WITH CHECK (auth.uid() = "userId")`,
+  `CREATE POLICY "UnmuteLog: admin select" ON "VideoUnmuteLog" FOR SELECT USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
 
   // ── Report Table RLS ────────────────────────────────────────────────────────
   `DROP POLICY IF EXISTS "Report: select" ON "Report"`,

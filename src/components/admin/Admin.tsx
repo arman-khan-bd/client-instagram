@@ -54,6 +54,25 @@ export default function Admin() {
   // Detailed Modal Viewing
   const [selectedPost, setSelectedPost] = useState<any>(null);
 
+  // User Analytics Modal State
+  const [selectedUserAnalytics, setSelectedUserAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [selectedAnalyticsUser, setSelectedAnalyticsUser] = useState<any>(null);
+
+  const handleViewUserAnalytics = async (user: any) => {
+    setSelectedAnalyticsUser(user);
+    setAnalyticsLoading(true);
+    try {
+      const data = await api.getUserAnalytics(user.id);
+      setSelectedUserAnalytics(data);
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Failed to load user activity data", "error");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   const isAdmin = currentUser?.role === "admin";
 
   // Fetch all dashboard data
@@ -539,6 +558,14 @@ export default function Admin() {
                     {/* User Actions */}
                     <div className="col-span-3 flex justify-end gap-2 shrink-0">
                       <button
+                        onClick={() => handleViewUserAnalytics(u)}
+                        className="p-1.5 hover:bg-[#222] text-zinc-400 hover:text-white rounded-lg transition border border-[#333] cursor-pointer"
+                        title="View User Activity Logs"
+                      >
+                        <Activity size={15} />
+                      </button>
+
+                      <button
                         onClick={() => handleToggleVerify(u.id, u.isVerified)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer border ${
                           u.isVerified
@@ -986,6 +1013,198 @@ export default function Admin() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* User Activity Logs & Analytics Modal */}
+      {(selectedAnalyticsUser || analyticsLoading) && (
+        <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 text-white" onClick={() => { setSelectedAnalyticsUser(null); setSelectedUserAnalytics(null); }}>
+          <div className="bg-[#111] border border-[#222] max-w-[700px] w-full rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            
+            <button onClick={() => { setSelectedAnalyticsUser(null); setSelectedUserAnalytics(null); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer z-10">
+              <X size={20} />
+            </button>
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-[#222] flex items-center gap-3">
+              <img src={selectedAnalyticsUser?.avatarUrl || "https://i.pravatar.cc/150?img=1"} className="w-10 h-10 rounded-full object-cover border border-[#222]" alt="" />
+              <div>
+                <h3 className="font-bold text-base">User Activity Logs</h3>
+                <p className="text-xs text-zinc-400">@{selectedAnalyticsUser?.username} • {selectedAnalyticsUser?.fullName || "AuraGram User"}</p>
+              </div>
+            </div>
+
+            {/* Modal Body / Loading State */}
+            {analyticsLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 className="animate-spin text-insta-blue" size={32} />
+                <span className="text-zinc-400 text-sm">Loading activity logs...</span>
+              </div>
+            ) : selectedUserAnalytics ? (
+              <div className="flex-1 overflow-y-auto p-5">
+                {/* Stats Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  <div className="bg-[#181818] border border-[#222] p-3.5 rounded-xl text-center">
+                    <span className="text-xs text-zinc-500 block">Watch Logs</span>
+                    <span className="text-lg font-bold text-white">{selectedUserAnalytics.watchLogs.length}</span>
+                  </div>
+                  <div className="bg-[#181818] border border-[#222] p-3.5 rounded-xl text-center">
+                    <span className="text-xs text-zinc-500 block">Searches</span>
+                    <span className="text-lg font-bold text-white">{selectedUserAnalytics.searches.length}</span>
+                  </div>
+                  <div className="bg-[#181818] border border-[#222] p-3.5 rounded-xl text-center">
+                    <span className="text-xs text-zinc-500 block">Reactions</span>
+                    <span className="text-lg font-bold text-white">{selectedUserAnalytics.reactions.length}</span>
+                  </div>
+                  <div className="bg-[#181818] border border-[#222] p-3.5 rounded-xl text-center">
+                    <span className="text-xs text-zinc-500 block">Unmutes</span>
+                    <span className="text-lg font-bold text-white">{selectedUserAnalytics.unmuteLogs.length}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Search History */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-zinc-300 mb-2.5 flex items-center gap-2 border-b border-[#222] pb-1.5">
+                      <Search size={14} className="text-zinc-500" />
+                      Search History ({selectedUserAnalytics.searches.length})
+                    </h4>
+                    {selectedUserAnalytics.searches.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic pl-1">No search history recorded.</p>
+                    ) : (
+                      <div className="max-h-[150px] overflow-y-auto space-y-1 bg-[#151515] p-2.5 rounded-xl border border-[#222]">
+                        {selectedUserAnalytics.searches.map((s: any) => (
+                          <div key={s.id} className="flex justify-between items-center text-xs py-1 px-1.5 hover:bg-[#1a1a1a] rounded">
+                            <span className="font-mono text-zinc-300">"{s.query}"</span>
+                            <span className="text-zinc-500 text-[10px]">{new Date(s.createdAt).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Video Watch Logs */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-zinc-300 mb-2.5 flex items-center gap-2 border-b border-[#222] pb-1.5">
+                      <Eye size={14} className="text-zinc-500" />
+                      Video Watch History ({selectedUserAnalytics.watchLogs.length})
+                    </h4>
+                    {selectedUserAnalytics.watchLogs.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic pl-1">No watch logs recorded.</p>
+                    ) : (
+                      <div className="max-h-[180px] overflow-y-auto space-y-1 bg-[#151515] p-2.5 rounded-xl border border-[#222]">
+                        {selectedUserAnalytics.watchLogs.map((wl: any) => (
+                          <div key={wl.id} className="flex gap-2.5 items-center text-xs py-1.5 border-b border-[#222] last:border-0 hover:bg-[#1a1a1a] p-1 rounded">
+                            {wl.Post?.thumbnailUrl ? (
+                              <img src={wl.Post.thumbnailUrl} className="w-8 h-8 rounded object-cover border border-[#222]" alt="" />
+                            ) : (
+                              <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center text-[10px] text-zinc-500 font-bold">V</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-zinc-300 truncate">{wl.Post?.caption || "Untitled Post"}</p>
+                              <p className="text-[10px] text-zinc-500">Duration watched: <span className="text-zinc-300 font-medium">{wl.duration.toFixed(1)}s</span></p>
+                            </div>
+                            <span className="text-zinc-500 text-[9px] shrink-0">{new Date(wl.createdAt).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Video Unmute Logs */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-zinc-300 mb-2.5 flex items-center gap-2 border-b border-[#222] pb-1.5">
+                      <Activity size={14} className="text-zinc-500" />
+                      Video Unmute Events ({selectedUserAnalytics.unmuteLogs.length})
+                    </h4>
+                    {selectedUserAnalytics.unmuteLogs.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic pl-1">No unmute logs recorded.</p>
+                    ) : (
+                      <div className="max-h-[150px] overflow-y-auto space-y-1 bg-[#151515] p-2.5 rounded-xl border border-[#222]">
+                        {selectedUserAnalytics.unmuteLogs.map((ul: any) => (
+                          <div key={ul.id} className="flex gap-2.5 items-center text-xs py-1.5 border-b border-[#222] last:border-0 hover:bg-[#1a1a1a] p-1 rounded">
+                            {ul.Post?.thumbnailUrl ? (
+                              <img src={ul.Post.thumbnailUrl} className="w-8 h-8 rounded object-cover border border-[#222]" alt="" />
+                            ) : (
+                              <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center text-[10px] text-zinc-500 font-bold">V</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-zinc-300 truncate">{ul.Post?.caption || "Untitled Post"}</p>
+                              <p className="text-[10px] text-zinc-500">Unmuted in: <span className="text-zinc-300 font-medium capitalize">{ul.videoType || "feed"}</span></p>
+                            </div>
+                            <span className="text-zinc-500 text-[9px] shrink-0">{new Date(ul.createdAt).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Interactions (Reactions, Comments, Saves) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Reactions */}
+                    <div>
+                      <h5 className="font-semibold text-xs text-zinc-400 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                        Reactions ({selectedUserAnalytics.reactions.length})
+                      </h5>
+                      <div className="max-h-[140px] overflow-y-auto space-y-1 bg-[#151515] p-2 rounded-xl border border-[#222]">
+                        {selectedUserAnalytics.reactions.length === 0 ? (
+                          <p className="text-[11px] text-zinc-600 italic">No reactions.</p>
+                        ) : (
+                          selectedUserAnalytics.reactions.map((r: any) => (
+                            <div key={r.id} className="flex justify-between items-center text-[11px] py-1 border-b border-[#222] last:border-0">
+                              <span className="text-zinc-300 capitalize">{r.type}</span>
+                              <span className="text-[9px] text-zinc-500">{new Date(r.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Comments */}
+                    <div>
+                      <h5 className="font-semibold text-xs text-zinc-400 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                        Comments ({selectedUserAnalytics.comments.length})
+                      </h5>
+                      <div className="max-h-[140px] overflow-y-auto space-y-1 bg-[#151515] p-2 rounded-xl border border-[#222]">
+                        {selectedUserAnalytics.comments.length === 0 ? (
+                          <p className="text-[11px] text-zinc-600 italic">No comments.</p>
+                        ) : (
+                          selectedUserAnalytics.comments.map((c: any) => (
+                            <div key={c.id} className="py-1 border-b border-[#222] last:border-0 text-[11px]">
+                              <p className="text-zinc-300 line-clamp-1 italic">"{c.text}"</p>
+                              <span className="text-[9px] text-zinc-500">{new Date(c.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Saves */}
+                    <div>
+                      <h5 className="font-semibold text-xs text-zinc-400 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                        Saves ({selectedUserAnalytics.saved.length})
+                      </h5>
+                      <div className="max-h-[140px] overflow-y-auto space-y-1 bg-[#151515] p-2 rounded-xl border border-[#222]">
+                        {selectedUserAnalytics.saved.length === 0 ? (
+                          <p className="text-[11px] text-zinc-600 italic">No saves.</p>
+                        ) : (
+                          selectedUserAnalytics.saved.map((sv: any) => (
+                            <div key={sv.id} className="flex gap-1.5 items-center py-1 border-b border-[#222] last:border-0 text-[11px]">
+                              <span className="text-zinc-300 truncate">Post #{sv.postId}</span>
+                              <span className="text-[9px] text-zinc-500 ml-auto">{new Date(sv.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            ) : (
+              <div className="py-20 text-center text-zinc-500 text-sm">Failed to retrieve activity data.</div>
+            )}
           </div>
         </div>
       )}

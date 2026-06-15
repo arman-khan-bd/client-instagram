@@ -210,6 +210,37 @@ class ApiClient {
       thumbnailUrl = mediaUrls[0]?.thumbnailUrl || mediaUrls[0]?.url || '';
     }
 
+    const classifyContent = (caption: string, mediaUrls: any[], isTextOnly: boolean): string => {
+      const text = (caption || '').toLowerCase();
+      const categories = {
+        memes: ['meme', 'dank', 'shitpost', 'relatable', 'me when', 'lolcat', 'pepe', 'wojak'],
+        jokes: ['joke', 'jock', 'punchline', 'riddle', 'knock knock', 'humor', 'dad joke'],
+        funny: ['funny', 'lol', 'lmao', 'rofl', 'haha', 'hilarious', 'laugh', 'funniest', 'xd'],
+        political: ['politics', 'political', 'election', 'vote', 'senate', 'biden', 'trump', 'government', 'democrat', 'republican', 'policy', 'president', 'protest'],
+        gaming: ['gaming', 'game', 'gamer', 'playstation', 'xbox', 'nintendo', 'steam', 'gameplay', 'fortnite', 'minecraft', 'cod', 'pubg', 'rpg', 'fps'],
+        tech: ['tech', 'technology', 'programming', 'code', 'developer', 'ai', 'artificial intelligence', 'software', 'hardware', 'gadget', 'iphone', 'android', 'computer'],
+        sports: ['sports', 'football', 'soccer', 'basketball', 'cricket', 'baseball', 'tennis', 'gym', 'workout', 'fitness', 'match', 'game', 'athlete', 'olympics'],
+        food: ['food', 'recipe', 'cooking', 'chef', 'delicious', 'eat', 'dinner', 'lunch', 'breakfast', 'yummy', 'restaurant', 'cafe', 'baking'],
+        travel: ['travel', 'trip', 'wanderlust', 'vacation', 'explore', 'adventure', 'flight', 'hotel', 'beach', 'mountain', 'nature', 'destination'],
+        music: ['music', 'song', 'singer', 'band', 'album', 'guitar', 'piano', 'lyrics', 'concert', 'beat', 'track', 'spotify', 'playlist'],
+        art: ['art', 'painting', 'drawing', 'artist', 'illustration', 'sketch', 'digital art', 'design', 'sculpture', 'creative', 'gallery'],
+        fashion: ['fashion', 'style', 'outfit', 'ootd', 'wardrobe', 'makeup', 'beauty', 'lookbook', 'runway', 'model', 'designer', 'accessories'],
+        education: ['education', 'learn', 'study', 'science', 'math', 'history', 'fact', 'knowledge', 'tutorial', 'school', 'university', 'lesson', 'teacher'],
+        news: ['news', 'headline', 'breaking', 'announcement', 'report', 'journalism', 'current events', 'update', 'press'],
+      };
+
+      for (const [category, keywords] of Object.entries(categories)) {
+        if (keywords.some(keyword => text.includes(keyword))) {
+          return category;
+        }
+      }
+
+      if (isTextOnly) return 'personal';
+      const hasVideo = mediaUrls.some((m: any) => m.type === 'video');
+      if (hasVideo) return 'entertainment';
+      return 'personal';
+    };
+
     const { data: post, error: dbError } = await supabase
       .from('Post')
       .insert({
@@ -220,6 +251,7 @@ class ApiClient {
         mobileUrl: thumbnailUrl,
         masterUrl: data.filter || 'none',
         userId: authUser.id,
+        category: classifyContent(data.caption || '', mediaUrls, !!data.isTextOnly),
       })
       .select(`
         *,
@@ -1483,6 +1515,99 @@ class ApiClient {
       .update({ status })
       .eq('id', reportId);
     if (error) throw error;
+  }
+
+  async logSearch(query: string) {
+    if (!query || !query.trim()) return;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+    const { error } = await supabase
+      .from('UserSearchHistory')
+      .insert({
+        userId: authUser.id,
+        query: query.trim()
+      });
+    if (error) console.error('Error logging search:', error);
+  }
+
+  async logWatchDuration(postId: number, duration: number) {
+    if (duration <= 0) return;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+    const { error } = await supabase
+      .from('VideoWatchLog')
+      .insert({
+        userId: authUser.id,
+        postId: postId,
+        duration: duration
+      });
+    if (error) console.error('Error logging watch duration:', error);
+  }
+
+  async logUnmute(postId: number, videoType: string = 'feed') {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+    const { error } = await supabase
+      .from('VideoUnmuteLog')
+      .insert({
+        userId: authUser.id,
+        postId: postId,
+        videoType: videoType
+      });
+    if (error) console.error('Error logging unmute:', error);
+  }
+
+  async getUserAnalytics(userId: string) {
+    // 1. Search History
+    const { data: searches } = await supabase
+      .from('UserSearchHistory')
+      .select('*')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+
+    // 2. Video Watch Logs
+    const { data: watchLogs } = await supabase
+      .from('VideoWatchLog')
+      .select('*, Post:Post!WatchLog_postId_fkey(id, caption, thumbnailUrl)')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+
+    // 3. Video Unmute Logs
+    const { data: unmuteLogs } = await supabase
+      .from('VideoUnmuteLog')
+      .select('*, Post:Post!UnmuteLog_postId_fkey(id, caption, thumbnailUrl)')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+
+    // 4. Reactions
+    const { data: reactions } = await supabase
+      .from('Reaction')
+      .select('*, Post:Post!Reaction_postId_fkey(id, caption, thumbnailUrl)')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+
+    // 5. Comments
+    const { data: comments } = await supabase
+      .from('Comment')
+      .select('*, Post:Post!Comment_postId_fkey(id, caption, thumbnailUrl)')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+
+    // 6. Saved
+    const { data: saved } = await supabase
+      .from('Save')
+      .select('*, Post:Post!Save_postId_fkey(id, caption, thumbnailUrl)')
+      .eq('userId', userId)
+      .order('createdAt', { ascending: false });
+
+    return {
+      searches: searches || [],
+      watchLogs: watchLogs || [],
+      unmuteLogs: unmuteLogs || [],
+      reactions: reactions || [],
+      comments: comments || [],
+      saved: saved || []
+    };
   }
 }
 
