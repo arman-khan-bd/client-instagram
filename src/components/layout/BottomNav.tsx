@@ -10,6 +10,9 @@ export default function BottomNav() {
   const unreadMessages = chats.reduce((acc, c) => acc + c.unread, 0);
 
   const handleNav = (tab: string) => {
+    if (typeof window !== "undefined" && window.navigator && typeof window.navigator.vibrate === "function") {
+      window.navigator.vibrate(12);
+    }
     if (tab === "profile") {
       setViewingUserId(null); // Show self profile
       setActiveTab("profile", null);
@@ -20,7 +23,8 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="sm:hidden flex bg-[#111] border-t border-[#222] fixed bottom-0 left-0 right-0 py-2 px-1 select-none z-50 justify-around items-center">
+    <nav className="sm:hidden flex bg-[#111] border-t border-[#222] fixed bottom-0 left-0 right-0 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] px-1 select-none z-50 justify-around items-center">
+
       {/* Top Loader Bar */}
       {!isFeedLoaded && (
         <div className="absolute top-0 left-0 right-0 h-[2.5px] overflow-hidden bg-zinc-900">

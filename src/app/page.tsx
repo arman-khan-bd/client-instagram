@@ -41,7 +41,34 @@ export function AppContent() {
     doLogout,
   } = useApp();
   const [showDrawer, setShowDrawer] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
   const unreadNotifs = notifications.filter((n) => n.unread).length;
+
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (typeof window !== "undefined" && !window.matchMedia("(display-mode: standalone)").matches) {
+        setShowInstallBanner(true);
+      }
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log("Install prompt outcome:", outcome);
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
 
   // Show Auth Screen if no user logged in
   if (!currentUser) {
@@ -94,7 +121,7 @@ export function AppContent() {
   return (
     <div className="flex h-screen w-screen bg-black overflow-hidden relative font-sans">
       {/* Top Header Mobile */}
-      <header className="sm:hidden flex items-center justify-between h-[54px] bg-black border-b border-zinc-900 fixed top-0 left-0 right-0 px-4 z-[90] select-none text-white">
+      <header className="sm:hidden flex items-center justify-between h-[calc(54px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-black border-b border-zinc-900 fixed top-0 left-0 right-0 px-4 z-[90] select-none text-white">
         <button onClick={() => setShowDrawer(true)} className="p-1 hover:text-gray-300">
           <Menu size={22} />
         </button>
@@ -195,9 +222,30 @@ export function AppContent() {
         <Sidebar />
 
         {/* Center/Right Dynamic Tab Content */}
-        <main className="flex-1 h-full flex flex-col relative pt-[54px] sm:pt-0 pb-[60px] sm:pb-0">
+        <main className="flex-1 h-full flex flex-col relative pt-[calc(54px+env(safe-area-inset-top))] sm:pt-0 pb-[calc(60px+env(safe-area-inset-bottom))] sm:pb-0">
           {renderActiveView()}
         </main>
+
+        {/* Install PWA Prompt Banner */}
+        {showInstallBanner && (
+          <div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-4 right-4 z-[100] bg-zinc-900/95 backdrop-blur-md border border-zinc-800 p-3.5 rounded-2xl flex items-center justify-between shadow-2xl animate-heart-pop sm:hidden">
+            <div className="flex items-center gap-3">
+              <img src="/icon-192.png" className="w-10 h-10 rounded-xl object-cover" alt="app-icon" />
+              <div>
+                <p className="text-white text-xs font-semibold">Install AuraGram App</p>
+                <p className="text-zinc-400 text-[10px]">Launch standalone for a premium native experience</p>
+              </div>
+            </div>
+            <div className="flex flex-row items-center gap-2">
+              <button onClick={handleInstallClick} className="bg-white text-black text-[11px] font-bold py-1.5 px-3 rounded-lg hover:bg-zinc-200 transition">
+                Install
+              </button>
+              <button onClick={() => setShowInstallBanner(false)} className="text-zinc-400 hover:text-white p-1">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Mobile Bottom Navigation */}
         <BottomNav />

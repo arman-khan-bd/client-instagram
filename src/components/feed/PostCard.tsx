@@ -82,12 +82,48 @@ let globalMuted = true;
 
 function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void; postId: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { setActiveTab } = useApp();
+  const { setActiveTab, activePostId } = useApp();
   const [playing, setPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [muted, setMuted] = useState(globalMuted);
   const lastClickTime = useRef<number>(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevActivePostId = useRef<number | null>(null);
+
+  // Resume playback from modal's current time with sound when modal is closed
+  useEffect(() => {
+    if (prevActivePostId.current !== null && String(prevActivePostId.current) === String(postId) && activePostId === null) {
+      const el = videoRef.current;
+      if (el) {
+        const savedTime = localStorage.getItem(`video_time_${postId}`);
+        if (savedTime) {
+          try {
+            const data = JSON.parse(savedTime);
+            el.currentTime = data.time;
+          } catch (e) {
+            const parsed = parseFloat(savedTime);
+            if (!isNaN(parsed) && parsed > 0) {
+              el.currentTime = parsed;
+            }
+          }
+        }
+        
+        globalMuted = false;
+        window.dispatchEvent(new CustomEvent("feedMuteChange", { detail: false }));
+        el.muted = false;
+        setMuted(false);
+
+        el.play().then(() => {
+          window.dispatchEvent(new CustomEvent("feedVideoPlay", { detail: { src } }));
+        }).catch((err) => {
+          console.error("Auto-play failed on modal close:", err);
+        });
+        setPlaying(true);
+        setHasStarted(true);
+      }
+    }
+    prevActivePostId.current = activePostId;
+  }, [activePostId, postId, src]);
 
   // Sync with global feed mute state
   useEffect(() => {
