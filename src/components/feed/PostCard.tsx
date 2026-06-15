@@ -61,6 +61,8 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
               onMouseEnter={() => onHover(idx)}
               onPointerEnter={() => onHover(idx)}
               onClick={(e) => { e.stopPropagation(); onSelect(r.type); }}
+              data-index={idx}
+              data-reaction-type={r.type}
               className="text-[26px] leading-none cursor-pointer relative"
             >
               {r.emoji}
@@ -621,6 +623,57 @@ export default function PostCard({ post }: PostCardProps) {
   };
   const cancelHoverHide = () => { if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current); };
 
+  const likeTouchStartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLikeHolding = useRef(false);
+
+  const handleLikeTouchStart = (e: React.TouchEvent) => {
+    isLikeHolding.current = false;
+    likeTouchStartTimer.current = setTimeout(() => {
+      isLikeHolding.current = true;
+      setShowHoverPicker(true);
+      if (typeof window !== "undefined" && window.navigator && typeof window.navigator.vibrate === "function") {
+        window.navigator.vibrate(15);
+      }
+    }, 350);
+  };
+
+  const handleLikeTouchMove = (e: React.TouchEvent) => {
+    if (!isLikeHolding.current) {
+      if (likeTouchStartTimer.current) {
+        clearTimeout(likeTouchStartTimer.current);
+      }
+      return;
+    }
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (element) {
+      const btn = element.closest("[data-reaction-type]");
+      if (btn) {
+        const idxStr = btn.getAttribute("data-index");
+        if (idxStr !== null) {
+          setHoverPickerHovIdx(parseInt(idxStr, 10));
+        }
+      } else {
+        setHoverPickerHovIdx(null);
+      }
+    }
+  };
+
+  const handleLikeTouchEnd = (e: React.TouchEvent) => {
+    if (likeTouchStartTimer.current) {
+      clearTimeout(likeTouchStartTimer.current);
+    }
+    if (isLikeHolding.current) {
+      e.preventDefault();
+      if (hoverPickerHovIdx !== null) {
+        commitReaction(REACTIONS[hoverPickerHovIdx].type);
+      }
+      setShowHoverPicker(false);
+      setHoverPickerHovIdx(null);
+      isLikeHolding.current = false;
+    }
+  };
+
   // Double-tap vs Single-tap delay trigger
   const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -956,7 +1009,14 @@ export default function PostCard({ post }: PostCardProps) {
       {/* ── Actions bar ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3.5 p-3.5 pb-1 select-none">
         <div className="relative" onMouseEnter={startHoverShow} onMouseLeave={startHoverHide}>
-          <button onClick={handleSimpleLike} className="cursor-pointer transition hover:scale-105 active:scale-95 flex items-center gap-1" style={{ color: reactionInfo?.color }}>
+          <button
+            onClick={handleSimpleLike}
+            onTouchStart={handleLikeTouchStart}
+            onTouchMove={handleLikeTouchMove}
+            onTouchEnd={handleLikeTouchEnd}
+            className="cursor-pointer transition hover:scale-105 active:scale-95 flex items-center gap-1"
+            style={{ color: reactionInfo?.color }}
+          >
             {currentReaction ? (
               <span className="text-[22px] leading-none">{reactionInfo?.emoji}</span>
             ) : hasReacted && reactionInfo ? (
