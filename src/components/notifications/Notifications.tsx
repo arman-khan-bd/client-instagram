@@ -94,36 +94,43 @@ export default function Notifications() {
         )}
 
         {item.img && item.type !== "follow" && (
-          item.isVideoStory ? (
-            <video
-              src={item.img}
-              className="w-11 h-11 rounded-lg object-cover cursor-pointer shrink-0 border border-[#222] hover:opacity-85 transition bg-zinc-900"
-              muted
-              playsInline
-              onClick={(e) => {
-                e.stopPropagation();
-                if (item.storyId) {
-                  const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
-                  if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
-                }
-              }}
-            />
-          ) : (
-            <img
-              src={item.img}
-              alt="Preview"
-              className="w-11 h-11 rounded-lg object-cover cursor-pointer shrink-0 border border-[#222] hover:opacity-85 transition"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (item.postId) {
-                  setActivePostId(item.postId);
-                } else if (item.storyId) {
-                  const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
-                  if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
-                }
-              }}
-            />
-          )
+          <div className="relative w-11 h-11 shrink-0 select-none">
+            {item.isVideoStory ? (
+              <>
+                <video
+                  src={item.img}
+                  className="w-full h-full rounded-lg object-cover cursor-pointer border border-[#222] hover:opacity-85 transition bg-zinc-900"
+                  muted
+                  playsInline
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (item.storyId) {
+                      const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
+                      if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
+                    }
+                  }}
+                />
+                <div className="absolute bottom-0.5 right-0.5 bg-black/70 text-white rounded p-0.5 pointer-events-none flex items-center justify-center text-[9px] w-4.5 h-4.5">
+                  📹
+                </div>
+              </>
+            ) : (
+              <img
+                src={item.img}
+                alt="Preview"
+                className="w-full h-full rounded-lg object-cover cursor-pointer border border-[#222] hover:opacity-85 transition"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.postId) {
+                    setActivePostId(item.postId);
+                  } else if (item.storyId) {
+                    const storyIdx = storyGroups.findIndex((g) => g.stories.some((s) => s.id === item.storyId));
+                    if (storyIdx !== -1) setStoryViewerIndex(storyIdx);
+                  }
+                }}
+              />
+            )}
+          </div>
         )}
       </div>
     );

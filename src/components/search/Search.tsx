@@ -19,7 +19,8 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
 
     // Cloudinary video thumbnail transformations helper
     if (videoUrl.includes("cloudinary.com")) {
-      const transformed = videoUrl.replace("/video/upload/", "/video/upload/c_fill,w_400,h_400,so_0.1/") + ".jpg";
+      const randomOffset = (Math.random() * 5 + 0.5).toFixed(1);
+      const transformed = videoUrl.replace("/video/upload/", `/video/upload/c_fill,w_400,h_400,so_${randomOffset}/`) + ".jpg";
       setImgSrc(transformed);
       return;
     }
@@ -28,7 +29,6 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
     const video = document.createElement("video");
     video.src = videoUrl;
     video.crossOrigin = "anonymous";
-    video.currentTime = 0.2; // seek to 0.2s to capture a non-black frame
     video.muted = true;
     video.playsInline = true;
     
@@ -50,11 +50,19 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
       }
     };
 
+    const onLoadedMetadata = () => {
+      const duration = video.duration || 10;
+      const randomTime = 0.2 + Math.random() * Math.min(duration - 0.5, 5);
+      video.currentTime = randomTime;
+    };
+
     video.addEventListener("seeked", onSeeked);
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
     video.load();
 
     return () => {
       video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
     };
   }, [videoUrl, thumbnailUrl]);
 

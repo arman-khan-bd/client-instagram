@@ -423,11 +423,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Pending (optimistic) comments — bridge between feed inline comment and PostModal
   const [pendingComments, setPendingComments] = useState<Record<number, MockComment[]>>({});
 
+  // Helper to push history state when opening a modal
+  const openModalHistory = (modalName: string, queryParam: string, additionalState = {}) => {
+    if (typeof window === "undefined") return;
+    const newUrl = `${window.location.pathname}?${queryParam}`;
+    window.history.pushState({ modal: modalName, ...additionalState }, "", newUrl);
+  };
+
+  // Helper to close modal history (go back if current state is this modal)
+  const closeModalHistory = (modalName: string) => {
+    if (typeof window === "undefined") return;
+    if (window.history.state && window.history.state.modal === modalName) {
+      window.history.back();
+    }
+  };
+
   // Share dialog
-  const [sharePostId, setSharePostId] = useState<number | null>(null);
+  const [sharePostIdState, setSharePostIdState] = useState<number | null>(null);
+  const setSharePostId = useCallback((id: number | null) => {
+    if (id !== null) {
+      setSharePostIdState(id);
+      openModalHistory("share", `share=${id}`, { id });
+    } else {
+      setSharePostIdState(null);
+      closeModalHistory("share");
+    }
+  }, []);
 
   // Report dialog
-  const [reportPostId, setReportPostId] = useState<number | null>(null);
+  const [reportPostIdState, setReportPostIdState] = useState<number | null>(null);
+  const setReportPostId = useCallback((id: number | null) => {
+    if (id !== null) {
+      setReportPostIdState(id);
+      openModalHistory("report", `report=${id}`, { id });
+    } else {
+      setReportPostIdState(null);
+      closeModalHistory("report");
+    }
+  }, []);
 
   // User states
   const [likedPosts, setLikedPosts] = useState<Record<number, boolean>>({});
@@ -435,12 +468,134 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [followStates, setFollowStates] = useState<Record<string | number, boolean>>({});
 
   // Modals
-  const [storyViewerIndex, setStoryViewerIndex] = useState<number | null>(null);
-  const [activePostId, setActivePostId] = useState<number | null>(null);
-  const [showEditProfileModal, setShowEditProfileModal] = useState<boolean>(false);
-  const [showCreatePostModal, setShowCreatePostModal] = useState<boolean>(false);
-  const [showStoryCreate, setShowStoryCreate] = useState<boolean>(false);
-  const [followersModal, setFollowersModal] = useState<AppContextType["followersModal"]>(null);
+  const [storyViewerIndexState, setStoryViewerIndexState] = useState<number | null>(null);
+  const setStoryViewerIndex = useCallback((idx: number | null) => {
+    if (idx !== null) {
+      setStoryViewerIndexState(idx);
+      openModalHistory("story", `story=${idx}`, { id: idx });
+    } else {
+      setStoryViewerIndexState(null);
+      closeModalHistory("story");
+    }
+  }, []);
+
+  const [activePostIdState, setActivePostIdState] = useState<number | null>(null);
+  const setActivePostId = useCallback((id: number | null) => {
+    if (id !== null) {
+      setActivePostIdState(id);
+      openModalHistory("post", `post=${id}`, { id });
+    } else {
+      setActivePostIdState(null);
+      closeModalHistory("post");
+    }
+  }, []);
+
+  const [showEditProfileModalState, setShowEditProfileModalState] = useState<boolean>(false);
+  const setShowEditProfileModal = useCallback((show: boolean) => {
+    if (show) {
+      setShowEditProfileModalState(true);
+      openModalHistory("edit-profile", "edit-profile=true");
+    } else {
+      setShowEditProfileModalState(false);
+      closeModalHistory("edit-profile");
+    }
+  }, []);
+
+  const [showCreatePostModalState, setShowCreatePostModalState] = useState<boolean>(false);
+  const setShowCreatePostModal = useCallback((show: boolean) => {
+    if (show) {
+      setShowCreatePostModalState(true);
+      openModalHistory("create-post", "create-post=true");
+    } else {
+      setShowCreatePostModalState(false);
+      closeModalHistory("create-post");
+    }
+  }, []);
+
+  const [showStoryCreateState, setShowStoryCreateState] = useState<boolean>(false);
+  const setShowStoryCreate = useCallback((show: boolean) => {
+    if (show) {
+      setShowStoryCreateState(true);
+      openModalHistory("story-create", "story-create=true");
+    } else {
+      setShowStoryCreateState(false);
+      closeModalHistory("story-create");
+    }
+  }, []);
+
+  const [followersModalState, setFollowersModalState] = useState<AppContextType["followersModal"]>(null);
+  const setFollowersModal = useCallback((data: AppContextType["followersModal"]) => {
+    if (data && data.open) {
+      setFollowersModalState(data);
+      openModalHistory("followers", `${data.type}=true`, { type: data.type, userId: data.userId });
+    } else {
+      setFollowersModalState(null);
+      closeModalHistory("followers");
+    }
+  }, []);
+
+  // Synchronize modal state with browser history (back button support)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state || {};
+      
+      setActivePostIdState(state.modal === "post" ? state.id : null);
+      setStoryViewerIndexState(state.modal === "story" ? state.id : null);
+      setShowEditProfileModalState(state.modal === "edit-profile");
+      setShowCreatePostModalState(state.modal === "create-post");
+      setShowStoryCreateState(state.modal === "story-create");
+      setFollowersModalState(state.modal === "followers" ? { open: true, type: state.type, userId: state.userId } : null);
+      setSharePostIdState(state.modal === "share" ? state.id : null);
+      setReportPostIdState(state.modal === "report" ? state.id : null);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Initialization check to auto-open dialogs from query params on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    
+    const postParam = params.get("post");
+    if (postParam) {
+      setActivePostIdState(parseInt(postParam, 10));
+    }
+    
+    const storyParam = params.get("story");
+    if (storyParam) {
+      setStoryViewerIndexState(parseInt(storyParam, 10));
+    }
+
+    if (params.get("edit-profile")) {
+      setShowEditProfileModalState(true);
+    }
+    if (params.get("create-post")) {
+      setShowCreatePostModalState(true);
+    }
+    if (params.get("story-create")) {
+      setShowStoryCreateState(true);
+    }
+    if (params.get("followers")) {
+      setFollowersModalState({ open: true, type: "followers", userId: "" });
+    }
+    if (params.get("following")) {
+      setFollowersModalState({ open: true, type: "following", userId: "" });
+    }
+    const shareParam = params.get("share");
+    if (shareParam) {
+      setSharePostIdState(parseInt(shareParam, 10));
+    }
+    const reportParam = params.get("report");
+    if (reportParam) {
+      setReportPostIdState(parseInt(reportParam, 10));
+    }
+  }, []);
 
   // Stories
   const [storyGroups, setStoryGroups] = useState<StoryGroup[]>([]);
@@ -1430,21 +1585,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         createConversation,
         createPost,
         saveProfileChanges,
-        sharePostId,
+        sharePostId: sharePostIdState,
         setSharePostId,
-        reportPostId,
+        reportPostId: reportPostIdState,
         setReportPostId,
-        storyViewerIndex,
+        storyViewerIndex: storyViewerIndexState,
         setStoryViewerIndex,
-        activePostId,
+        activePostId: activePostIdState,
         setActivePostId,
-        showEditProfileModal,
+        showEditProfileModal: showEditProfileModalState,
         setShowEditProfileModal,
-        showCreatePostModal,
+        showCreatePostModal: showCreatePostModalState,
         setShowCreatePostModal,
-        followersModal,
+        followersModal: followersModalState,
         setFollowersModal,
-        showStoryCreate,
+        showStoryCreate: showStoryCreateState,
         setShowStoryCreate,
         storyGroups,
         loadStories,

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
 import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus } from "lucide-react";
 import { api } from "../../lib/api";
+import { VideoThumbnailCard } from "../search/Search";
 
 const profileCache: Record<string, { data: any; timestamp: number }> = {};
 const PROFILE_CACHE_TTL = 30 * 1000; // 30 seconds cache
@@ -570,7 +571,7 @@ export default function Profile() {
               <div
                 key={`grid-post-${post.id}-${i}`}
                 onClick={() => setActivePostId(post.id)}
-                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg"
+                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg bg-zinc-900"
               >
                 {post.isTextOnly || post.bgGradient ? (
                   <div
@@ -579,6 +580,8 @@ export default function Profile() {
                   >
                     <span className="line-clamp-4">{post.caption}</span>
                   </div>
+                ) : post.isReel ? (
+                  <VideoThumbnailCard videoUrl={post.img} />
                 ) : (
                   <img
                     src={post.img}

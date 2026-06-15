@@ -27,10 +27,17 @@ export default function Reels() {
     pendingComments,
     currentUser,
     showToast,
-    setReportPostId
+    setReportPostId,
+    setViewingUserId,
+    setActiveTab
   } = useApp();
 
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
+  };
 
   const [autoScroll, setAutoScroll] = useState(true);
   const [activeVideoIdx, setActiveVideoIdx] = useState(0);
@@ -96,6 +103,20 @@ export default function Reels() {
     // Reset play count for next video
     setReelPlayCounts({});
   }, [activeVideoIdx, resetHideTimer]);
+
+  const prevActiveIdx = useRef(0);
+
+  useEffect(() => {
+    if (activeVideoIdx < prevActiveIdx.current) {
+      setAutoScroll(false);
+      const video = videoRefs.current[activeVideoIdx];
+      if (video) {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      }
+    }
+    prevActiveIdx.current = activeVideoIdx;
+  }, [activeVideoIdx]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
@@ -864,9 +885,15 @@ export default function Reels() {
                   <img
                     src={post.user.img}
                     alt={post.user.name}
-                    className="w-9 h-9 rounded-full border border-white/40 object-cover"
+                    className="w-9 h-9 rounded-full border border-white/40 object-cover cursor-pointer hover:opacity-85 transition"
+                    onClick={() => handleUserClick(post.user.name)}
                   />
-                  <span className="font-bold text-[14px] drop-shadow-md truncate">{post.user.name}</span>
+                  <span
+                    onClick={() => handleUserClick(post.user.name)}
+                    className="font-bold text-[14px] drop-shadow-md truncate cursor-pointer hover:underline"
+                  >
+                    {post.user.name}
+                  </span>
                   {post.user.verified && <span className="verified-badge" title="Verified" />}
                   
                   <button
