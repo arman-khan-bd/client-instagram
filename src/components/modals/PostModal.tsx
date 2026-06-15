@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { REACTIONS } from "../feed/PostCard";
 import ReactionsModal from "./ReactionsModal";
+import Hls from "hls.js";
 
 function ModalVideo({ src, poster, postId }: { src: string; poster?: string; postId: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,6 +20,49 @@ function ModalVideo({ src, poster, postId }: { src: string; poster?: string; pos
     // Dispatch play event to pause feed videos
     window.dispatchEvent(new CustomEvent("feedVideoPlay", { detail: { src: "modal" } }));
   }, []);
+
+  const streamSrc = useMemo(() => {
+    if (!src) return "";
+    const cleanUrl = src.trim();
+    if (cleanUrl.includes("res.cloudinary.com") && (cleanUrl.includes("/video/upload/") || cleanUrl.match(/\.(mp4|mov|webm)$/i))) {
+      let hlsUrl = cleanUrl.replace(/\.(mp4|mov|webm)$/i, ".m3u8");
+      if (!hlsUrl.includes("/sp_auto")) {
+        hlsUrl = hlsUrl.replace("/video/upload/", "/video/upload/sp_auto/");
+      }
+      return hlsUrl;
+    }
+    return cleanUrl;
+  }, [src]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
+
+    if (streamSrc.endsWith(".m3u8")) {
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          maxMaxBufferLength: 10,
+          autoStartLoad: true,
+        });
+        hls.loadSource(streamSrc);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = streamSrc;
+      } else {
+        video.src = src;
+      }
+    } else {
+      video.src = src;
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [src, streamSrc]);
 
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
@@ -53,7 +97,6 @@ function ModalVideo({ src, poster, postId }: { src: string; poster?: string; pos
     <div className="relative w-full h-full bg-black cursor-pointer" onClick={handlePlayPause}>
       <video
         ref={videoRef}
-        src={src}
         poster={poster}
         className="w-full h-full object-contain"
         playsInline
@@ -151,6 +194,20 @@ export default function PostModal() {
     }
 
     const fromFeed = posts.find((p) => p.id === activePostId);
+    const isFeedVideo = fromFeed && (
+      fromFeed.isReel || 
+      fromFeed.mediaType === "video" || 
+      (fromFeed.imgs && fromFeed.imgs.some((m: string) => typeof m === "string" && (m.match(/\.(mp4|mov|webm)/i) || m.includes("/video/upload/"))))
+    );
+
+    if (isFeedVideo) {
+      setDbComments([]);
+      setCurrentReaction(null);
+      setReactionsList([]);
+      setLoadingComments(false);
+      return;
+    }
+
     if (!fromFeed) {
       setLoadingPost(true);
       api.getPost(activePostId)
