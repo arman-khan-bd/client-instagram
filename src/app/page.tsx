@@ -222,26 +222,31 @@ export function AppContent() {
         <Sidebar />
 
         {/* Center/Right Dynamic Tab Content */}
-        <main className="flex-1 h-full flex flex-col relative pt-[calc(54px+env(safe-area-inset-top))] sm:pt-0 pb-[calc(60px+env(safe-area-inset-bottom))] sm:pb-0">
+        <main className={`flex-1 h-full flex flex-col relative sm:pt-0 pb-[calc(60px+env(safe-area-inset-bottom))] sm:pb-0 ${
+          showInstallBanner ? "pt-[calc(90px+env(safe-area-inset-top))]" : "pt-[calc(54px+env(safe-area-inset-top))]"
+        }`}>
           {renderActiveView()}
         </main>
 
-        {/* Install PWA Prompt Banner */}
+        {/* Install PWA Prompt Banner (Single Line below Header) */}
         {showInstallBanner && (
-          <div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] left-4 right-4 z-[100] bg-zinc-900/95 backdrop-blur-md border border-zinc-800 p-3.5 rounded-2xl flex items-center justify-between shadow-2xl animate-heart-pop sm:hidden">
-            <div className="flex items-center gap-3">
-              <img src="/icon-192.png" className="w-10 h-10 rounded-xl object-cover" alt="app-icon" />
-              <div>
-                <p className="text-white text-xs font-semibold">Install AuraGram App</p>
-                <p className="text-zinc-400 text-[10px]">Launch standalone for a premium native experience</p>
-              </div>
+          <div className="fixed top-[calc(54px+env(safe-area-inset-top))] left-0 right-0 z-[89] bg-zinc-950/95 backdrop-blur-md border-b border-zinc-900 h-9 px-4 flex items-center justify-between text-xs select-none sm:hidden text-white">
+            <div className="flex items-center gap-2">
+              <img src="/icon-192.png" className="w-4.5 h-4.5 rounded-md object-cover" alt="app-icon" />
+              <span className="text-[11px] font-medium text-zinc-300">AuraGram PWA</span>
             </div>
-            <div className="flex flex-row items-center gap-2">
-              <button onClick={handleInstallClick} className="bg-white text-black text-[11px] font-bold py-1.5 px-3 rounded-lg hover:bg-zinc-200 transition">
-                Install
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleInstallClick}
+                className="text-[10px] bg-white text-black font-bold py-0.5 px-2.5 rounded-sm hover:bg-zinc-200 transition uppercase tracking-wider"
+              >
+                Download
               </button>
-              <button onClick={() => setShowInstallBanner(false)} className="text-zinc-400 hover:text-white p-1">
-                <X size={16} />
+              <button
+                onClick={() => setShowInstallBanner(false)}
+                className="text-zinc-500 hover:text-white transition p-1"
+              >
+                <X size={12} />
               </button>
             </div>
           </div>

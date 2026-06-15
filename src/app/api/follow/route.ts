@@ -42,13 +42,17 @@ export async function POST(request: Request) {
       if (error) throw error;
 
       // Create notification
-      await supabase.from('Notification').insert({
-        type: 'follow',
-        senderId: user.id,
-        receiverId: followingId,
-        text: 'started following you.',
-        read: false
-      }).catch(err => console.error('Failed to create follow notification:', err));
+      try {
+        await supabase.from('Notification').insert({
+          type: 'follow',
+          senderId: user.id,
+          receiverId: followingId,
+          text: 'started following you.',
+          read: false
+        });
+      } catch (err) {
+        console.error('Failed to create follow notification:', err);
+      }
 
       return NextResponse.json({ following: true });
     }
