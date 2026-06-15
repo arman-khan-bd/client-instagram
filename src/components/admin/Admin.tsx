@@ -67,7 +67,7 @@ export default function Admin() {
       setSelectedUserAnalytics(data);
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || "Failed to load user activity data", "error");
+      showToast(err.message || "Failed to load user activity data", "info");
     } finally {
       setAnalyticsLoading(false);
     }
