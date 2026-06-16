@@ -1842,7 +1842,7 @@ class ApiClient {
     return data || [];
   }
 
-  async createTvChannel(data: { name: string; url: string; category?: string; logoUrl?: string }) {
+  async createTvChannel(data: { name: string; url: string; category?: string; logoUrl?: string; info?: string }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
@@ -1853,6 +1853,7 @@ class ApiClient {
         url: data.url,
         category: data.category || 'General',
         logoUrl: data.logoUrl || '',
+        info: data.info || '',
       })
       .select()
       .single();

@@ -46,6 +46,31 @@ export default function Admin() {
   const [tvLiveViewers, setTvLiveViewers] = useState<any[]>([]);
   const [tvHistory, setTvHistory] = useState<any[]>([]);
   const [tvChannelsCount, setTvChannelsCount] = useState(0);
+  const [tvChannels, setTvChannels] = useState<any[]>([]);
+
+  // TV Channel creation form state
+  const [tvName, setTvName] = useState("");
+  const [tvUrl, setTvUrl] = useState("");
+  const [tvLogoUrl, setTvLogoUrl] = useState("");
+  const [tvCategory, setTvCategory] = useState("General");
+  const [tvInfo, setTvInfo] = useState("");
+  const [tvSubmitting, setTvSubmitting] = useState(false);
+
+  // Pagination States
+  const [usersPage, setUsersPage] = useState(1);
+  const [postsPage, setPostsPage] = useState(1);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [reportsPage, setReportsPage] = useState(1);
+  const [tvPage, setTvPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    setUsersPage(1);
+    setPostsPage(1);
+    setCommentsPage(1);
+    setReportsPage(1);
+    setTvPage(1);
+  }, [searchTerm, activeTab]);
   
   // SEO Local Settings
   const [seoTitlePrefix, setSeoTitlePrefix] = useState("AuraGram");
@@ -111,7 +136,8 @@ export default function Admin() {
         api.getTvActiveSessions(),
         api.getTvViewingHistory()
       ]);
-      setTvChannelsCount(channelsData.length);
+       setTvChannelsCount(channelsData.length);
+      setTvChannels(channelsData);
       
       // Filter sessions active within the last 30 seconds
       const activeCutoff = new Date(Date.now() - 30 * 1000);
@@ -156,6 +182,48 @@ export default function Admin() {
   }
 
   // Action Helpers
+  const handleCreateTvChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tvName || !tvUrl) {
+      showToast("Channel Name and Stream URL are required", "info");
+      return;
+    }
+    setTvSubmitting(true);
+    try {
+      const newChan = await api.createTvChannel({
+        name: tvName,
+        url: tvUrl,
+        logoUrl: tvLogoUrl,
+        category: tvCategory,
+        info: tvInfo
+      });
+      showToast("TV channel created successfully!", "success");
+      setTvChannels(prev => [newChan, ...prev]);
+      setTvChannelsCount(prev => prev + 1);
+      setTvName("");
+      setTvUrl("");
+      setTvLogoUrl("");
+      setTvCategory("General");
+      setTvInfo("");
+    } catch (err: any) {
+      showToast(err.message || "Failed to create TV channel", "info");
+    } finally {
+      setTvSubmitting(false);
+    }
+  };
+
+  const handleDeleteTvChannel = async (channelId: number) => {
+    if (!confirm("Are you sure you want to delete this TV channel?")) return;
+    try {
+      await api.deleteTvChannel(channelId);
+      showToast("TV channel deleted successfully", "success");
+      setTvChannels(prev => prev.filter(ch => ch.id !== channelId));
+      setTvChannelsCount(prev => Math.max(0, prev - 1));
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete TV channel", "info");
+    }
+  };
+
   const handleToggleVerify = async (userId: string, currentStatus: boolean) => {
     try {
       await api.updateUserVerified(userId, !currentStatus);
@@ -238,6 +306,82 @@ export default function Admin() {
       r.reporter?.username.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [reportsList, searchTerm]);
+
+  // Paginated Lists
+  const paginatedUsers = useMemo(() => {
+    const start = (usersPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE);
+  }, [filteredUsers, usersPage]);
+
+  const paginatedPosts = useMemo(() => {
+    const start = (postsPage - 1) * PAGE_SIZE;
+    return filteredPosts.slice(start, start + PAGE_SIZE);
+  }, [filteredPosts, postsPage]);
+
+  const paginatedComments = useMemo(() => {
+    const start = (commentsPage - 1) * PAGE_SIZE;
+    return filteredComments.slice(start, start + PAGE_SIZE);
+  }, [filteredComments, commentsPage]);
+
+  const paginatedReports = useMemo(() => {
+    const start = (reportsPage - 1) * PAGE_SIZE;
+    return filteredReports.slice(start, start + PAGE_SIZE);
+  }, [filteredReports, reportsPage]);
+
+  const paginatedTvChannels = useMemo(() => {
+    const start = (tvPage - 1) * PAGE_SIZE;
+    return tvChannels.slice(start, start + PAGE_SIZE);
+  }, [tvChannels, tvPage]);
+
+  // Helper Pagination Controls Component
+  const renderPagination = (currentPage: number, totalItems: number, onPageChange: (p: number) => void) => {
+    const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-between p-4 border-t border-[#222] bg-[#0c0c0c]/40 text-xs select-none">
+        <span className="text-zinc-500">
+          Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalItems)}-{Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} entries
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => onPageChange(currentPage - 1)}
+            className="px-3 py-1.5 rounded-lg bg-[#181818] border border-white/[0.04] text-zinc-400 hover:text-white disabled:opacity-30 disabled:hover:text-zinc-400 transition cursor-pointer font-bold"
+          >
+            Prev
+          </button>
+          
+          <div className="flex items-center gap-1">
+            {Array.from({ length: totalPages }).map((_, i) => {
+              const pageNum = i + 1;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => onPageChange(pageNum)}
+                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer font-bold text-xs ${
+                    currentPage === pageNum
+                      ? "bg-insta-blue border-insta-blue text-white shadow-md shadow-insta-blue/20"
+                      : "bg-[#181818] border-white/[0.04] text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => onPageChange(currentPage + 1)}
+            className="px-3 py-1.5 rounded-lg bg-[#181818] border border-white/[0.04] text-zinc-400 hover:text-white disabled:opacity-30 disabled:hover:text-zinc-400 transition cursor-pointer font-bold"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // SVG Chart Computations
   const chartData = useMemo(() => {
@@ -567,66 +711,69 @@ export default function Admin() {
             {filteredUsers.length === 0 ? (
               <div className="text-center py-16 text-zinc-500 text-sm">No registered users matched your criteria.</div>
             ) : (
-              <div className="flex flex-col divide-y divide-[#222]">
-                {filteredUsers.map((u) => (
-                  <div key={u.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
-                    
-                    {/* User profile info */}
-                    <div className="col-span-4 flex items-center gap-3">
-                      <img src={u.avatarUrl || "https://i.pravatar.cc/150?img=1"} className="w-10 h-10 rounded-full object-cover border border-[#333]" alt="" />
-                      <div className="min-w-0">
-                        <div className="font-bold flex items-center gap-1.5 truncate">
-                          {u.username}
-                          {u.isVerified && <span className="verified-badge" title="Verified" />}
-                        </div>
-                        <div className="text-[11px] text-zinc-400 truncate">{u.fullName || "AuraGram User"}</div>
-                      </div>
-                    </div>
-                    
-                    {/* User ID */}
-                    <div className="col-span-3 font-mono text-[10px] text-zinc-500 select-all truncate">{u.id}</div>
-                    
-                    {/* Joined Date */}
-                    <div className="col-span-2 text-zinc-400 text-xs truncate">
-                      {new Date(u.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </div>
-                    
-                    {/* User Actions */}
-                    <div className="col-span-3 flex justify-end gap-2 shrink-0">
-                      <button
-                        onClick={() => handleViewUserAnalytics(u)}
-                        className="p-1.5 hover:bg-[#222] text-zinc-400 hover:text-white rounded-lg transition border border-[#333] cursor-pointer"
-                        title="View User Activity Logs"
-                      >
-                        <Activity size={15} />
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleVerify(u.id, u.isVerified)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer border ${
-                          u.isVerified
-                            ? "bg-transparent border-[#333] text-zinc-400 hover:text-white"
-                            : "bg-insta-blue hover:bg-insta-blue/90 border-transparent text-white"
-                        }`}
-                      >
-                        {u.isVerified ? "Revoke Verified" : "Verify User"}
-                      </button>
+              <>
+                <div className="flex flex-col divide-y divide-[#222]">
+                  {paginatedUsers.map((u) => (
+                    <div key={u.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
                       
-                      {/* Do not let logged-in admin delete themselves */}
-                      {currentUser?.id !== u.id && (
+                      {/* User profile info */}
+                      <div className="col-span-4 flex items-center gap-3">
+                        <img src={u.avatarUrl || "https://i.pravatar.cc/150?img=1"} className="w-10 h-10 rounded-full object-cover border border-[#333]" alt="" />
+                        <div className="min-w-0">
+                          <div className="font-bold flex items-center gap-1.5 truncate">
+                            {u.username}
+                            {u.isVerified && <span className="verified-badge" title="Verified" />}
+                          </div>
+                          <div className="text-[11px] text-zinc-400 truncate">{u.fullName || "AuraGram User"}</div>
+                        </div>
+                      </div>
+                      
+                      {/* User ID */}
+                      <div className="col-span-3 font-mono text-[10px] text-zinc-500 select-all truncate">{u.id}</div>
+                      
+                      {/* Joined Date */}
+                      <div className="col-span-2 text-zinc-400 text-xs truncate">
+                        {new Date(u.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </div>
+                      
+                      {/* User Actions */}
+                      <div className="col-span-3 flex justify-end gap-2 shrink-0">
                         <button
-                          onClick={() => handleDeleteUser(u.id)}
-                          className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
-                          title="Delete User Account"
+                          onClick={() => handleViewUserAnalytics(u)}
+                          className="p-1.5 hover:bg-[#222] text-zinc-400 hover:text-white rounded-lg transition border border-[#333] cursor-pointer"
+                          title="View User Activity Logs"
                         >
-                          <Trash2 size={15} />
+                          <Activity size={15} />
                         </button>
-                      )}
-                    </div>
 
-                  </div>
-                ))}
-              </div>
+                        <button
+                          onClick={() => handleToggleVerify(u.id, u.isVerified)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer border ${
+                            u.isVerified
+                              ? "bg-transparent border-[#333] text-zinc-400 hover:text-white"
+                              : "bg-insta-blue hover:bg-insta-blue/90 border-transparent text-white"
+                          }`}
+                        >
+                          {u.isVerified ? "Revoke Verified" : "Verify User"}
+                        </button>
+                        
+                        {/* Do not let logged-in admin delete themselves */}
+                        {currentUser?.id !== u.id && (
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
+                            title="Delete User Account"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+                {renderPagination(usersPage, filteredUsers.length, setUsersPage)}
+              </>
             )}
           </div>
         )}
@@ -644,72 +791,75 @@ export default function Admin() {
             {filteredPosts.length === 0 ? (
               <div className="text-center py-16 text-zinc-500 text-sm">No posts found.</div>
             ) : (
-              <div className="flex flex-col divide-y divide-[#222]">
-                {filteredPosts.map((p) => {
-                  const mediaList = Array.isArray(p.mediaUrls) ? p.mediaUrls : [];
-                  const isVideo = p.isReel || (mediaList.length > 0 && typeof mediaList[0] === 'string' && mediaList[0].match(/\.(mp4|mov)/gi));
-                  
-                  return (
-                    <div key={p.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
-                      
-                      {/* Author & caption info */}
-                      <div className="col-span-5 flex items-center gap-3">
-                        <div className="min-w-0">
-                          <div className="font-bold flex items-center gap-1.5 text-zinc-300">
-                            @{p.User?.username || "unknown"}
-                          </div>
-                          <div className="text-[12px] text-zinc-400 line-clamp-2 mt-0.5 italic">
-                            "{p.caption || "No caption provided"}"
+              <>
+                <div className="flex flex-col divide-y divide-[#222]">
+                  {paginatedPosts.map((p) => {
+                    const mediaList = Array.isArray(p.mediaUrls) ? p.mediaUrls : [];
+                    const isVideo = p.isReel || (mediaList.length > 0 && typeof mediaList[0] === 'string' && mediaList[0].match(/\.(mp4|mov)/gi));
+                    
+                    return (
+                      <div key={p.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
+                        
+                        {/* Author & caption info */}
+                        <div className="col-span-5 flex items-center gap-3">
+                          <div className="min-w-0">
+                            <div className="font-bold flex items-center gap-1.5 text-zinc-300">
+                              @{p.User?.username || "unknown"}
+                            </div>
+                            <div className="text-[12px] text-zinc-400 line-clamp-2 mt-0.5 italic">
+                              "{p.caption || "No caption provided"}"
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      {/* Media preview */}
-                      <div className="col-span-3 flex items-center">
-                        {p.isTextOnly ? (
-                          <div style={{ background: p.thumbnailUrl }} className="w-11 h-11 rounded-md border border-[#222] flex items-center justify-center text-[7px] p-1 text-center font-bold overflow-hidden text-white line-clamp-3">
-                            {p.caption}
-                          </div>
-                        ) : isVideo ? (
-                          <div className="relative w-11 h-11 bg-zinc-800 rounded-md border border-[#222] overflow-hidden flex items-center justify-center">
-                            <span className="text-xs">🎬</span>
-                          </div>
-                        ) : (
-                          <img src={p.thumbnailUrl || mediaList[0] || "https://picsum.photos/80/80"} className="w-11 h-11 rounded-md object-cover border border-[#222]" alt="" />
-                        )}
-                        <span className="text-[10px] text-zinc-500 ml-2.5 font-bold uppercase">
-                          {p.isTextOnly ? "Text Grid" : isVideo ? "Reel Video" : "Image Card"}
-                        </span>
-                      </div>
-                      
-                      {/* Created Date */}
-                      <div className="col-span-2 text-zinc-400 text-xs truncate">
-                        {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="col-span-2 flex justify-end gap-2.5">
-                        <button
-                          onClick={() => setSelectedPost(p)}
-                          className="p-1.5 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition border border-transparent hover:border-zinc-700 cursor-pointer"
-                          title="View Post Details"
-                        >
-                          <Eye size={15} />
-                        </button>
                         
-                        <button
-                          onClick={() => handleDeletePost(p.id)}
-                          className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
-                          title="Delete Post permanently"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
+                        {/* Media preview */}
+                        <div className="col-span-3 flex items-center">
+                          {p.isTextOnly ? (
+                            <div style={{ background: p.thumbnailUrl }} className="w-11 h-11 rounded-md border border-[#222] flex items-center justify-center text-[7px] p-1 text-center font-bold overflow-hidden text-white line-clamp-3">
+                              {p.caption}
+                            </div>
+                          ) : isVideo ? (
+                            <div className="relative w-11 h-11 bg-zinc-800 rounded-md border border-[#222] overflow-hidden flex items-center justify-center">
+                              <span className="text-xs">🎬</span>
+                            </div>
+                          ) : (
+                            <img src={p.thumbnailUrl || mediaList[0] || "https://picsum.photos/80/80"} className="w-11 h-11 rounded-md object-cover border border-[#222]" alt="" />
+                          )}
+                          <span className="text-[10px] text-zinc-500 ml-2.5 font-bold uppercase">
+                            {p.isTextOnly ? "Text Grid" : isVideo ? "Reel Video" : "Image Card"}
+                          </span>
+                        </div>
+                        
+                        {/* Created Date */}
+                        <div className="col-span-2 text-zinc-400 text-xs truncate">
+                          {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="col-span-2 flex justify-end gap-2.5">
+                          <button
+                            onClick={() => setSelectedPost(p)}
+                            className="p-1.5 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition border border-transparent hover:border-zinc-700 cursor-pointer"
+                            title="View Post Details"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleDeletePost(p.id)}
+                            className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
+                            title="Delete Post permanently"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
 
-                    </div>
-                  );
-                })}
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {renderPagination(postsPage, filteredPosts.length, setPostsPage)}
+              </>
             )}
           </div>
         )}
@@ -727,42 +877,45 @@ export default function Admin() {
             {filteredComments.length === 0 ? (
               <div className="text-center py-16 text-zinc-500 text-sm">No comments logged in database.</div>
             ) : (
-              <div className="flex flex-col divide-y divide-[#222]">
-                {filteredComments.map((c) => (
-                  <div key={c.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
-                    
-                    {/* Comment author & content */}
-                    <div className="col-span-4 flex items-center gap-2">
-                      <div className="min-w-0">
-                        <span className="font-bold text-zinc-300">@{c.User?.username || "unknown"}: </span>
-                        <span className="text-zinc-200 select-text">{c.text || "💌 Reacted Emoji"}</span>
+              <>
+                <div className="flex flex-col divide-y divide-[#222]">
+                  {paginatedComments.map((c) => (
+                    <div key={c.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
+                      
+                      {/* Comment author & content */}
+                      <div className="col-span-4 flex items-center gap-2">
+                        <div className="min-w-0">
+                          <span className="font-bold text-zinc-300">@{c.User?.username || "unknown"}: </span>
+                          <span className="text-zinc-200 select-text">{c.text || "💌 Reacted Emoji"}</span>
+                        </div>
                       </div>
-                    </div>
-                    
-                    {/* Post context link */}
-                    <div className="col-span-4 text-xs text-zinc-400 truncate line-clamp-1 italic">
-                      "{c.Post?.caption || "Text gradient card / No caption"}"
-                    </div>
-                    
-                    {/* Created Date */}
-                    <div className="col-span-2 text-zinc-500 text-xs truncate">
-                      {new Date(c.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="col-span-2 flex justify-end gap-2.5">
-                      <button
-                        onClick={() => handleDeleteComment(c.id)}
-                        className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
-                        title="Delete Comment permanently"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                      
+                      {/* Post context link */}
+                      <div className="col-span-4 text-xs text-zinc-400 truncate line-clamp-1 italic">
+                        "{c.Post?.caption || "Text gradient card / No caption"}"
+                      </div>
+                      
+                      {/* Created Date */}
+                      <div className="col-span-2 text-zinc-500 text-xs truncate">
+                        {new Date(c.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="col-span-2 flex justify-end gap-2.5">
+                        <button
+                          onClick={() => handleDeleteComment(c.id)}
+                          className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
+                          title="Delete Comment permanently"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
 
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+                {renderPagination(commentsPage, filteredComments.length, setCommentsPage)}
+              </>
             )}
           </div>
         )}
@@ -780,82 +933,85 @@ export default function Admin() {
             {filteredReports.length === 0 ? (
               <div className="text-center py-16 text-zinc-500 text-sm">No content reports filed.</div>
             ) : (
-              <div className="flex flex-col divide-y divide-[#222]">
-                {filteredReports.map((r) => {
-                  const isPostReport = !!r.postId;
-                  
-                  return (
-                    <div key={r.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
-                      
-                      {/* Reporter & Reason */}
-                      <div className="col-span-3 flex flex-col gap-0.5">
-                        <span className="font-bold text-zinc-300">@{r.reporter?.username || "reporter"}</span>
-                        <span className="text-xs text-red-400 italic">"Reason: {r.reason}"</span>
-                      </div>
-                      
-                      {/* Target Preview */}
-                      <div className="col-span-4 min-w-0">
-                        {isPostReport ? (
-                          <div className="flex items-center gap-2">
-                            <span className="bg-[#1a1a1a] px-2 py-0.5 rounded text-[10px] uppercase font-bold text-amber-500">Post</span>
-                            <span className="text-xs text-zinc-400 truncate italic">"{r.post?.caption || "View image/video preview"}"</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="bg-[#1a1a1a] px-2 py-0.5 rounded text-[10px] uppercase font-bold text-orange-500">Comment</span>
-                            <span className="text-xs text-zinc-400 truncate italic">"{r.comment?.text || "Comment text preview"}"</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Status */}
-                      <div className="col-span-2">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          r.status === "pending"
-                            ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
-                            : r.status === "resolved"
-                              ? "bg-green-500/10 text-green-500 border border-green-500/20 animate-pulse"
-                              : "bg-zinc-800 text-zinc-400 border border-zinc-700"
-                        }`}>
-                          {r.status}
-                        </span>
-                      </div>
-                      
-                      {/* Moderation Actions */}
-                      <div className="col-span-3 flex justify-end gap-1.5">
-                        {r.status === "pending" && (
-                          <>
-                            <button
-                              onClick={() => handleUpdateReport(r.id, "resolved")}
-                              className="px-2.5 py-1 rounded bg-green-500 hover:bg-green-600 text-xs font-bold text-white transition flex items-center gap-0.5 cursor-pointer"
-                              title="Resolve Report"
-                            >
-                              <Check size={12} /> Resolve
-                            </button>
-                            <button
-                              onClick={() => handleUpdateReport(r.id, "dismissed")}
-                              className="px-2.5 py-1 rounded bg-[#222] hover:bg-[#333] text-xs font-bold text-zinc-300 transition cursor-pointer"
-                              title="Dismiss / Ignore Report"
-                            >
-                              Dismiss
-                            </button>
-                          </>
-                        )}
+              <>
+                <div className="flex flex-col divide-y divide-[#222]">
+                  {paginatedReports.map((r) => {
+                    const isPostReport = !!r.postId;
+                    
+                    return (
+                      <div key={r.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
                         
-                        {/* Delete targeted violating item */}
-                        <button
-                          onClick={() => isPostReport ? handleDeletePost(r.postId) : handleDeleteComment(r.commentId)}
-                          className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
-                          title="Delete reported content permanently"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                        {/* Reporter & Reason */}
+                        <div className="col-span-3 flex flex-col gap-0.5">
+                          <span className="font-bold text-zinc-300">@{r.reporter?.username || "reporter"}</span>
+                          <span className="text-xs text-red-400 italic">"Reason: {r.reason}"</span>
+                        </div>
+                        
+                        {/* Target Preview */}
+                        <div className="col-span-4 min-w-0">
+                          {isPostReport ? (
+                            <div className="flex items-center gap-2">
+                              <span className="bg-[#1a1a1a] px-2 py-0.5 rounded text-[10px] uppercase font-bold text-amber-500">Post</span>
+                              <span className="text-xs text-zinc-400 truncate italic">"{r.post?.caption || "View image/video preview"}"</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="bg-[#1a1a1a] px-2 py-0.5 rounded text-[10px] uppercase font-bold text-orange-500">Comment</span>
+                              <span className="text-xs text-zinc-400 truncate italic">"{r.comment?.text || "Comment text preview"}"</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Status */}
+                        <div className="col-span-2">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                            r.status === "pending"
+                              ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                              : r.status === "resolved"
+                                ? "bg-green-500/10 text-green-500 border border-green-500/20 animate-pulse"
+                                : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                          }`}>
+                            {r.status}
+                          </span>
+                        </div>
+                        
+                        {/* Moderation Actions */}
+                        <div className="col-span-3 flex justify-end gap-1.5">
+                          {r.status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => handleUpdateReport(r.id, "resolved")}
+                                className="px-2.5 py-1 rounded bg-green-500 hover:bg-green-600 text-xs font-bold text-white transition flex items-center gap-0.5 cursor-pointer"
+                                title="Resolve Report"
+                              >
+                                <Check size={12} /> Resolve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateReport(r.id, "dismissed")}
+                                className="px-2.5 py-1 rounded bg-[#222] hover:bg-[#333] text-xs font-bold text-zinc-300 transition cursor-pointer"
+                                title="Dismiss / Ignore Report"
+                              >
+                                Dismiss
+                              </button>
+                            </>
+                          )}
+                          
+                          {/* Delete targeted violating item */}
+                          <button
+                            onClick={() => isPostReport ? handleDeletePost(r.postId) : handleDeleteComment(r.commentId)}
+                            className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
+                            title="Delete reported content permanently"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
 
-                    </div>
-                  );
-                })}
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {renderPagination(reportsPage, filteredReports.length, setReportsPage)}
+              </>
             )}
           </div>
         )}
@@ -1003,7 +1159,7 @@ export default function Admin() {
 
         {/* TAB 9: TV CHANNELS OVERVIEW */}
         {activeTab === "tv" && (
-          <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="flex flex-col gap-8 animate-fade-in">
             {/* Quick Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-[#111] border border-[#222] p-5 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden">
@@ -1037,6 +1193,138 @@ export default function Admin() {
                   <TrendingUp size={20} />
                 </div>
                 <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full bg-white/2 blur-2xl pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Creation Form & Registered Channels Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Creation Form */}
+              <div className="lg:col-span-5 bg-[#111] border border-[#222] p-6 rounded-2xl shadow-xl flex flex-col gap-4">
+                <div className="flex items-center gap-2 border-b border-[#222] pb-3">
+                  <Tv className="text-insta-blue" size={18} />
+                  <h3 className="font-bold text-[15px] text-zinc-300">Create New TV Channel</h3>
+                </div>
+                <form onSubmit={handleCreateTvChannel} className="flex flex-col gap-4 text-xs">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-zinc-400 uppercase tracking-wider">Channel Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. HBO Live, Sky Sports"
+                      value={tvName}
+                      onChange={(e) => setTvName(e.target.value)}
+                      required
+                      className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-zinc-400 uppercase tracking-wider">Stream URL (.m3u8)</label>
+                    <input
+                      type="url"
+                      placeholder="https://example.com/stream.m3u8"
+                      value={tvUrl}
+                      onChange={(e) => setTvUrl(e.target.value)}
+                      required
+                      className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="font-bold text-zinc-400 uppercase tracking-wider">Category</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Sports, Movies"
+                        value={tvCategory}
+                        onChange={(e) => setTvCategory(e.target.value)}
+                        className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="font-bold text-zinc-400 uppercase tracking-wider">Channel Icon URL</label>
+                      <input
+                        type="url"
+                        placeholder="https://example.com/logo.png"
+                        value={tvLogoUrl}
+                        onChange={(e) => setTvLogoUrl(e.target.value)}
+                        className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-zinc-400 uppercase tracking-wider">Additional Info</label>
+                    <textarea
+                      placeholder="Enter description or streaming schedules..."
+                      value={tvInfo}
+                      onChange={(e) => setTvInfo(e.target.value)}
+                      rows={3}
+                      className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={tvSubmitting}
+                    className="w-full mt-2 py-2.5 bg-insta-blue hover:bg-insta-blue/90 disabled:bg-zinc-800 font-bold rounded-lg text-white transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-insta-blue/10"
+                  >
+                    {tvSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={14} /> Creating...
+                      </>
+                    ) : (
+                      "Create Channel"
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              {/* Registered TV Channels list */}
+              <div className="lg:col-span-7 bg-[#111] border border-[#222] rounded-2xl shadow-xl overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-[#222] bg-[#1a1a1a]/50 text-zinc-300 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
+                  <span>Registered Channels ({tvChannels.length})</span>
+                </div>
+                <div className="flex-grow flex flex-col divide-y divide-[#222] min-h-[300px]">
+                  {tvChannels.length === 0 ? (
+                    <div className="text-center py-20 text-zinc-500 text-xs my-auto">No channels registered yet. Create one on the left.</div>
+                  ) : (
+                    <>
+                      <div className="flex-grow divide-y divide-[#222]">
+                        {paginatedTvChannels.map((channel) => (
+                          <div key={channel.id} className="p-4 flex items-center justify-between gap-4 text-xs hover:bg-white/[0.01] transition">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-9 h-9 rounded-lg bg-zinc-800 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
+                                {channel.logoUrl ? (
+                                  <img src={channel.logoUrl} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-xs">📺</span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-bold text-white truncate text-sm">{channel.name}</p>
+                                  <span className="bg-[#222] text-zinc-400 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase">{channel.category}</span>
+                                </div>
+                                <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-mono">{channel.url}</p>
+                                {channel.info && <p className="text-[10px] text-zinc-400 mt-1 italic line-clamp-1">"{channel.info}"</p>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => handleDeleteTvChannel(channel.id)}
+                                className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"
+                                title="Delete TV Channel"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {renderPagination(tvPage, tvChannels.length, setTvPage)}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
