@@ -432,12 +432,12 @@ export default function PostModal() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="relative w-full max-w-[935px] h-[90vh] md:h-[80vh] bg-zinc-950 border border-zinc-800 rounded-2xl md:rounded-3xl z-[210] flex flex-col md:flex-row overflow-hidden text-white shadow-2xl"
+            className="relative w-full max-w-[935px] h-[90vh] md:h-[80vh] bg-[var(--surface)] border border-[var(--border)] rounded-2xl md:rounded-3xl z-[210] flex flex-col md:flex-row overflow-hidden text-[var(--text)] shadow-2xl"
           >
             {/* Close button inside modal (for mobile view top header) */}
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 z-50 p-1.5 bg-black/60 hover:bg-black rounded-full border border-zinc-800 transition text-zinc-400 hover:text-white md:hidden"
+              className="absolute top-4 right-4 z-50 p-1.5 bg-black/60 hover:bg-black rounded-full border border-[var(--border)] transition text-zinc-400 hover:text-white md:hidden"
             >
               <X size={18} />
             </button>
@@ -452,7 +452,7 @@ export default function PostModal() {
                   handleClose();
                 }
               }}
-              className="w-full md:w-[60%] h-[40%] md:h-full bg-black flex items-center justify-center relative select-none border-b md:border-b-0 md:border-r border-zinc-900 shrink-0 cursor-grab active:cursor-grabbing"
+              className="w-full md:w-[60%] h-[40%] md:h-full bg-black flex items-center justify-center relative select-none border-b md:border-b-0 md:border-r border-[var(--border)] shrink-0 cursor-grab active:cursor-grabbing"
             >
               {activePost.isTextOnly ? (
                 <div
@@ -492,25 +492,25 @@ export default function PostModal() {
             </motion.div>
 
             {/* Right Column: Profile Header & Comments List Section */}
-            <div className="flex-1 flex flex-col h-[60%] md:h-full min-w-0 bg-[#0c0c0c]">
+            <div className="flex-1 flex flex-col h-[60%] md:h-full min-w-0 bg-[var(--bg)]">
               {/* Header: User Profile Info */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900 shrink-0 select-none">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] shrink-0 select-none">
                 <div className="flex items-center gap-3">
                   <img
                     src={activePost.user?.img || "https://i.pravatar.cc/80?img=1"}
-                    className="w-8 h-8 rounded-full object-cover border border-zinc-800"
+                    className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
                     alt={activePost.user?.name}
                   />
                   <div className="flex flex-col">
                     <span
                       onClick={() => handleUserClick(activePost.user?.name)}
-                      className="text-xs font-bold text-white hover:underline cursor-pointer flex items-center gap-1.5"
+                      className="text-xs font-bold text-[var(--text)] hover:underline cursor-pointer flex items-center gap-1.5"
                     >
                       {activePost.user?.name}
                       {activePost.user?.verified && <span className="verified-badge" />}
                     </span>
                     {activePost.location && (
-                      <span className="text-[10px] text-zinc-500">{activePost.location}</span>
+                      <span className="text-[10px] text-[var(--text2)]">{activePost.location}</span>
                     )}
                   </div>
                 </div>
@@ -518,13 +518,13 @@ export default function PostModal() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowReactionsModal(true)}
-                    className="text-[10px] bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 px-3 py-1.5 rounded-full text-zinc-300 transition"
+                    className="text-[10px] bg-[var(--surface2)] border border-[var(--border)] hover:bg-[var(--surface3)] px-3 py-1.5 rounded-full text-[var(--text2)] transition"
                   >
                     Reactions: {reactionsList.length}
                   </button>
                   <button
                     onClick={handleClose}
-                    className="hidden md:flex p-1.5 hover:bg-zinc-800 rounded-full border border-zinc-900 transition text-zinc-400 hover:text-white"
+                    className="hidden md:flex p-1.5 hover:bg-[var(--surface3)] rounded-full border border-[var(--border)] transition text-[var(--text2)] hover:text-[var(--text)]"
                   >
                     <X size={18} />
                   </button>
@@ -533,14 +533,14 @@ export default function PostModal() {
 
               {/* Caption (rendered as the first comment) */}
               {activePost.caption && !activePost.isTextOnly && (
-                <div className="px-5 py-3.5 border-b border-zinc-900/60 bg-[#121212]/30 flex gap-3 items-start shrink-0 select-none">
+                <div className="px-5 py-3.5 border-b border-[var(--border)] bg-[var(--surface2)]/20 flex gap-3 items-start shrink-0 select-none">
                   <img
                     src={activePost.user?.img || "https://i.pravatar.cc/80?img=1"}
-                    className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
+                    className="w-8 h-8 rounded-full object-cover border border-[var(--border)] shrink-0"
                     alt=""
                   />
-                  <div className="text-[13px] leading-relaxed break-words text-zinc-300">
-                    <span className="font-bold mr-1.5 text-white">{activePost.user?.name}</span>
+                  <div className="text-[13px] leading-relaxed break-words text-[var(--text)]">
+                    <span className="font-bold mr-1.5 text-[var(--text)]">{activePost.user?.name}</span>
                     {activePost.caption}
                   </div>
                 </div>
@@ -549,11 +549,11 @@ export default function PostModal() {
               {/* Comments list (Scrollable Section) */}
               <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll">
                 {loadingComments && dbComments.length === 0 && (activePost.commentsCount ?? 0) > 0 ? (
-                  <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
+                  <div className="text-center text-[12px] text-[var(--text3)] py-8 animate-pulse">
                     Loading comments…
                   </div>
                 ) : parentComments.length === 0 ? (
-                  <div className="text-center text-[12px] text-zinc-500 py-10 select-none">
+                  <div className="text-center text-[12px] text-[var(--text3)] py-10 select-none">
                     not comment
                   </div>
                 ) : (
@@ -575,32 +575,32 @@ export default function PostModal() {
                         <div className="flex gap-3 items-start">
                           <img
                             src={avatarUrl}
-                            className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0 cursor-pointer"
+                            className="w-8 h-8 rounded-full object-cover border border-[var(--border)] shrink-0 cursor-pointer"
                             alt={username}
                             onClick={() => handleUserClick(username)}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="text-[13px] leading-relaxed break-words text-zinc-200">
+                            <div className="text-[13px] leading-relaxed break-words text-[var(--text)]">
                               <span
-                                className="font-bold mr-1.5 text-white cursor-pointer hover:underline"
+                                className="font-bold mr-1.5 text-[var(--text)] cursor-pointer hover:underline"
                                 onClick={() => handleUserClick(username)}
                               >
                                 {username}
                               </span>
                               {c.text}
                             </div>
-                            <div className="flex items-center gap-3.5 mt-1 text-[10px] text-zinc-500">
+                            <div className="flex items-center gap-3.5 mt-1 text-[10px] text-[var(--text2)]">
                               <span>{displayTime}</span>
                               {c.likeCount > 0 && <span>{c.likeCount} likes</span>}
                               <button
                                 onClick={() => setReplyingTo(c)}
-                                className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                className="font-bold text-[var(--text3)] hover:text-[var(--text)] cursor-pointer"
                               >
                                 Reply
                               </button>
                               <button
                                 onClick={() => handleCommentLike(c.id)}
-                                className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[11px] text-zinc-400"
+                                className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[11px] text-[var(--text3)]"
                               >
                                 {c.isLiked ? "❤️" : "🤍"}
                               </button>
@@ -610,7 +610,7 @@ export default function PostModal() {
 
                         {/* Nested Replies */}
                         {replies.length > 0 && (
-                          <div className="pl-11 space-y-3 border-l border-zinc-850/60 ml-4">
+                          <div className="pl-11 space-y-3 border-l border-[var(--border)] ml-4">
                             {replies.map((reply, rIdx) => {
                               const repUser = reply.user as any;
                               const repUsername = repUser?.username || repUser?.name || "user";
@@ -626,32 +626,32 @@ export default function PostModal() {
                                 <div key={reply.id || rIdx} className="flex gap-2.5 items-start">
                                   <img
                                     src={repAvatar}
-                                    className="w-6 h-6 rounded-full object-cover border border-[#222] shrink-0 cursor-pointer"
+                                    className="w-6 h-6 rounded-full object-cover border border-[var(--border)] shrink-0 cursor-pointer"
                                     alt={repUsername}
                                     onClick={() => handleUserClick(repUsername)}
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-[12.5px] leading-relaxed break-words text-zinc-300">
+                                    <div className="text-[12.5px] leading-relaxed break-words text-[var(--text2)]">
                                       <span
-                                        className="font-bold mr-1.5 text-white cursor-pointer hover:underline"
+                                        className="font-bold mr-1.5 text-[var(--text)] cursor-pointer hover:underline"
                                         onClick={() => handleUserClick(repUsername)}
                                       >
                                         {repUsername}
                                       </span>
                                       {reply.text}
                                     </div>
-                                    <div className="flex items-center gap-3.5 mt-1 text-[9.5px] text-zinc-500">
+                                    <div className="flex items-center gap-3.5 mt-1 text-[9.5px] text-[var(--text3)]">
                                       <span>{repTime}</span>
                                       {reply.likeCount > 0 && <span>{reply.likeCount} likes</span>}
                                       <button
                                         onClick={() => setReplyingTo(c)} // Reply to parent comment
-                                        className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                        className="font-bold text-[var(--text3)] hover:text-[var(--text)] cursor-pointer"
                                       >
                                         Reply
                                       </button>
                                       <button
                                         onClick={() => handleCommentLike(reply.id)}
-                                        className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[10px] text-zinc-400"
+                                        className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[10px] text-[var(--text3)]"
                                       >
                                         {reply.isLiked ? "❤️" : "🤍"}
                                       </button>
@@ -671,9 +671,9 @@ export default function PostModal() {
 
               {/* Replying To Bar */}
               {replyingTo && (
-                <div className="px-5 py-1.5 bg-zinc-900 border-t border-zinc-900/60 flex items-center justify-between text-[11px] text-zinc-400 shrink-0 select-none">
+                <div className="px-5 py-1.5 bg-[var(--surface2)] border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text2)] shrink-0 select-none">
                   <span>Replying to @{replyingTo.user?.username || (replyingTo.user as any)?.name || "user"}</span>
-                  <button type="button" onClick={() => setReplyingTo(null)} className="text-white hover:underline font-semibold">
+                  <button type="button" onClick={() => setReplyingTo(null)} className="text-[var(--text)] hover:underline font-semibold">
                     Cancel
                   </button>
                 </div>
@@ -682,7 +682,7 @@ export default function PostModal() {
               {/* Comment Form */}
               <form
                 onSubmit={handlePostComment}
-                className="p-4 bg-zinc-950 border-t border-zinc-900/60 flex gap-2 shrink-0 select-none"
+                className="p-4 bg-[var(--surface)] border-t border-[var(--border)] flex gap-2 shrink-0 select-none"
               >
                 <input
                   ref={inputRef}
@@ -690,12 +690,12 @@ export default function PostModal() {
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add a comment..."
-                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-2 text-sm text-white outline-none focus:border-zinc-700 transition"
+                  className="flex-1 bg-[var(--surface2)] border border-[var(--border)] rounded-full px-4 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--text2)] transition"
                 />
                 <button
                   type="submit"
                   disabled={!commentText.trim()}
-                  className="px-5 bg-white text-black font-semibold rounded-full text-sm hover:bg-zinc-200 disabled:opacity-50 transition"
+                  className="px-5 bg-[var(--text)] text-[var(--bg)] font-semibold rounded-full text-sm hover:opacity-90 disabled:opacity-50 transition"
                 >
                   Post
                 </button>
