@@ -35,6 +35,12 @@ export default function Settings() {
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<"all" | "reaction" | "comment" | "save" | "story_view" | "reply" | "watch">("all");
+  const [activityPage, setActivityPage] = useState(1);
+
+  // Reset pagination on filter or section change
+  useEffect(() => {
+    setActivityPage(1);
+  }, [selectedFilter, activeSection]);
 
   // Sync state if currentUser changes (e.g. from background refetches)
   useEffect(() => {
@@ -566,6 +572,14 @@ export default function Settings() {
                 return act.category === selectedFilter;
               });
 
+              const ITEMS_PER_PAGE = 8;
+              const totalItems = filteredActivities.length;
+              const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+              const paginatedActivities = filteredActivities.slice(
+                (activityPage - 1) * ITEMS_PER_PAGE,
+                activityPage * ITEMS_PER_PAGE
+              );
+
               return (
                 <div className="space-y-5">
                   <div>
@@ -594,10 +608,10 @@ export default function Settings() {
                   <div className="space-y-3.5 max-h-[360px] overflow-y-auto custom-scroll pr-1.5">
                     {loadingActivity ? (
                       <div className="text-center py-10 text-zinc-500 text-sm font-semibold">Loading activities...</div>
-                    ) : filteredActivities.length === 0 ? (
+                    ) : paginatedActivities.length === 0 ? (
                       <div className="text-center py-10 text-zinc-500 text-sm font-semibold">No activity recorded under this category.</div>
                     ) : (
-                      filteredActivities.map((act, idx) => (
+                      paginatedActivities.map((act, idx) => (
                         <div key={idx} className="flex flex-col p-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] gap-1.5 select-text">
                           <span className="text-[13px] text-zinc-200 font-semibold leading-relaxed">{act.text}</span>
                           <div className="flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
@@ -610,6 +624,31 @@ export default function Settings() {
                       ))
                     )}
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-3 border-t border-[var(--border)] text-xs select-none">
+                      <button
+                        type="button"
+                        onClick={() => setActivityPage((prev) => Math.max(1, prev - 1))}
+                        disabled={activityPage === 1}
+                        className="px-3 py-1.5 rounded-lg bg-[var(--surface2)] hover:bg-[var(--surface3)] text-[var(--text)] font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-[var(--text2)] font-medium">
+                        Page {activityPage} of {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActivityPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={activityPage === totalPages}
+                        className="px-3 py-1.5 rounded-lg bg-[var(--surface2)] hover:bg-[var(--surface3)] text-[var(--text)] font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })()}

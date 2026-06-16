@@ -34,7 +34,7 @@ export default function Profile() {
 
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
   const [dbProfile, setDbProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const isSelf = viewingUserId === null || 
@@ -52,9 +52,9 @@ export default function Profile() {
         name: currentUser?.name || "me",
         full: currentUser?.full || "Me",
         img: currentUser?.img || "https://i.pravatar.cc/150?img=1",
-        followers: 1240,
-        following: 382,
-        bio: currentUser?.bio || "Welcome to AuraGram! ✨",
+        followers: 0,
+        following: 0,
+        bio: currentUser?.bio || "",
         verified: false,
         web: currentUser?.web || "",
         coverPhoto: currentUser?.coverPhoto || "",
@@ -105,9 +105,9 @@ export default function Profile() {
         name: postUser.name,
         full: postUser.full,
         img: postUser.img,
-        followers: 4320,
-        following: 512,
-        bio: postUser.bio || "Capturing life's best moments! 📸",
+        followers: 0,
+        following: 0,
+        bio: postUser.bio || "",
         verified: postUser.verified || false,
         web: "",
         coverPhoto: "",
@@ -174,11 +174,9 @@ export default function Profile() {
     
     // Background loading: do not set loading=true so page doesn't show loading spinner/skeleton
     // unless we don't even have basic user details.
-    if (dbProfile?.username !== profileUser.name) {
+    if (!dbProfile || dbProfile.username !== profileUser.name) {
       setDbProfile(null);
-      // We only show full screen skeleton if profileUser doesn't have basic data.
-      // Since profileUser always falls back to viewingUserId placeholder, it's safe to load in background.
-      setLoading(false);
+      setLoading(true);
     }
     
     setNotFound(false);
@@ -333,34 +331,34 @@ export default function Profile() {
     return tabPosts;
   }, [dbProfile, tabPosts, activeTabName, profileUser]);
 
-  if (loading) {
+  if (loading || !dbProfile) {
     return (
-      <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none bg-black">
+      <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
         <div className="max-w-[900px] mx-auto px-4 py-8 animate-pulse">
           {/* Profile Header Skeleton */}
           <div className="flex gap-10 items-start mb-8">
-            <div className="w-[90px] h-[90px] md:w-[140px] md:h-[140px] rounded-full bg-zinc-800 shrink-0" />
+            <div className="w-[90px] h-[90px] md:w-[140px] md:h-[140px] rounded-full bg-[var(--surface2)] shrink-0" />
             <div className="flex-1 flex flex-col gap-4">
-              <div className="h-7 w-48 bg-zinc-800 rounded-lg" />
+              <div className="h-7 w-48 bg-[var(--surface2)] rounded-lg" />
               <div className="flex gap-6">
-                <div className="h-5 w-16 bg-zinc-800 rounded-md" />
-                <div className="h-5 w-20 bg-zinc-800 rounded-md" />
-                <div className="h-5 w-20 bg-zinc-800 rounded-md" />
+                <div className="h-5 w-16 bg-[var(--surface2)] rounded-md" />
+                <div className="h-5 w-20 bg-[var(--surface2)] rounded-md" />
+                <div className="h-5 w-20 bg-[var(--surface2)] rounded-md" />
               </div>
               <div className="flex flex-col gap-2 mt-2">
-                <div className="h-4 w-32 bg-zinc-800 rounded-md" />
-                <div className="h-4 w-64 bg-zinc-800 rounded-md" />
-                <div className="h-4 w-40 bg-zinc-800 rounded-md" />
+                <div className="h-4 w-32 bg-[var(--surface2)] rounded-md" />
+                <div className="h-4 w-64 bg-[var(--surface2)] rounded-md" />
+                <div className="h-4 w-40 bg-[var(--surface2)] rounded-md" />
               </div>
             </div>
           </div>
 
-          <div className="border-t border-[#222] my-6" />
+          <div className="border-t border-[var(--border)] my-6" />
 
           {/* Grid Skeleton */}
           <div className="grid grid-cols-3 gap-1 md:gap-2">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={`skeleton-grid-${i}`} className="aspect-square bg-zinc-900 rounded-lg" />
+              <div key={`skeleton-grid-${i}`} className="aspect-square bg-[var(--surface2)] rounded-lg" />
             ))}
           </div>
         </div>
