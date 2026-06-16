@@ -108,7 +108,12 @@ class ApiClient {
 
   // Posts
   async getFeed(page = 1, limit = 10) {
-    const res = await fetch(`/api/feed?page=${page}&limit=${limit}`);
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    const res = await fetch(`/api/feed?page=${page}&limit=${limit}`, { headers });
     if (!res.ok) throw new Error("Failed to fetch feed API");
     const { posts, page: returnedPage } = await res.json();
 
@@ -651,7 +656,40 @@ class ApiClient {
     const posts = postsRes.data || [];
     const authUser = authRes.data?.user;
 
-    const postsWithCounts = posts.map((p: any) => {
+    let isFollowing = false;
+    let followsMe = false;
+    let isRequested = false;
+
+    if (authUser) {
+      const [followRecordRes, followsMeRecordRes, reqRecordRes] = await Promise.all([
+        supabase
+          .from('Follow')
+          .select('id')
+          .eq('followerId', authUser.id)
+          .eq('followingId', user.id)
+          .maybeSingle(),
+        supabase
+          .from('Follow')
+          .select('id')
+          .eq('followerId', user.id)
+          .eq('followingId', authUser.id)
+          .maybeSingle(),
+        supabase
+          .from('FollowRequest')
+          .select('id')
+          .eq('senderId', authUser.id)
+          .eq('receiverId', user.id)
+          .maybeSingle()
+      ]);
+      isFollowing = !!followRecordRes.data;
+      followsMe = !!followsMeRecordRes.data;
+      isRequested = !!reqRecordRes.data;
+    }
+
+    const isSelf = authUser?.id === user.id;
+    const shouldHideContent = user.private_profile && !isSelf && !isFollowing;
+
+    const postsWithCounts = shouldHideContent ? [] : posts.map((p: any) => {
       const likesCount = p.likesCount?.[0]?.count ?? 0;
       const commentsCount = p.commentsCount?.[0]?.count ?? 0;
       return {
@@ -667,28 +705,6 @@ class ApiClient {
       };
     });
 
-    let isFollowing = false;
-    let followsMe = false;
-
-    if (authUser) {
-      const [followRecordRes, followsMeRecordRes] = await Promise.all([
-        supabase
-          .from('Follow')
-          .select('id')
-          .eq('followerId', authUser.id)
-          .eq('followingId', user.id)
-          .maybeSingle(),
-        supabase
-          .from('Follow')
-          .select('id')
-          .eq('followerId', user.id)
-          .eq('followingId', authUser.id)
-          .maybeSingle()
-      ]);
-      isFollowing = !!followRecordRes.data;
-      followsMe = !!followsMeRecordRes.data;
-    }
-
     return {
       ...user,
       _count: {
@@ -699,6 +715,7 @@ class ApiClient {
       posts: postsWithCounts,
       isFollowing,
       followsMe,
+      isRequested,
     };
   }
 
@@ -706,6 +723,15 @@ class ApiClient {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
     if (authUser.id === userId) throw new Error('Cannot follow yourself');
+
+    // Fetch target user profile settings
+    const { data: targetUser } = await supabase
+      .from('User')
+      .select('private_profile')
+      .eq('id', userId)
+      .single();
+
+    const isPrivate = targetUser?.private_profile === true;
 
     const { data: existing } = await supabase
       .from('Follow')
@@ -716,7 +742,42 @@ class ApiClient {
 
     if (existing) {
       await supabase.from('Follow').delete().eq('id', existing.id);
-      return { following: false };
+      return { following: false, requested: false };
+    }
+
+    if (isPrivate) {
+      // Check if a follow request already exists
+      const { data: reqExisting } = await supabase
+        .from('FollowRequest')
+        .select('id')
+        .eq('senderId', authUser.id)
+        .eq('receiverId', userId)
+        .maybeSingle();
+
+      if (reqExisting) {
+        // Cancel/delete follow request
+        await supabase.from('FollowRequest').delete().eq('id', reqExisting.id);
+
+        // Delete request notification
+        await supabase.from('Notification')
+          .delete()
+          .eq('notifierId', authUser.id)
+          .eq('receiverId', userId)
+          .eq('type', 'follow_request');
+
+        return { following: false, requested: false };
+      } else {
+        // Create follow request
+        await supabase.from('FollowRequest').insert({ senderId: authUser.id, receiverId: userId });
+
+        await this.createNotification({
+          type: 'follow_request',
+          receiverId: userId,
+          text: 'requested to follow you.'
+        });
+
+        return { following: false, requested: true };
+      }
     } else {
       await supabase.from('Follow').insert({ followerId: authUser.id, followingId: userId });
 
@@ -726,7 +787,78 @@ class ApiClient {
         text: 'started following you.'
       });
 
-      return { following: true };
+      return { following: true, requested: false };
+    }
+  }
+
+  async getFollowRequests() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('FollowRequest')
+      .select(`
+        id,
+        senderId,
+        createdAt,
+        sender:User!FollowRequest_senderId_fkey(id, username, fullName, avatarUrl, isVerified)
+      `)
+      .eq('receiverId', authUser.id);
+
+    if (error) throw error;
+
+    return (data || []).map((req: any) => ({
+      id: req.id,
+      senderId: req.senderId,
+      createdAt: req.createdAt,
+      user: {
+        id: req.sender?.id || req.senderId,
+        name: req.sender?.username || "unknown",
+        full: req.sender?.fullName || "User",
+        img: req.sender?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+        verified: req.sender?.isVerified || false
+      }
+    }));
+  }
+
+  async respondToFollowRequest(requestId: number, action: 'accept' | 'decline') {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: req } = await supabase
+      .from('FollowRequest')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (!req) throw new Error('Request not found');
+
+    if (action === 'accept') {
+      await supabase.from('Follow').insert({
+        followerId: req.senderId,
+        followingId: req.receiverId
+      });
+
+      await supabase.from('FollowRequest').delete().eq('id', requestId);
+
+      await supabase.from('Notification')
+        .delete()
+        .eq('notifierId', req.senderId)
+        .eq('receiverId', req.receiverId)
+        .eq('type', 'follow_request');
+
+      await this.createNotification({
+        type: 'follow',
+        receiverId: req.senderId,
+        text: 'accepted your follow request.'
+      });
+    } else {
+      await supabase.from('FollowRequest').delete().eq('id', requestId);
+      await supabase.from('Notification')
+        .delete()
+        .eq('notifierId', req.senderId)
+        .eq('receiverId', req.receiverId)
+        .eq('type', 'follow_request');
     }
   }
 
@@ -1030,13 +1162,34 @@ class ApiClient {
 
   // ── Stories ──────────────────────────────────────────────────────────────────
   async getStories() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
     const { data, error } = await supabase
       .from('Story')
-      .select('*, user:User(id, username, fullName, avatarUrl)')
+      .select('*, user:User(id, username, fullName, avatarUrl, private_profile, private_stories)')
       .gt('expiresAt', new Date().toISOString())
       .order('createdAt', { ascending: false });
     if (error) throw new Error(error.message);
-    return data || [];
+
+    if (!data) return [];
+    if (!authUser) return data.filter((story: any) => !story.user?.private_profile && !story.user?.private_stories);
+
+    // Get following list to filter private stories
+    const { data: followList } = await supabase
+      .from('Follow')
+      .select('followingId')
+      .eq('followerId', authUser.id);
+    
+    const followingIds = new Set((followList || []).map((f: any) => f.followingId));
+
+    return data.filter((story: any) => {
+      const author = story.user;
+      if (!author) return false;
+      if (author.id === authUser.id) return true;
+      const isPrivate = author.private_profile || author.private_stories;
+      if (!isPrivate) return true;
+      return followingIds.has(author.id);
+    });
   }
 
   async createStory(file: File, options?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) {

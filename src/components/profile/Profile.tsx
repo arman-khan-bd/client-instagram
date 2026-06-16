@@ -233,12 +233,22 @@ export default function Profile() {
       setDbProfile((prev: any) => {
         if (!prev) return prev;
         const isNowFollowing = result.following;
+        const isNowRequested = result.requested;
+        
+        let followerChange = 0;
+        if (isNowFollowing && !prev.isFollowing) {
+          followerChange = 1;
+        } else if (!isNowFollowing && prev.isFollowing) {
+          followerChange = -1;
+        }
+
         return {
           ...prev,
           isFollowing: isNowFollowing,
+          isRequested: isNowRequested,
           _count: {
             ...prev._count,
-            followers: prev._count.followers + (isNowFollowing ? 1 : -1),
+            followers: prev._count.followers + followerChange,
           }
         };
       });
@@ -395,6 +405,12 @@ export default function Profile() {
   };
 
   const handleOpenFollowers = (type: "followers" | "following") => {
+    const isPrivate = dbProfile?.private_profile === true;
+    const isFollowing = dbProfile?.isFollowing === true;
+    if (isPrivate && !isSelf && !isFollowing) {
+      showToast("This account is private. Follow to see their followers/following.", "info");
+      return;
+    }
     setFollowersModal({
       open: true,
       type,
@@ -500,10 +516,12 @@ export default function Profile() {
                   className={`px-4.5 py-2 rounded-lg text-[13px] font-bold cursor-pointer transition ${
                     dbProfile?.isFollowing
                       ? "border border-[var(--border)] hover:bg-[var(--surface2)] text-[var(--text)]"
-                      : "bg-insta-blue hover:bg-insta-blue/90 text-white"
+                      : dbProfile?.isRequested
+                        ? "bg-zinc-700 hover:bg-zinc-600 text-white"
+                        : "bg-insta-blue hover:bg-insta-blue/90 text-white"
                   }`}
                 >
-                  {dbProfile?.isFollowing ? "Following" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
+                  {dbProfile?.isFollowing ? "Following" : dbProfile?.isRequested ? "Requested" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
                 </button>
                 <button
                   onClick={handleMessageUser}
@@ -677,7 +695,19 @@ export default function Profile() {
           )}
 
           {/* Profile Tabs */}
-          <div className="flex border-t border-[var(--border)] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
+          {dbProfile?.private_profile && !isSelf && !dbProfile?.isFollowing ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center select-none border-t border-[var(--border)] mt-6 animate-fade-in text-[var(--text)] w-full">
+              <div className="w-20 h-20 rounded-full border-2 border-[var(--text2)] flex items-center justify-center mb-6">
+                <span className="text-3xl">🔒</span>
+              </div>
+              <h2 className="text-lg font-bold mb-2">This Account is Private</h2>
+              <p className="text-sm text-[var(--text2)] max-w-xs px-4">
+                Follow this account to see their photos and videos.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex border-t border-[var(--border)] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
           <button
             onClick={() => setActiveTabName("posts")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
@@ -775,6 +805,8 @@ export default function Profile() {
             ))}
             </div>
           )}
+          </>
+        )}
         </div>
       </div>
     </div>

@@ -226,6 +226,10 @@ interface AppContextType {
   loadStories: () => Promise<void>;
   createStory: (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => Promise<void>;
   loadNotifications: () => Promise<void>;
+  refreshData: () => Promise<void>;
+  followRequests: any[];
+  loadFollowRequests: () => Promise<void>;
+  respondToFollowRequest: (requestId: number, action: 'accept' | 'decline') => Promise<void>;
 
   // Toast notifications
   toasts: ToastMessage[];
@@ -445,6 +449,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [chats, setChats] = useState<MockChatSession[]>([]);
   const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>({});
   const [notifications, setNotifications] = useState<MockNotification[]>([]);
+  const [followRequests, setFollowRequests] = useState<any[]>([]);
 
   // Pending (optimistic) comments — bridge between feed inline comment and PostModal
   const [pendingComments, setPendingComments] = useState<Record<number, MockComment[]>>({});
@@ -802,6 +807,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Refetch the current user's profile from the DB and update currentUser state
+  const refetchCurrentUser = useCallback(async () => {
+    if (!currentUser?.name) return;
+    try {
+      const fresh = await api.getProfile(currentUser.name);
+      if (!fresh) return;
+      const updated: AppContextType["currentUser"] = {
+        ...currentUser,
+        full: fresh.fullName || currentUser.full,
+        bio: fresh.bio || currentUser.bio,
+        img: fresh.avatarUrl || currentUser.img,
+        education: fresh.education || "",
+        work: fresh.work || "",
+        city: fresh.city || "",
+        country: fresh.country || "",
+        hometown: fresh.hometown || "",
+        phone: fresh.phone || "",
+        hobbies: fresh.hobbies || "",
+        interests: fresh.interests || "",
+        coverPhoto: fresh.coverPhoto || "",
+        web: fresh.website || currentUser.web,
+        email: fresh.email || currentUser?.email,
+        private_profile: fresh.private_profile,
+        private_stories: fresh.private_stories,
+        private_reels: fresh.private_reels,
+        private_days: fresh.private_days,
+        theme: fresh.theme || 'dark',
+      };
+      setCurrentUser(updated);
+
+      // Apply theme variables globally based on database theme settings
+      if (typeof window !== "undefined") {
+        const theme = updated.theme || "dark";
+        if (theme === "light") {
+          document.documentElement.classList.remove("dark");
+        } else {
+          document.documentElement.classList.add("dark");
+        }
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("insta_theme", updated.theme || "dark");
+        localStorage.setItem("insta_me", JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.error("Failed to refetch current user:", err);
+    }
+  }, [currentUser]);
+
   const loadNotifications = async () => {
     try {
       const dbNotifs = await api.getNotifications();
@@ -854,12 +908,48 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load saved posts, followings, and notifications
+  const loadFollowRequests = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const reqs = await api.getFollowRequests();
+      setFollowRequests(reqs);
+    } catch (err) {
+      console.error("Failed to load follow requests:", err);
+    }
+  }, [currentUser]);
+
+  const respondToFollowRequest = useCallback(async (requestId: number, action: 'accept' | 'decline') => {
+    try {
+      await api.respondToFollowRequest(requestId, action);
+      showToast(action === 'accept' ? "Follow request accepted! 🎉" : "Follow request declined.", "success");
+      await loadFollowRequests();
+      await loadNotifications();
+      await refetchCurrentUser();
+      if (currentUser) {
+        api.getFollowingList()
+          .then((followingList) => {
+            const states: Record<string | number, boolean> = {};
+            followingList.forEach((u: any) => {
+              states[u.id] = true;
+              states[u.username] = true;
+            });
+            setFollowStates(states);
+          })
+          .catch((err) => console.error("Failed to reload follow states:", err));
+      }
+    } catch (err: any) {
+      console.error("Failed to respond to follow request:", err);
+      showToast(err.message || "Failed to respond to follow request", "info");
+    }
+  }, [currentUser, loadFollowRequests, loadNotifications, refetchCurrentUser]);
+
+  // Load saved posts, followings, notifications, and follow requests
   useEffect(() => {
     if (!currentUser) {
       setSavedPosts(new Set());
       setFollowStates({});
       setNotifications([]);
+      setFollowRequests([]);
       return;
     }
 
@@ -886,10 +976,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
 
     loadNotifications();
+    loadFollowRequests();
 
     // Set up periodic polling fallback every 8 seconds to ensure updates are fetched
     const pollInterval = setInterval(() => {
       loadNotifications();
+      loadFollowRequests();
     }, 8000);
 
     // Set up Supabase Realtime channel subscription for instant updates on Notification insertions or updates
@@ -910,11 +1002,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       )
       .subscribe();
 
+    // Set up Supabase Realtime channel subscription for instant updates on FollowRequest insertions or updates
+    const reqChannel = supabase
+      .channel(`public:FollowRequest:${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'FollowRequest',
+          filter: `receiverId=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log("Realtime follow request update received:", payload);
+          loadFollowRequests();
+        }
+      )
+      .subscribe();
+
     return () => {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
+      supabase.removeChannel(reqChannel);
     };
-  }, [currentUser]);
+  }, [currentUser, loadFollowRequests]);
 
   // Refetch notifications when user clicks on/switches to the notifications tab
   useEffect(() => {
@@ -991,6 +1102,133 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Fetch posts from Supabase
+  const loadFeed = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && globalCachedPosts && (now - globalLastFetchTime < FETCH_CACHE_TTL)) {
+      setPosts(globalCachedPosts);
+      loadStories();
+      return;
+    }
+
+    try {
+      loadStories();
+
+      const { posts: dbPosts } = await api.getFeed(1, 20);
+      const mapped: MockPost[] = dbPosts.map((p: any) => {
+        // Build media URL list
+        const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+          ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
+          : [];
+
+        const thumbnailUrls: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+          ? p.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
+          : [];
+
+        // A text-only post: thumbnailUrl stores the CSS gradient string
+        // Use gradient detection as the canonical signal — no real image/video has a gradient thumbnailUrl
+        const isGradient =
+          typeof p.thumbnailUrl === "string" &&
+          (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+        const isTextOnly = isGradient;
+
+        const isVideo = !isTextOnly && mediaList.some(
+          (m) =>
+            typeof m === "string" &&
+            (m.endsWith(".mp4") ||
+              m.endsWith(".mov") ||
+              m.endsWith(".webm") ||
+              m.includes("/video/upload/"))
+        );
+
+        const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
+        const img         = isTextOnly ? "" : (p.thumbnailUrl || mediaList[0] || "");
+        const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
+
+        return {
+          id: p.id,
+          user: {
+            id: p.user?.id || 0,
+            name: p.user?.username || "unknown",
+            full: p.user?.fullName || p.user?.username || "User",
+            img: p.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+            followers: 0,
+            following: 0,
+            bio: "",
+            verified: p.user?.isVerified || false,
+          },
+          img,
+          imgs: isTextOnly ? [] : mediaList,
+          thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
+          caption: p.caption || "",
+          likes: p._count?.likes ?? 0,
+          comments: [],
+          commentsCount: p._count?.comments ?? 0,
+          time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
+          hasStory: false,
+          location: p.location || "",
+          filter: filterVal,
+          bgGradient,
+          isTextOnly,
+          isReel: isVideo,
+          mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
+          isAdult: p.isAdult || false,
+          isAdultUnmarked: p.isAdultUnmarked || false,
+        };
+      });
+
+      globalCachedPosts = mapped;
+      globalLastFetchTime = Date.now();
+      setPosts(mapped);
+    } catch (err) {
+      console.error("Failed to load feed:", err);
+    } finally {
+      setIsFeedLoaded(true);
+    }
+  }, []);
+
+  const refreshData = useCallback(async () => {
+    try {
+      const promises: Promise<any>[] = [
+        refetchCurrentUser(),
+        loadFeed(true),
+        loadStories(),
+        loadNotifications(),
+        loadChats(),
+        loadFollowRequests()
+      ];
+      
+      if (currentUser) {
+        promises.push(
+          api.getSavedPosts()
+            .then((savedList) => {
+              const savedIds = new Set(savedList.map((p: any) => p.id));
+              setSavedPosts(savedIds);
+            })
+            .catch((err) => console.error("Failed to load saved posts in refresh:", err)),
+          api.getFollowingList()
+            .then((followingList) => {
+              const states: Record<string | number, boolean> = {};
+              followingList.forEach((u: any) => {
+                states[u.id] = true;
+                states[u.username] = true;
+              });
+              setFollowStates(states);
+            })
+            .catch((err) => console.error("Failed to load following list in refresh:", err))
+        );
+      }
+
+      if (activeChatId !== null) {
+        promises.push(loadMessages(activeChatId));
+      }
+
+      await Promise.allSettled(promises);
+    } catch (err) {
+      console.error("refreshData failed:", err);
+    }
+  }, [currentUser, activeChatId, loadFeed, loadFollowRequests]);
+
   // Init Data on start
   useEffect(() => {
     // Quick-load theme variables from localStorage immediately to prevent layout flashes
@@ -1003,91 +1241,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fetch posts from Supabase
-    const loadFeed = async () => {
-      const now = Date.now();
-      if (globalCachedPosts && (now - globalLastFetchTime < FETCH_CACHE_TTL)) {
-        setPosts(globalCachedPosts);
-        loadStories();
-        return;
-      }
-
-      try {
-        loadStories();
-
-        const { posts: dbPosts } = await api.getFeed(1, 20);
-        const mapped: MockPost[] = dbPosts.map((p: any) => {
-          // Build media URL list
-          const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-            ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
-            : [];
-
-          const thumbnailUrls: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-            ? p.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
-            : [];
-
-          // A text-only post: thumbnailUrl stores the CSS gradient string
-          // Use gradient detection as the canonical signal — no real image/video has a gradient thumbnailUrl
-          const isGradient =
-            typeof p.thumbnailUrl === "string" &&
-            (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
-          const isTextOnly = isGradient;
-
-          const isVideo = !isTextOnly && mediaList.some(
-            (m) =>
-              typeof m === "string" &&
-              (m.endsWith(".mp4") ||
-                m.endsWith(".mov") ||
-                m.endsWith(".webm") ||
-                m.includes("/video/upload/"))
-          );
-
-          const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
-          const img         = isTextOnly ? "" : (p.thumbnailUrl || mediaList[0] || "");
-          const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
-
-          return {
-            id: p.id,
-            user: {
-              id: p.user?.id || 0,
-              name: p.user?.username || "unknown",
-              full: p.user?.fullName || p.user?.username || "User",
-              img: p.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
-              followers: 0,
-              following: 0,
-              bio: "",
-              verified: p.user?.isVerified || false,
-            },
-            img,
-            imgs: isTextOnly ? [] : mediaList,
-            thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
-            caption: p.caption || "",
-            likes: p._count?.likes ?? 0,
-            comments: [],
-            commentsCount: p._count?.comments ?? 0,
-            time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
-            hasStory: false,
-            location: p.location || "",
-            filter: filterVal,
-            bgGradient,
-            isTextOnly,
-            isReel: isVideo,
-            mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
-            isAdult: p.isAdult || false,
-            isAdultUnmarked: p.isAdultUnmarked || false,
-          };
-        });
-
-        globalCachedPosts = mapped;
-        globalLastFetchTime = Date.now();
-        setPosts(mapped);
-      } catch (err) {
-        console.error("Failed to load feed:", err);
-      } finally {
-        setIsFeedLoaded(true);
-      }
-    };
-    
     if (globalCachedPosts && (Date.now() - globalLastFetchTime < FETCH_CACHE_TTL)) {
       setIsFeedLoaded(true);
     }
@@ -1637,54 +1790,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Refetch the current user's profile from the DB and update currentUser state
-  const refetchCurrentUser = async () => {
-    if (!currentUser?.name) return;
-    try {
-      const fresh = await api.getProfile(currentUser.name);
-      if (!fresh) return;
-      const updated: AppContextType["currentUser"] = {
-        ...currentUser,
-        full: fresh.fullName || currentUser.full,
-        bio: fresh.bio || currentUser.bio,
-        img: fresh.avatarUrl || currentUser.img,
-        education: fresh.education || "",
-        work: fresh.work || "",
-        city: fresh.city || "",
-        country: fresh.country || "",
-        hometown: fresh.hometown || "",
-        phone: fresh.phone || "",
-        hobbies: fresh.hobbies || "",
-        interests: fresh.interests || "",
-        coverPhoto: fresh.coverPhoto || "",
-        web: fresh.website || currentUser.web,
-        email: fresh.email || currentUser?.email,
-        private_profile: fresh.private_profile,
-        private_stories: fresh.private_stories,
-        private_reels: fresh.private_reels,
-        private_days: fresh.private_days,
-        theme: fresh.theme || 'dark',
-      };
-      setCurrentUser(updated);
 
-      // Apply theme variables globally based on database theme settings
-      if (typeof window !== "undefined") {
-        const theme = updated.theme || "dark";
-        if (theme === "light") {
-          document.documentElement.classList.remove("dark");
-        } else {
-          document.documentElement.classList.add("dark");
-        }
-      }
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("insta_theme", updated.theme || "dark");
-        localStorage.setItem("insta_me", JSON.stringify(updated));
-      }
-    } catch (err) {
-      console.error("Failed to refetch current user:", err);
-    }
-  };
 
   const updateSettings = async (settings: { private_profile?: boolean; private_stories?: boolean; private_reels?: boolean; private_days?: boolean; theme?: string }) => {
     if (!currentUser) return;
@@ -1790,6 +1896,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toasts,
         showToast,
         removeToast,
+        refreshData,
+        followRequests,
+        loadFollowRequests,
+        respondToFollowRequest,
       }}
     >
       {children}

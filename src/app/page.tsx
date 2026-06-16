@@ -14,6 +14,7 @@ import Notifications from "../components/notifications/Notifications";
 import Profile from "../components/profile/Profile";
 import Admin from "../components/admin/Admin";
 import Settings from "../components/settings/Settings";
+import PullToRefresh from "../components/ui/PullToRefresh";
 
 // Modals
 import StoryViewerModal from "../components/modals/StoryViewerModal";
@@ -229,7 +230,9 @@ export function AppContent() {
         <main className={`flex-1 h-full flex flex-col relative sm:pt-0 pb-[calc(60px+env(safe-area-inset-bottom))] sm:pb-0 ${
           showInstallBanner ? "pt-[calc(90px+env(safe-area-inset-top))]" : "pt-[calc(54px+env(safe-area-inset-top))]"
         }`}>
-          {renderActiveView()}
+          <PullToRefresh>
+            {renderActiveView()}
+          </PullToRefresh>
         </main>
 
         {/* Install PWA Prompt Banner (Single Line below Header) */}

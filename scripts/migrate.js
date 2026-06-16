@@ -325,6 +325,15 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_stories" BOOLEAN DEFAULT FA
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_reels"   BOOLEAN DEFAULT FALSE;
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_days"    BOOLEAN DEFAULT FALSE;
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "theme"           TEXT    DEFAULT 'dark';
+
+-- ── FollowRequest ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "FollowRequest" (
+  "id"           SERIAL      PRIMARY KEY,
+  "senderId"     UUID        NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+  "receiverId"   UUID        NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+  "createdAt"    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE("senderId", "receiverId")
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -354,6 +363,7 @@ const rlsStatements = [
   `ALTER TABLE "UserSearchHistory"       ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "VideoWatchLog"           ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "VideoUnmuteLog"          ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "FollowRequest"           ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
@@ -373,6 +383,7 @@ const rlsStatements = [
   `ALTER TABLE "UserSearchHistory"       FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "VideoWatchLog"           FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "VideoUnmuteLog"          FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "FollowRequest"           FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -745,16 +756,52 @@ const rlsStatements = [
      USING (true)
      WITH CHECK (true)`,
 
+  // ── FollowRequest Table RLS ──
+  `DROP POLICY IF EXISTS "FollowRequest: select" ON "FollowRequest"`,
+  `DROP POLICY IF EXISTS "FollowRequest: insert" ON "FollowRequest"`,
+  `DROP POLICY IF EXISTS "FollowRequest: delete" ON "FollowRequest"`,
+
+  `CREATE POLICY "FollowRequest: select"
+     ON "FollowRequest" FOR SELECT
+     USING (auth.uid() = "senderId" OR auth.uid() = "receiverId")`,
+
+  `CREATE POLICY "FollowRequest: insert"
+     ON "FollowRequest" FOR INSERT
+     WITH CHECK (auth.uid() = "senderId")`,
+
+  `CREATE POLICY "FollowRequest: delete"
+     ON "FollowRequest" FOR DELETE
+     USING (auth.uid() = "senderId" OR auth.uid() = "receiverId")`,
+
   // Enable supabase realtime for Message table
   `do $$
   begin
     if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
       create publication supabase_realtime;
     end if;
+  exception
+    when others then null;
+  end;
+  $$;`,
+  `do $$
+  begin
     alter publication supabase_realtime add table "Message";
   exception
-    when others then
-      null;
+    when others then null;
+  end;
+  $$;`,
+  `do $$
+  begin
+    alter publication supabase_realtime add table "Notification";
+  exception
+    when others then null;
+  end;
+  $$;`,
+  `do $$
+  begin
+    alter publication supabase_realtime add table "FollowRequest";
+  exception
+    when others then null;
   end;
   $$;`,
 ];

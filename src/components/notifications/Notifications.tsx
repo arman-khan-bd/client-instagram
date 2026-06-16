@@ -15,6 +15,8 @@ export default function Notifications() {
     setActiveTab,
     storyGroups,
     setStoryViewerIndex,
+    followRequests,
+    respondToFollowRequest,
   } = useApp();
 
   const handleNotificationClick = async (item: MockNotification) => {
@@ -136,7 +138,7 @@ export default function Notifications() {
     );
   };
 
-  // Group notifications dynamically by date
+  // Group notifications dynamically by date (excluding follow_request type notifs, as they are handled in their own section)
   const todayNotifs: MockNotification[] = [];
   const weekNotifs: MockNotification[] = [];
   const monthNotifs: MockNotification[] = [];
@@ -145,21 +147,65 @@ export default function Notifications() {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const oneWeekAgo = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  notifications.forEach((item) => {
-    const itemDate = item.createdAt ? new Date(item.createdAt) : new Date();
-    if (itemDate >= startOfToday) {
-      todayNotifs.push(item);
-    } else if (itemDate >= oneWeekAgo) {
-      weekNotifs.push(item);
-    } else {
-      monthNotifs.push(item);
-    }
-  });
+  notifications
+    .filter((n) => n.type !== "follow_request")
+    .forEach((item) => {
+      const itemDate = item.createdAt ? new Date(item.createdAt) : new Date();
+      if (itemDate >= startOfToday) {
+        todayNotifs.push(item);
+      } else if (itemDate >= oneWeekAgo) {
+        weekNotifs.push(item);
+      } else {
+        monthNotifs.push(item);
+      }
+    });
 
   return (
     <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
       <div className="max-w-[600px] mx-auto py-8">
         <h2 className="text-[18px] font-bold px-4.5 mb-6">Notifications</h2>
+
+        {/* Follow Requests */}
+        {followRequests.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-[13px] font-bold text-[var(--text2)] px-4.5 mb-2.5">Follow Requests</h3>
+            <div className="flex flex-col border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border)]/60 rounded-xl overflow-hidden shadow-sm mx-4.5">
+              {followRequests.map((req) => (
+                <div
+                  key={`follow-req-${req.id}`}
+                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[var(--surface3)]/20 transition"
+                >
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleUserClick(req.user.name)}>
+                    <img
+                      src={req.user.img}
+                      alt={req.user.name}
+                      className="w-10 h-10 rounded-full object-cover border border-[var(--border)]"
+                    />
+                    <div className="text-[13px]">
+                      <span className="font-bold hover:underline block">{req.user.name}</span>
+                      <span className="text-[var(--text2)] block text-[11px] truncate max-w-[150px] sm:max-w-none">{req.user.full}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => respondToFollowRequest(req.id, "accept")}
+                      className="px-3.5 py-1.5 bg-insta-blue hover:bg-insta-blue/90 text-white rounded-lg text-[12px] font-bold cursor-pointer transition"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => respondToFollowRequest(req.id, "decline")}
+                      className="px-3.5 py-1.5 border border-[var(--border)] hover:bg-[var(--surface2)] text-[var(--text)] rounded-lg text-[12px] font-bold cursor-pointer transition"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Today */}
         {todayNotifs.length > 0 && (
