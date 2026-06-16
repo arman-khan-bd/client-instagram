@@ -235,6 +235,7 @@ CREATE TRIGGER on_auth_user_created
 -- ── Post Custom Updates ───────────────────────────────────────────────────────
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdult" BOOLEAN DEFAULT FALSE;
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdultUnmarked" BOOLEAN DEFAULT FALSE;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "originalPostId" INTEGER CONSTRAINT "Post_originalPostId_fkey" REFERENCES "Post"("id") ON DELETE SET NULL;
 
 -- ── Post Category update ──────────────────────────────────────────────────────
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "category" TEXT DEFAULT 'personal';

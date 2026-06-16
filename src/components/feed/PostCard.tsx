@@ -838,200 +838,282 @@ export default function PostCard({ post }: PostCardProps) {
 
       {/* ── Post Media ─────────────────────────────────────────────────────── */}
       {/* ── Post Media ─────────────────────────────────────────────────────── */}
-      <div
-        className="relative aspect-square overflow-hidden select-none"
-        onContextMenu={(e) => e.preventDefault()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {post.isTextOnly ? (
-          <div
-            className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words cursor-pointer select-none relative"
-            style={{ background: post.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)", fontSize: "clamp(18px, 5vw, 30px)", textShadow: "0 2px 12px rgba(0,0,0,0.35)" }}
-            onPointerDown={onImagePointerDown}
-            onPointerUp={onImagePointerUp}
-            onPointerCancel={onImagePointerCancel}
-            onPointerLeave={onImagePointerCancel}
+      {post.originalPost ? (
+        <div className="px-4 pb-3 flex flex-col gap-3">
+          {post.caption && (
+            <div className="text-[13px] text-[var(--text)] leading-relaxed px-1">
+              {formatCaption(post.caption)}
+            </div>
+          )}
+          <div 
+            onClick={() => setActivePostId(post.originalPost!.id)}
+            className="border border-[var(--border)] rounded-[20px] overflow-hidden bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition duration-200 cursor-pointer"
           >
-            {post.caption}
-          </div>
-        ) : (
-          <div className="relative w-full h-full overflow-hidden">
-            <AnimatePresence initial={false}>
-              <motion.div
-                key={activeImgIndex}
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-                className="w-full h-full absolute inset-0"
+            {/* Header of original post */}
+            <div className="flex items-center gap-2.5 p-3 border-b border-[var(--border)] bg-black/[0.02] dark:bg-white/[0.02]">
+              <img
+                src={post.originalPost.user.img}
+                className="w-6 h-6 rounded-full object-cover border border-[var(--border)]"
+                alt=""
+              />
+              <div className="flex flex-col">
+                <span className="text-[12px] font-bold flex items-center gap-1">
+                  {post.originalPost.user.name}
+                  {post.originalPost.user.verified && <span className="verified-badge w-3.5 h-3.5" />}
+                </span>
+                {post.originalPost.location && (
+                  <span className="text-[9px] text-[var(--text2)]">{post.originalPost.location}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Media/Content of original post */}
+            {post.originalPost.isTextOnly ? (
+              <div 
+                className="w-full py-12 px-6 flex items-center justify-center text-center font-bold text-white leading-relaxed break-words"
+                style={{ 
+                  background: post.originalPost.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)", 
+                  fontSize: "15px", 
+                  textShadow: "0 1px 8px rgba(0,0,0,0.3)" 
+                }}
               >
+                {post.originalPost.caption}
+              </div>
+            ) : (
+              <div className="relative aspect-video w-full overflow-hidden bg-black">
                 {(() => {
-                  const mediaList = post.imgs && post.imgs.length > 0 ? post.imgs : [post.img];
-                  const currentMediaUrl = mediaList[activeImgIndex] || "";
-                  const isCurrentMediaVideo = typeof currentMediaUrl === "string" && (
-                    currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
+                  const mediaUrl = post.originalPost.imgs?.[0] || post.originalPost.img || "";
+                  const isVideoMedia = typeof mediaUrl === "string" && (
+                    mediaUrl.match(/\.(mp4|mov|webm)/i) || mediaUrl.includes("/video/upload/")
                   );
-
-                  // Preload the next video in the carousel to load quickly
-                  const nextMediaUrl = mediaList[activeImgIndex + 1];
-                  const isNextMediaVideo = nextMediaUrl && typeof nextMediaUrl === "string" && (
-                    nextMediaUrl.match(/\.(mp4|mov|webm)/i) || nextMediaUrl.includes("/video/upload/")
-                  );
-
-                  if (isCurrentMediaVideo) {
+                  if (isVideoMedia) {
                     return (
-                      <>
-                        <FeedVideo 
-                          src={currentMediaUrl} 
-                          poster={post.img || undefined} 
-                          postId={post.id}
-                          onDoubleTap={() => {
-                            setShowHeartPop(true);
-                            setTimeout(() => setShowHeartPop(false), 850);
-                            commitReaction("love");
-                          }}
-                          onLongPress={() => {
-                            setShowLongPicker(true);
-                          }}
-                        />
-                        {isNextMediaVideo && (
-                          <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
-                        )}
-                      </>
+                      <video
+                        src={mediaUrl}
+                        className="w-full h-full object-cover"
+                        controls
+                        muted
+                        playsInline
+                      />
                     );
                   } else {
                     return (
-                      <>
-                        <img
-                          src={currentMediaUrl}
-                          className="w-full h-full object-cover transition-all duration-300"
-                          style={{ ...zoomStyle, filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
-                          alt="post"
-                          draggable={false}
-                          onPointerDown={onImagePointerDown}
-                          onPointerUp={onImagePointerUp}
-                          onPointerCancel={onImagePointerCancel}
-                          onPointerLeave={onImagePointerCancel}
-                        />
-                        {isNextMediaVideo && (
-                          <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
-                        )}
-                      </>
+                      <img
+                        src={mediaUrl}
+                        className="w-full h-full object-cover"
+                        alt=""
+                      />
                     );
                   }
                 })()}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            )}
 
-            {post.imgs && post.imgs.length > 1 && (
-              <>
-                {activeImgIndex > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveImgIndex((prev) => prev - 1);
-                    }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition z-20 cursor-pointer hidden sm:flex"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                )}
-
-                {activeImgIndex < post.imgs.length - 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveImgIndex((prev) => prev + 1);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition z-20 cursor-pointer hidden sm:flex"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                )}
-
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
-                  {post.imgs.map((_, idx) => (
-                    <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"}`} />
-                  ))}
-                </div>
-              </>
+            {/* Caption of original post */}
+            {!post.originalPost.isTextOnly && post.originalPost.caption && (
+              <div className="p-3 text-[12px] text-[var(--text2)] leading-relaxed border-t border-[var(--border)]">
+                <span className="font-bold mr-2 text-[var(--text)]">{post.originalPost.user.name}</span>
+                {formatCaption(post.originalPost.caption)}
+              </div>
             )}
           </div>
-        )}
-
-        {/* Double-tap heart pop */}
-        <AnimatePresence>
-          {showHeartPop && (
-            <motion.div
-              initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: [0.3, 1.4, 1], opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.42 }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 text-[90px] drop-shadow-2xl"
-            >❤️</motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Long-press reaction picker */}
-        <AnimatePresence>
-          {showLongPicker && (
-            <>
-              <div className="absolute inset-0 z-30 bg-black/30"
-                onPointerUp={(e) => { e.stopPropagation(); setShowLongPicker(false); setLongPickerHovIdx(null); }} />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.7, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.7, y: 12 }} transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[var(--surface2)]/95 backdrop-blur-2xl border border-[var(--border)] rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
-                onPointerUp={(e) => e.stopPropagation()}
-              >
-                {REACTIONS.map((r, idx) => (
-                  <motion.button key={r.type}
-                    animate={{ scale: longPickerHovIdx === idx ? 1.55 : 1, y: longPickerHovIdx === idx ? -12 : 0 }}
-                    transition={{ type: "spring", stiffness: 480, damping: 22 }}
-                    className="text-[28px] leading-none cursor-pointer relative"
-                    onPointerEnter={() => setLongPickerHovIdx(idx)} onPointerLeave={() => setLongPickerHovIdx(null)}
-                    onPointerUp={(e) => { e.stopPropagation(); commitReaction(r.type); }}
-                  >
-                    {r.emoji}
-                    {longPickerHovIdx === idx && (
-                      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">{r.label}</span>
-                    )}
-                  </motion.button>
-                ))}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* NSFW Blurred Overlay */}
-        {showNsfwOverlay && (
-          <div className="absolute inset-0 bg-[var(--bg)]/95 backdrop-blur-3xl z-30 flex flex-col items-center justify-center p-6 text-center select-text">
-            <span className="text-[36px] mb-3">🔞</span>
-            <h4 className="text-[17px] font-bold text-[var(--text)] mb-1">Sensitive Content</h4>
-            <p className="text-[12px] text-[var(--text2)] max-w-[240px] mb-6 leading-relaxed">
-              This post may contain adult or sensitive content.
-            </p>
-            <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
-              <button
-                type="button"
-                onClick={() => setRevealed(true)}
-                className="w-full py-2.5 rounded-full bg-[var(--text)] text-[var(--bg)] font-extrabold text-[12px] hover:opacity-90 transition active:scale-95 cursor-pointer shadow-md"
-              >
-                See NSFW Post
-              </button>
-              {isOwner && (
-                <button
-                  type="button"
-                  onClick={handleUnflag}
-                  className="w-full py-2.5 rounded-full bg-transparent hover:bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-bold text-[11px] transition active:scale-95 cursor-pointer"
+        </div>
+      ) : (
+        <div
+          className="relative aspect-square overflow-hidden select-none"
+          onContextMenu={(e) => e.preventDefault()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {post.isTextOnly ? (
+            <div
+              className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words cursor-pointer select-none relative"
+              style={{ background: post.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)", fontSize: "clamp(18px, 5vw, 30px)", textShadow: "0 2px 12px rgba(0,0,0,0.35)" }}
+              onPointerDown={onImagePointerDown}
+              onPointerUp={onImagePointerUp}
+              onPointerCancel={onImagePointerCancel}
+              onPointerLeave={onImagePointerCancel}
+            >
+              {post.caption}
+            </div>
+          ) : (
+            <div className="relative w-full h-full overflow-hidden">
+              <AnimatePresence initial={false}>
+                <motion.div
+                  key={activeImgIndex}
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  className="w-full h-full absolute inset-0"
                 >
-                  This is not NSFW Post
-                </button>
+                  {(() => {
+                    const mediaList = post.imgs && post.imgs.length > 0 ? post.imgs : [post.img];
+                    const currentMediaUrl = mediaList[activeImgIndex] || "";
+                    const isCurrentMediaVideo = typeof currentMediaUrl === "string" && (
+                      currentMediaUrl.match(/\.(mp4|mov|webm)/i) || currentMediaUrl.includes("/video/upload/")
+                    );
+
+                    // Preload the next video in the carousel to load quickly
+                    const nextMediaUrl = mediaList[activeImgIndex + 1];
+                    const isNextMediaVideo = nextMediaUrl && typeof nextMediaUrl === "string" && (
+                      nextMediaUrl.match(/\.(mp4|mov|webm)/i) || nextMediaUrl.includes("/video/upload/")
+                    );
+
+                    if (isCurrentMediaVideo) {
+                      return (
+                        <>
+                          <FeedVideo 
+                            src={currentMediaUrl} 
+                            poster={post.img || undefined} 
+                            postId={post.id}
+                            onDoubleTap={() => {
+                              setShowHeartPop(true);
+                              setTimeout(() => setShowHeartPop(false), 850);
+                              commitReaction("love");
+                            }}
+                            onLongPress={() => {
+                              setShowLongPicker(true);
+                            }}
+                          />
+                          {isNextMediaVideo && (
+                            <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
+                          )}
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <img
+                            src={currentMediaUrl}
+                            className="w-full h-full object-cover transition-all duration-300"
+                            style={{ ...zoomStyle, filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
+                            alt="post"
+                            draggable={false}
+                            onPointerDown={onImagePointerDown}
+                            onPointerUp={onImagePointerUp}
+                            onPointerCancel={onImagePointerCancel}
+                            onPointerLeave={onImagePointerCancel}
+                          />
+                          {isNextMediaVideo && (
+                            <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
+                          )}
+                        </>
+                      );
+                    }
+                  })()}
+                </motion.div>
+              </AnimatePresence>
+
+              {post.imgs && post.imgs.length > 1 && (
+                <>
+                  {activeImgIndex > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImgIndex((prev) => prev - 1);
+                      }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition z-20 cursor-pointer hidden sm:flex"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                  )}
+
+                  {activeImgIndex < post.imgs.length - 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveImgIndex((prev) => prev + 1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition z-20 cursor-pointer hidden sm:flex"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  )}
+
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
+                    {post.imgs.map((_, idx) => (
+                      <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${idx === activeImgIndex ? "bg-white scale-125" : "bg-white/40"}`} />
+                    ))}
+                  </div>
+                </>
               )}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {/* Double-tap heart pop */}
+          <AnimatePresence>
+            {showHeartPop && (
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: [0.3, 1.4, 1], opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.42 }}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 text-[90px] drop-shadow-2xl"
+              >❤️</motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Long-press reaction picker */}
+          <AnimatePresence>
+            {showLongPicker && (
+              <>
+                <div className="absolute inset-0 z-30 bg-black/30"
+                  onPointerUp={(e) => { e.stopPropagation(); setShowLongPicker(false); setLongPickerHovIdx(null); }} />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.7, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.7, y: 12 }} transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                  className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[var(--surface2)]/95 backdrop-blur-2xl border border-[var(--border)] rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
+                  onPointerUp={(e) => e.stopPropagation()}
+                >
+                  {REACTIONS.map((r, idx) => (
+                    <motion.button key={r.type}
+                      animate={{ scale: longPickerHovIdx === idx ? 1.55 : 1, y: longPickerHovIdx === idx ? -12 : 0 }}
+                      transition={{ type: "spring", stiffness: 480, damping: 22 }}
+                      className="text-[28px] leading-none cursor-pointer relative"
+                      onPointerEnter={() => setLongPickerHovIdx(idx)} onPointerLeave={() => setLongPickerHovIdx(null)}
+                      onPointerUp={(e) => { e.stopPropagation(); commitReaction(r.type); }}
+                    >
+                      {r.emoji}
+                      {longPickerHovIdx === idx && (
+                        <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white bg-black/75 rounded-full px-1.5 py-0.5 whitespace-nowrap pointer-events-none">{r.label}</span>
+                      )}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* NSFW Blurred Overlay */}
+          {showNsfwOverlay && (
+            <div className="absolute inset-0 bg-[var(--bg)]/95 backdrop-blur-3xl z-30 flex flex-col items-center justify-center p-6 text-center select-text">
+              <span className="text-[36px] mb-3">🔞</span>
+              <h4 className="text-[17px] font-bold text-[var(--text)] mb-1">Sensitive Content</h4>
+              <p className="text-[12px] text-[var(--text2)] max-w-[240px] mb-6 leading-relaxed">
+                This post may contain adult or sensitive content.
+              </p>
+              <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
+                <button
+                  type="button"
+                  onClick={() => setRevealed(true)}
+                  className="w-full py-2.5 rounded-full bg-[var(--text)] text-[var(--bg)] font-extrabold text-[12px] hover:opacity-90 transition active:scale-95 cursor-pointer shadow-md"
+                >
+                  See NSFW Post
+                </button>
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={handleUnflag}
+                    className="w-full py-2.5 rounded-full bg-transparent hover:bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-bold text-[11px] transition active:scale-95 cursor-pointer"
+                  >
+                    This is not NSFW Post
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Actions bar ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3.5 p-3.5 pb-1 select-none">
@@ -1086,13 +1168,13 @@ export default function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Caption */}
-      {!post.isTextOnly && (
+      {!post.originalPost && !post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] leading-relaxed">
           <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
           {formatCaption(post.caption)}
         </div>
       )}
-      {post.isTextOnly && (
+      {!post.originalPost && post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
           <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
           Text post

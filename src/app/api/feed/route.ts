@@ -30,7 +30,11 @@ export async function GET(request: Request) {
       .from("Post")
       .select(`
         *,
-        user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile)
+        user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile),
+        originalPost:Post!Post_originalPostId_fkey(
+          *,
+          user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile)
+        )
       `)
       .order("createdAt", { ascending: false })
       .range(skip, skip + limit - 1);

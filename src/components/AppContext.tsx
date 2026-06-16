@@ -44,6 +44,7 @@ export interface MockPost {
   isReel?: boolean;
   mediaType?: "image" | "video" | "text";
   originalPostId?: number;
+  originalPost?: MockPost;
   isAdult?: boolean;
   isAdultUnmarked?: boolean;
   commentsCount?: number;
@@ -1620,7 +1621,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const createPost = async (
     files: File[],
     caption: string,
-    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number }
   ) => {
     let finalCaption = caption;
     if (options?.feelings) {
@@ -1644,6 +1645,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         filter: options?.filter,
         thumbnailDataUrl: options?.thumbnailDataUrl,
         thumbnailDataUrls: options?.thumbnailDataUrls,
+        originalPostId: options?.originalPostId,
       });
 
       const mediaUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
@@ -1678,6 +1680,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         filter: options?.filter,
         bgGradient: options?.bgGradient,
         isTextOnly: options?.isTextOnly || false,
+        originalPostId: dbPost.originalPostId,
+        originalPost: dbPost.originalPost ? {
+          id: dbPost.originalPost.id,
+          user: {
+            id: dbPost.originalPost.user?.id || 0,
+            name: dbPost.originalPost.user?.username || "user",
+            full: dbPost.originalPost.user?.fullName || "User",
+            img: dbPost.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+            followers: 0,
+            following: 0,
+            bio: "",
+            verified: dbPost.originalPost.user?.isVerified || false,
+          },
+          img: dbPost.originalPost.thumbnailUrl || (dbPost.originalPost.mediaUrls?.[0]?.url || dbPost.originalPost.mediaUrls?.[0] || ""),
+          imgs: dbPost.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+          caption: dbPost.originalPost.caption || "",
+          likes: 0,
+          comments: [],
+          time: "",
+          hasStory: false,
+          location: dbPost.originalPost.location || "",
+          isTextOnly: dbPost.originalPost.isTextOnly || false,
+          mediaType: dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) ? "video" : (dbPost.originalPost.isTextOnly ? "text" : "image")
+        } : undefined,
         isReel: mediaUrls.some(
           (m: string) =>
             m.endsWith(".mp4") ||

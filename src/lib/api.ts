@@ -148,6 +148,7 @@ class ApiClient {
     filter?: string;
     thumbnailDataUrl?: string; // base64 data URL for video thumbnail frame
     thumbnailDataUrls?: Record<number, string>; // base64 data URLs for multiple video thumbnail frames
+    originalPostId?: number;
   }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
@@ -257,10 +258,15 @@ class ApiClient {
         masterUrl: data.filter || 'none',
         userId: authUser.id,
         category: classifyContent(data.caption || '', mediaUrls, !!data.isTextOnly),
+        originalPostId: data.originalPostId || null,
       })
       .select(`
         *,
-        user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
+        user:User!Post_userId_fkey(id, username, avatarUrl, isVerified),
+        originalPost:Post!Post_originalPostId_fkey(
+          *,
+          user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
+        )
       `)
       .single();
 
@@ -1431,7 +1437,14 @@ class ApiClient {
   async getPost(postId: number | string) {
     const { data: post, error } = await supabase
       .from('Post')
-      .select('*, user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified, private_profile)')
+      .select(`
+        *,
+        user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified, private_profile),
+        originalPost:Post!Post_originalPostId_fkey(
+          *,
+          user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile)
+        )
+      `)
       .eq('id', Number(postId))
       .single();
 
