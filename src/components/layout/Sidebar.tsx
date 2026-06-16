@@ -48,8 +48,8 @@ export default function Sidebar() {
       <nav className="flex-1 flex flex-col gap-1">
         <button
           onClick={() => handleNav("home")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
-            activeTab === "home" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+            activeTab === "home" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <Home size={22} className="min-w-[22px]" />
@@ -58,8 +58,8 @@ export default function Sidebar() {
 
         <button
           onClick={() => handleNav("search")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
-            activeTab === "search" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+            activeTab === "search" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <Search size={22} className="min-w-[22px]" />
@@ -68,8 +68,8 @@ export default function Sidebar() {
 
         <button
           onClick={() => handleNav("explore")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
-            activeTab === "explore" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+            activeTab === "explore" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <Compass size={22} className="min-w-[22px]" />
@@ -78,8 +78,8 @@ export default function Sidebar() {
 
         <button
           onClick={() => handleNav("reels")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
-            activeTab === "reels" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+            activeTab === "reels" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <Film size={22} className="min-w-[22px]" />
@@ -88,8 +88,8 @@ export default function Sidebar() {
 
         <button
           onClick={() => handleNav("messages")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full relative ${
-            activeTab === "messages" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full relative ${
+            activeTab === "messages" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <div className="relative">
@@ -105,8 +105,8 @@ export default function Sidebar() {
 
         <button
           onClick={() => handleNav("notifications")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full relative ${
-            activeTab === "notifications" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full relative ${
+            activeTab === "notifications" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <div className="relative">
@@ -122,7 +122,7 @@ export default function Sidebar() {
 
         <button
           onClick={() => setShowCreatePostModal(true)}
-          className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full text-[#a8a8a8] hover:text-white"
+          className="flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full text-[var(--text2)] hover:text-[var(--text)]"
         >
           <PlusSquare size={22} className="min-w-[22px]" />
           <span className="hidden lg:inline text-[15px]">Create</span>
@@ -131,8 +131,8 @@ export default function Sidebar() {
         {currentUser?.role === "admin" && (
           <button
             onClick={() => handleNav("admin")}
-            className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
-              activeTab === "admin" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+            className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+              activeTab === "admin" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
             }`}
           >
             <ShieldAlert size={22} className="min-w-[22px]" />
@@ -140,20 +140,20 @@ export default function Sidebar() {
           </button>
         )}
 
-        <div className="h-[1px] bg-[#222] my-2 mx-1" />
+        <div className="h-[1px] bg-[var(--border)] my-2 mx-1" />
 
         <button
           onClick={() => handleNav("profile")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
             activeTab === "profile" && viewingUserId === null
-              ? "bg-[#1a1a1a] font-bold text-white"
-              : "text-[#a8a8a8] hover:text-white"
+              ? "bg-[var(--surface3)] font-bold text-[var(--text)]"
+              : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <img
             src={currentUser?.img || "https://i.pravatar.cc/150?img=1"}
             className={`w-6 h-6 rounded-full object-cover border ${
-              activeTab === "profile" && viewingUserId === null ? "border-white" : "border-transparent"
+              activeTab === "profile" && viewingUserId === null ? "border-[var(--text)]" : "border-transparent"
             }`}
             alt="me"
           />
@@ -163,11 +163,11 @@ export default function Sidebar() {
 
       {/* Sidebar bottom */}
       <div className="flex flex-col gap-1 mt-auto">
-        <div className="h-[1px] bg-[#222] my-2 mx-1" />
+        <div className="h-[1px] bg-[var(--border)] my-2 mx-1" />
         <button
           onClick={() => handleNav("settings")}
-          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
-            activeTab === "settings" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+            activeTab === "settings" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
           }`}
         >
           <SettingsIcon size={22} className="min-w-[22px]" />
@@ -175,7 +175,7 @@ export default function Sidebar() {
         </button>
         <button
           onClick={() => handleNav("profile")}
-          className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full text-[#a8a8a8] hover:text-white"
+          className="flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full text-[var(--text2)] hover:text-[var(--text)]"
         >
           <Menu size={22} className="min-w-[22px]" />
           <span className="hidden lg:inline text-[15px]">More</span>

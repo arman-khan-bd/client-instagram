@@ -156,7 +156,7 @@ export function AppContent() {
               animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowDrawer(false)}
-              className="fixed inset-0 bg-black z-[140] sm:hidden"
+              className="fixed inset-0 bg-black/60 z-[140] sm:hidden"
             />
             {/* Drawer Body */}
             <motion.div
@@ -164,7 +164,7 @@ export function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "tween", duration: 0.25 }}
-              className="fixed top-0 bottom-0 left-0 w-[260px] bg-zinc-950 border-r border-zinc-900 z-[150] p-5 flex flex-col gap-6 text-white sm:hidden select-none"
+              className="fixed top-0 bottom-0 left-0 w-[260px] bg-[var(--surface)]/95 backdrop-blur-md border-r border-[var(--border)] z-[150] p-5 flex flex-col gap-6 text-[var(--text)] sm:hidden select-none"
             >
               <div className="flex items-center justify-between">
                 <span className="text-gradient-instagram font-bold text-xl">AuraGram</span>
@@ -196,8 +196,8 @@ export function AppContent() {
                       }
                       setShowDrawer(false);
                     }}
-                    className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left text-sm ${
-                      activeTab === item.tab ? "bg-[#1a1a1a] font-bold text-white" : "text-zinc-400 hover:text-white"
+                    className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left text-sm ${
+                      activeTab === item.tab ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
                     }`}
                   >
                     {item.icon}
@@ -207,7 +207,7 @@ export function AppContent() {
               </nav>
 
               <div className="mt-auto flex flex-col gap-2">
-                <div className="h-[1px] bg-zinc-800 my-2" />
+                <div className="h-[1px] bg-[var(--border)] my-2" />
                 <button
                   onClick={() => { doLogout(); setShowDrawer(false); }}
                   className="flex items-center gap-4 p-3 rounded-xl hover:bg-red-950/20 text-red-500 text-sm font-semibold transition w-full text-left"
@@ -234,7 +234,7 @@ export function AppContent() {
 
         {/* Install PWA Prompt Banner (Single Line below Header) */}
         {showInstallBanner && (
-          <div className="fixed top-[calc(54px+env(safe-area-inset-top))] left-0 right-0 z-[89] bg-zinc-950/95 backdrop-blur-md border-b border-zinc-900 h-9 px-4 flex items-center justify-between text-xs select-none sm:hidden text-white">
+          <div className="fixed top-[calc(54px+env(safe-area-inset-top))] left-0 right-0 z-[89] bg-[var(--surface)]/95 backdrop-blur-md border-b border-[var(--border)] h-9 px-4 flex items-center justify-between text-xs select-none sm:hidden text-[var(--text)]">
             <div className="flex items-center gap-2">
               <img src="/icon-192.png" className="w-4.5 h-4.5 rounded-md object-cover" alt="app-icon" />
               <span className="text-[11px] font-medium text-zinc-300">AuraGram PWA</span>
@@ -242,7 +242,7 @@ export function AppContent() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleInstallClick}
-                className="text-[10px] bg-white text-black font-bold py-0.5 px-2.5 rounded-sm hover:bg-zinc-200 transition uppercase tracking-wider"
+                className="text-[10px] bg-[var(--text)] text-[var(--bg)] font-bold py-0.5 px-2.5 rounded-sm hover:opacity-90 transition uppercase tracking-wider"
               >
                 Download
               </button>
@@ -275,7 +275,7 @@ export function AppContent() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="flex bg-[#121212]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto select-none animate-heart-pop relative w-full border-l-0"
+            className="flex bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden pointer-events-auto select-none animate-heart-pop relative w-full border-l-0"
           >
             {/* Left Brand Gradient Stripe */}
             <div className="bg-gradient-to-b from-[#f09433] via-[#dc2743] to-[#bc1888] w-[4.5px] shrink-0" />

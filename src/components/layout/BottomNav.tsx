@@ -23,18 +23,18 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="sm:hidden flex bg-[#111] border-t border-[#222] fixed bottom-0 left-0 right-0 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] px-1 select-none z-50 justify-around items-center">
+    <nav className="sm:hidden flex bg-[var(--surface)] border-t border-[var(--border)] fixed bottom-0 left-0 right-0 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] px-1 select-none z-50 justify-around items-center">
 
       {/* Top Loader Bar */}
       {!isFeedLoaded && (
-        <div className="absolute top-0 left-0 right-0 h-[2.5px] overflow-hidden bg-zinc-900">
+        <div className="absolute top-0 left-0 right-0 h-[2.5px] overflow-hidden bg-[var(--surface2)]">
           <div className="h-full bg-gradient-to-r from-insta-blue via-violet-500 to-[#bc1888] animate-[loadingProgress_1.5s_infinite_ease-in-out]" style={{ width: "35%" }} />
         </div>
       )}
       <button
         onClick={() => handleNav("home")}
         className={`flex flex-col items-center p-2 rounded-xl transition ${
-          activeTab === "home" ? "text-white" : "text-[#a8a8a8]"
+          activeTab === "home" ? "text-[var(--text)]" : "text-[var(--text2)]"
         }`}
       >
         <Home size={24} />
@@ -43,7 +43,7 @@ export default function BottomNav() {
       <button
         onClick={() => handleNav("search")}
         className={`flex flex-col items-center p-2 rounded-xl transition ${
-          activeTab === "search" ? "text-white" : "text-[#a8a8a8]"
+          activeTab === "search" ? "text-[var(--text)]" : "text-[var(--text2)]"
         }`}
       >
         <Search size={24} />
@@ -52,7 +52,7 @@ export default function BottomNav() {
       <button
         onClick={() => handleNav("reels")}
         className={`flex flex-col items-center p-2 rounded-xl transition ${
-          activeTab === "reels" ? "text-white" : "text-[#a8a8a8]"
+          activeTab === "reels" ? "text-[var(--text)]" : "text-[var(--text2)]"
         }`}
       >
         <Film size={24} />
@@ -61,7 +61,7 @@ export default function BottomNav() {
       <button
         onClick={() => handleNav("messages")}
         className={`flex flex-col items-center p-2 rounded-xl transition relative ${
-          activeTab === "messages" ? "text-white" : "text-[#a8a8a8]"
+          activeTab === "messages" ? "text-[var(--text)]" : "text-[var(--text2)]"
         }`}
       >
         <MessageCircle size={24} />
@@ -76,7 +76,7 @@ export default function BottomNav() {
         <button
           onClick={() => handleNav("admin")}
           className={`flex flex-col items-center p-2 rounded-xl transition ${
-            activeTab === "admin" ? "text-white" : "text-[#a8a8a8]"
+            activeTab === "admin" ? "text-[var(--text)]" : "text-[var(--text2)]"
           }`}
         >
           <ShieldAlert size={24} />
@@ -90,7 +90,7 @@ export default function BottomNav() {
         <img
           src={currentUser?.img || "https://i.pravatar.cc/150?img=1"}
           className={`w-6 h-6 rounded-full object-cover border ${
-            activeTab === "profile" ? "border-white" : "border-transparent"
+            activeTab === "profile" ? "border-[var(--text)]" : "border-transparent"
           }`}
           alt="profile"
         />
