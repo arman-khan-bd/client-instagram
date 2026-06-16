@@ -173,12 +173,18 @@ export default function TvPortal() {
       });
 
       let networkRetryCount = 0;
+      let attemptedUpgrade = false;
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.warn("HLS network error, trying to recover...", data);
-              if (networkRetryCount < 3) {
+              if (data.details === "manifestLoadError" && streamUrl.startsWith("http://") && !attemptedUpgrade) {
+                attemptedUpgrade = true;
+                const upgradedUrl = streamUrl.replace("http://", "https://");
+                console.log("Attempting HTTP -> HTTPS stream upgrade fallback:", upgradedUrl);
+                hls.loadSource(upgradedUrl);
+              } else if (networkRetryCount < 3) {
                 networkRetryCount++;
                 setTimeout(() => {
                   if (hlsRef.current) {
@@ -571,12 +577,43 @@ export default function TvPortal() {
 
                 {/* Video Error Overlay */}
                 {videoError && (
-                  <div className="absolute inset-0 bg-[#0a0a0c]/90 flex flex-col items-center justify-center gap-3 p-4 text-center z-20">
-                    <AlertCircle className="text-[#FF2E93] animate-bounce" size={40} />
-                    <h3 className="text-sm font-bold text-zinc-200">Stream Connection Offline</h3>
-                    <p className="text-xs text-zinc-500 max-w-sm">
-                      This TV channel stream is currently unavailable or doesn't support direct CORS/HLS playback.
-                    </p>
+                  <div className="absolute inset-0 bg-[#0a0a0c]/95 flex flex-col items-center justify-center gap-4 p-6 text-center z-20 select-none">
+                    <AlertCircle className="text-[#FF2E93] animate-pulse" size={42} />
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-zinc-200">Playback Connection Blocked</h3>
+                      {selectedChannel?.url.startsWith("http://") && typeof window !== "undefined" && window.location.protocol === "https:" ? (
+                        <p className="text-[11px] text-amber-400 max-w-md mx-auto leading-relaxed">
+                          <strong>Mixed Content Warning:</strong> You are accessing this site via secure HTTPS, but this stream is served over insecure HTTP. Browsers block insecure requests by default.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                          This stream failed to load. This is usually due to CORS restrictions or the stream server being temporarily offline.
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                      <a 
+                        href={selectedChannel.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="bg-[#FF2E93] hover:bg-[#FF2E93]/90 text-white font-bold py-1.5 px-4 rounded-xl text-xs transition-all shadow-md shadow-[#FF2E93]/20 cursor-pointer"
+                      >
+                        Play in New Tab ↗
+                      </a>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedChannel.url);
+                          showToast("Stream Link Copied! 📋", "success");
+                        }}
+                        className="bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-zinc-300 hover:text-white font-bold py-1.5 px-4 rounded-xl text-xs transition cursor-pointer"
+                      >
+                        Copy URL for VLC
+                      </button>
+                    </div>
+                    <span className="text-[9px] text-zinc-500 max-w-xs leading-normal">
+                      Tip: You can click the shield or lock icon in your browser's address bar and select "Site Settings" to "Allow Insecure Content" for this site.
+                    </span>
                   </div>
                 )}
 
