@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "../AppContext";
 import {
   User, AtSign, Globe, FileText, Users, GraduationCap, Briefcase,
-  MapPin, Home, Phone, Heart, Star, Image, X, Check, ChevronRight, Camera
+  MapPin, Home, Phone, Heart, Star, Image, X, Check, ChevronRight, Camera, Mail
 } from "lucide-react";
 
 type Section = "basic" | "about" | "contact" | "interests";
@@ -66,6 +66,7 @@ export default function EditProfileModal() {
   // Contact
   const [web, setWeb] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
 
   // Interests
   const [hobbies, setHobbies] = useState("");
@@ -94,6 +95,7 @@ export default function EditProfileModal() {
       setCountry(currentUser.country || "");
       setHometown(currentUser.hometown || "");
       setPhone(currentUser.phone || "");
+      setEmail(currentUser.email || "");
       setHobbies(currentUser.hobbies || "");
       setInterests(currentUser.interests || "");
       // Only reset section on initial open, not on every currentUser update
@@ -116,6 +118,7 @@ export default function EditProfileModal() {
       setCountry(currentUser.country || "");
       setHometown(currentUser.hometown || "");
       setPhone(currentUser.phone || "");
+      setEmail(currentUser.email || "");
       setHobbies(currentUser.hobbies || "");
       setInterests(currentUser.interests || "");
     }
@@ -180,10 +183,6 @@ export default function EditProfileModal() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) {
-      showToast("Username cannot be empty!");
-      return;
-    }
     try {
       setIsSaving(true);
       setSaveSuccess(false);
@@ -192,6 +191,7 @@ export default function EditProfileModal() {
       await saveProfileChanges({
         name, username, web, bio, gender, avatarUrl, coverPhoto,
         education, work, city, country, hometown, phone, hobbies, interests,
+        email,
       });
 
       // Background refetch to confirm DB data is in sync
@@ -361,32 +361,7 @@ export default function EditProfileModal() {
               <div className="bg-[#111] rounded-2xl p-4 border border-[#1e1e1e] space-y-4">
                 <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest">Identity</p>
 
-                <div>
-                  <label className={labelClass}><User size={11} /> Full Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Your full name"
-                    maxLength={60}
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClass}><AtSign size={11} /> Username</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#555] text-[14px]">@</span>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value.replace(/\s/g, "").toLowerCase())}
-                      className={`${inputClass} pl-8`}
-                      placeholder="username"
-                      maxLength={30}
-                    />
-                  </div>
-                </div>
+                <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest">Basic Information</p>
 
                 <div>
                   <label className={labelClass}><Users size={11} /> Gender</label>
@@ -395,12 +370,31 @@ export default function EditProfileModal() {
                     onChange={(e) => setGender(e.target.value)}
                     className={inputClass + " cursor-pointer appearance-none"}
                   >
-                    <option value="Prefer not to say">Prefer not to say</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
-                    <option value="Non-binary">Non-binary</option>
-                    <option value="Custom">Custom</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className={labelClass}><Phone size={11} /> Phone Number</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g. +123456789"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}><Mail size={11} /> Email Address</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g. user@example.com"
+                  />
                 </div>
               </div>
 

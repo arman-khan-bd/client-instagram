@@ -196,7 +196,7 @@ interface AppContextType {
   reactToMessage: (messageId: number, emoji: string) => Promise<void>;
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }) => Promise<void>;
-  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) => Promise<AppContextType["currentUser"]>;
+  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }) => Promise<AppContextType["currentUser"]>;
   refetchCurrentUser: () => Promise<void>;
 
   // Share dialog
@@ -993,6 +993,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Init Data on start
   useEffect(() => {
+    // Quick-load theme variables from localStorage immediately to prevent layout flashes
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("insta_theme") || "dark";
+      if (savedTheme === "light") {
+        document.documentElement.style.setProperty("--bg", "#ffffff");
+        document.documentElement.style.setProperty("--surface", "rgba(240, 240, 240, 0.8)");
+        document.documentElement.style.setProperty("--surface2", "rgba(225, 225, 225, 0.9)");
+        document.documentElement.style.setProperty("--surface3", "rgba(200, 200, 200, 0.9)");
+        document.documentElement.style.setProperty("--border", "rgba(0, 0, 0, 0.1)");
+        document.documentElement.style.setProperty("--text", "#111111");
+        document.documentElement.style.setProperty("--text2", "#555555");
+        document.documentElement.style.setProperty("--text3", "#888888");
+      } else {
+        document.documentElement.style.setProperty("--bg", "#030303");
+        document.documentElement.style.setProperty("--surface", "rgba(18, 18, 18, 0.45)");
+        document.documentElement.style.setProperty("--surface2", "rgba(26, 26, 26, 0.65)");
+        document.documentElement.style.setProperty("--surface3", "rgba(38, 38, 38, 0.8)");
+        document.documentElement.style.setProperty("--border", "rgba(255, 255, 255, 0.07)");
+        document.documentElement.style.setProperty("--text", "#f9fafb");
+        document.documentElement.style.setProperty("--text2", "#9ca3af");
+        document.documentElement.style.setProperty("--text3", "#6b7280");
+      }
+    }
+
     // Fetch posts from Supabase
     const loadFeed = async () => {
       const now = Date.now();
@@ -1208,6 +1232,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 if (typeof window !== 'undefined') {
+                  localStorage.setItem("insta_theme", user.theme);
                   localStorage.setItem('insta_me', JSON.stringify(user));
                   localStorage.setItem('token', session.access_token);
                 }
@@ -1578,7 +1603,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }): Promise<AppContextType["currentUser"]> => {
+  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }): Promise<AppContextType["currentUser"]> => {
     if (!currentUser) return null;
     try {
       showToast("Saving profile... ⚡", "info");
@@ -1597,6 +1622,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         interests: data.interests,
         coverPhoto: data.coverPhoto,
         website: data.web,
+        email: data.email,
       } as any);
 
       const updated: AppContextType["currentUser"] = {
@@ -1616,6 +1642,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         hobbies: data.hobbies,
         interests: data.interests,
         coverPhoto: data.coverPhoto,
+        email: data.email || currentUser.email,
       };
       setCurrentUser(updated);
       if (typeof window !== "undefined") {
@@ -1693,6 +1720,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (typeof window !== "undefined") {
+        localStorage.setItem("insta_theme", updated.theme || "dark");
         localStorage.setItem("insta_me", JSON.stringify(updated));
       }
     } catch (err) {
@@ -1719,6 +1747,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         theme: data.theme,
       };
       setCurrentUser(updated);
+      if (settings.theme && typeof window !== "undefined") {
+        localStorage.setItem("insta_theme", settings.theme);
+        if (settings.theme === "light") {
+          document.documentElement.style.setProperty("--bg", "#ffffff");
+          document.documentElement.style.setProperty("--surface", "rgba(240, 240, 240, 0.8)");
+          document.documentElement.style.setProperty("--surface2", "rgba(225, 225, 225, 0.9)");
+          document.documentElement.style.setProperty("--surface3", "rgba(200, 200, 200, 0.9)");
+          document.documentElement.style.setProperty("--border", "rgba(0, 0, 0, 0.1)");
+          document.documentElement.style.setProperty("--text", "#111111");
+          document.documentElement.style.setProperty("--text2", "#555555");
+          document.documentElement.style.setProperty("--text3", "#888888");
+        } else {
+          document.documentElement.style.setProperty("--bg", "#030303");
+          document.documentElement.style.setProperty("--surface", "rgba(18, 18, 18, 0.45)");
+          document.documentElement.style.setProperty("--surface2", "rgba(26, 26, 26, 0.65)");
+          document.documentElement.style.setProperty("--surface3", "rgba(38, 38, 38, 0.8)");
+          document.documentElement.style.setProperty("--border", "rgba(255, 255, 255, 0.07)");
+          document.documentElement.style.setProperty("--text", "#f9fafb");
+          document.documentElement.style.setProperty("--text2", "#9ca3af");
+          document.documentElement.style.setProperty("--text3", "#6b7280");
+        }
+      }
       if (typeof window !== "undefined") {
         localStorage.setItem("insta_me", JSON.stringify(updated));
       }

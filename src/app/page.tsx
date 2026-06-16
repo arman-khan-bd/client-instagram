@@ -122,10 +122,10 @@ export function AppContent() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-black overflow-hidden relative font-sans">
+    <div className="flex h-screen w-screen bg-[var(--bg)] overflow-hidden relative font-sans text-[var(--text)]">
       {/* Top Header Mobile */}
-      <header className="sm:hidden flex items-center justify-between h-[calc(54px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-black border-b border-zinc-900 fixed top-0 left-0 right-0 px-4 z-[90] select-none text-white">
-        <button onClick={() => setShowDrawer(true)} className="p-1 hover:text-gray-300">
+      <header className="sm:hidden flex items-center justify-between h-[calc(54px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-[var(--bg)] border-b border-[var(--border)] fixed top-0 left-0 right-0 px-4 z-[90] select-none text-[var(--text)]">
+        <button onClick={() => setShowDrawer(true)} className="p-1 hover:opacity-85">
           <Menu size={22} />
         </button>
         <span onClick={() => { setViewingUserId(null); setActiveTab("home"); }} className="text-gradient-instagram font-bold text-lg cursor-pointer">
