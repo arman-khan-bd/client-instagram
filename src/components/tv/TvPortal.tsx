@@ -56,6 +56,7 @@ export default function TvPortal() {
 
   // Controls visibility management
   const [showControls, setShowControls] = useState(true);
+  const [isCarouselExpanded, setIsCarouselExpanded] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const resetControlsTimeout = () => {
@@ -787,42 +788,87 @@ export default function TvPortal() {
               </div>
             </div>
           ) : (
-            <div className="text-center py-20 text-zinc-500">
-              <Tv size={48} className="mx-auto text-zinc-600 mb-3" />
-              <p className="text-sm">Select a channel from the left sidebar to start streaming.</p>
+            <div className="w-full max-w-[640px] aspect-video bg-[#0c0c0f] rounded-2xl border border-white/[0.08] relative overflow-hidden flex flex-col items-center justify-center p-6 shadow-[0_20px_50px_rgba(0,0,0,0.9)] group">
+              {/* CRT Scanline Effect */}
+              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-10" />
+              <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-40 z-10" />
+              
+              {/* Color Bars background pattern */}
+              <div className="absolute inset-0 opacity-[0.03] flex">
+                <div className="flex-1 bg-white" />
+                <div className="flex-1 bg-yellow-400" />
+                <div className="flex-1 bg-cyan-400" />
+                <div className="flex-1 bg-green-400" />
+                <div className="flex-1 bg-magenta-400" />
+                <div className="flex-1 bg-red-400" />
+                <div className="flex-1 bg-blue-400" />
+              </div>
+
+              {/* Glowing TV Icon & Message */}
+              <div className="z-20 flex flex-col items-center gap-3">
+                <div className="p-4 rounded-full bg-white/[0.02] border border-white/[0.05] shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] relative animate-pulse">
+                  <Tv size={36} className="text-[#FF2E93] drop-shadow-[0_0_10px_rgba(255,46,147,0.5)]" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <h3 className="text-sm font-bold tracking-wider uppercase text-zinc-300">AuraTV - No Signal</h3>
+                  <p className="text-[11px] text-zinc-500 max-w-[280px]">
+                    Select a channel from the list below or sidebar to start streaming
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Bottom Carousel for mobile channel list */}
-        <div className="lg:hidden w-full bg-[#121216]/80 backdrop-blur-md border-t border-white/[0.06] p-4 pb-6 shrink-0 overflow-hidden">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 mb-2 px-1">
-            Live TV Channels
-          </p>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-1">
-            {filteredChannels.map((channel) => (
-              <button
-                key={channel.id}
-                onClick={() => setSelectedChannel(channel)}
-                className={`snap-start flex flex-col items-center gap-1.5 p-2 rounded-xl transition w-[75px] shrink-0 text-center ${
-                  selectedChannel?.id === channel.id
-                    ? "bg-white/[0.08] border border-[#FF2E93]/60"
-                    : "bg-white/[0.02] border border-transparent hover:bg-white/[0.04]"
-                }`}
+        {/* Bottom Collapsible Accordion for mobile channel list */}
+        <div className="lg:hidden w-full bg-[#121216]/80 backdrop-blur-md border-t border-white/[0.06] shrink-0 overflow-hidden">
+          <button 
+            onClick={() => setIsCarouselExpanded(!isCarouselExpanded)}
+            className="w-full flex items-center justify-between p-3 border-b border-white/[0.04] text-left outline-none cursor-pointer"
+          >
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">
+              Live TV Channels ({filteredChannels.length})
+            </span>
+            <span className="text-[10px] text-zinc-400 font-bold">
+              {isCarouselExpanded ? "Collapse ▲" : "Expand ▼"}
+            </span>
+          </button>
+          
+          <AnimatePresence initial={false}>
+            {isCarouselExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="p-3 pb-5 overflow-hidden"
               >
-                {/* Logo 50x50px */}
-                <div className="w-[50px] h-[50px] rounded-xl bg-zinc-800/80 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
-                  {channel.logoUrl ? (
-                    <img src={channel.logoUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <Tv size={22} className="text-zinc-400" />
-                  )}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-1">
+                  {filteredChannels.map((channel) => (
+                    <button
+                      key={channel.id}
+                      onClick={() => setSelectedChannel(channel)}
+                      className={`snap-start flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition shrink-0 text-left cursor-pointer border ${
+                        selectedChannel?.id === channel.id
+                          ? "bg-white/[0.08] border-[#FF2E93]/60"
+                          : "bg-white/[0.02] border-transparent hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      {/* Logo 20x20px */}
+                      <div className="w-[20px] h-[20px] rounded-md bg-zinc-800/80 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
+                        {channel.logoUrl ? (
+                          <img src={channel.logoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <Tv size={10} className="text-zinc-400" />
+                        )}
+                      </div>
+                      {/* Name */}
+                      <p className="text-[10px] font-bold text-zinc-200 truncate max-w-[80px] select-none">{channel.name}</p>
+                    </button>
+                  ))}
                 </div>
-                {/* Name */}
-                <p className="text-[9px] font-bold text-zinc-200 truncate w-full select-none">{channel.name}</p>
-              </button>
-            ))}
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
       </div>
