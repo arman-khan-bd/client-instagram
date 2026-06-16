@@ -263,7 +263,7 @@ class ApiClient {
       .select(`
         *,
         user:User!Post_userId_fkey(id, username, avatarUrl, isVerified),
-        originalPost:Post!Post_originalPostId_fkey(
+        originalPost:Post!originalPostId(
           *,
           user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
         )
@@ -1440,7 +1440,7 @@ class ApiClient {
       .select(`
         *,
         user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified, private_profile),
-        originalPost:Post!Post_originalPostId_fkey(
+        originalPost:Post!originalPostId(
           *,
           user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile)
         )

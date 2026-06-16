@@ -362,10 +362,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const setActiveChatId = useCallback((id: number | null) => {
     setActiveChatIdState(id);
-    if (id !== null) {
-      router.push(`/messages/${id}`);
+    const target = id !== null ? `/messages/${id}` : "/messages";
+    if (typeof window !== "undefined") {
+      if (window.location.pathname !== target) {
+        window.history.pushState({ tab: "messages", chatId: id }, "", target);
+      }
     } else {
-      router.push("/messages");
+      router.push(target);
     }
   }, [router]);
 
@@ -439,8 +442,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         target = `/profile/${username}`;
       }
     }
-    if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
-      router.push(target);
+    if (typeof window !== "undefined") {
+      if (window.location.pathname !== target) {
+        window.history.pushState({ tab, vId }, "", target);
+      }
+    } else {
+      if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
+        router.push(target);
+      }
     }
   }, [router, pathname, viewingUserId, currentUser]);
 
@@ -583,6 +592,41 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setFollowersModalState(state.modal === "followers" ? { open: true, type: state.type, userId: state.userId } : null);
       setSharePostIdState(state.modal === "share" ? state.id : null);
       setReportPostIdState(state.modal === "report" ? state.id : null);
+
+      // Sync active tab, profile, and chat state from path
+      const path = window.location.pathname;
+      const isProfileUser = path.startsWith("/profile/") && path !== "/profile";
+      const isMessagesUser = path.startsWith("/messages/") || path.startsWith("/message/");
+      const tab = path.startsWith("/reels/r/") 
+        ? "reels" 
+        : isProfileUser 
+          ? "profile" 
+          : isMessagesUser
+            ? "messages"
+            : (PATHNAME_TO_TAB[path] || "home");
+      
+      setActiveTabState(tab);
+      
+      if (isProfileUser) {
+        const parts = path.split("/");
+        const username = decodeURIComponent(parts[parts.length - 1]);
+        setViewingUserId(username);
+      } else {
+        setViewingUserId(null);
+      }
+      
+      if (isMessagesUser) {
+        const parts = path.split("/");
+        const chatIdStr = parts[parts.length - 1];
+        if (chatIdStr) {
+          const id = parseInt(chatIdStr, 10);
+          if (!isNaN(id)) {
+            setActiveChatIdState(id);
+          }
+        }
+      } else {
+        setActiveChatIdState(null);
+      }
     };
 
     window.addEventListener("popstate", handlePopState);
