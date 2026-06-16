@@ -997,23 +997,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("insta_theme") || "dark";
       if (savedTheme === "light") {
-        document.documentElement.style.setProperty("--bg", "#ffffff");
-        document.documentElement.style.setProperty("--surface", "rgba(240, 240, 240, 0.8)");
-        document.documentElement.style.setProperty("--surface2", "rgba(225, 225, 225, 0.9)");
-        document.documentElement.style.setProperty("--surface3", "rgba(200, 200, 200, 0.9)");
-        document.documentElement.style.setProperty("--border", "rgba(0, 0, 0, 0.1)");
-        document.documentElement.style.setProperty("--text", "#111111");
-        document.documentElement.style.setProperty("--text2", "#555555");
-        document.documentElement.style.setProperty("--text3", "#888888");
+        document.documentElement.classList.remove("dark");
       } else {
-        document.documentElement.style.setProperty("--bg", "#030303");
-        document.documentElement.style.setProperty("--surface", "rgba(18, 18, 18, 0.45)");
-        document.documentElement.style.setProperty("--surface2", "rgba(26, 26, 26, 0.65)");
-        document.documentElement.style.setProperty("--surface3", "rgba(38, 38, 38, 0.8)");
-        document.documentElement.style.setProperty("--border", "rgba(255, 255, 255, 0.07)");
-        document.documentElement.style.setProperty("--text", "#f9fafb");
-        document.documentElement.style.setProperty("--text2", "#9ca3af");
-        document.documentElement.style.setProperty("--text3", "#6b7280");
+        document.documentElement.classList.add("dark");
       }
     }
 
@@ -1211,23 +1197,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 if (typeof window !== "undefined") {
                   const theme = user.theme || "dark";
                   if (theme === "light") {
-                    document.documentElement.style.setProperty("--bg", "#ffffff");
-                    document.documentElement.style.setProperty("--surface", "rgba(240, 240, 240, 0.8)");
-                    document.documentElement.style.setProperty("--surface2", "rgba(225, 225, 225, 0.9)");
-                    document.documentElement.style.setProperty("--surface3", "rgba(200, 200, 200, 0.9)");
-                    document.documentElement.style.setProperty("--border", "rgba(0, 0, 0, 0.1)");
-                    document.documentElement.style.setProperty("--text", "#111111");
-                    document.documentElement.style.setProperty("--text2", "#555555");
-                    document.documentElement.style.setProperty("--text3", "#888888");
+                    document.documentElement.classList.remove("dark");
                   } else {
-                    document.documentElement.style.setProperty("--bg", "#030303");
-                    document.documentElement.style.setProperty("--surface", "rgba(18, 18, 18, 0.45)");
-                    document.documentElement.style.setProperty("--surface2", "rgba(26, 26, 26, 0.65)");
-                    document.documentElement.style.setProperty("--surface3", "rgba(38, 38, 38, 0.8)");
-                    document.documentElement.style.setProperty("--border", "rgba(255, 255, 255, 0.07)");
-                    document.documentElement.style.setProperty("--text", "#f9fafb");
-                    document.documentElement.style.setProperty("--text2", "#9ca3af");
-                    document.documentElement.style.setProperty("--text3", "#6b7280");
+                    document.documentElement.classList.add("dark");
                   }
                 }
 
@@ -1699,23 +1671,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (typeof window !== "undefined") {
         const theme = updated.theme || "dark";
         if (theme === "light") {
-          document.documentElement.style.setProperty("--bg", "#ffffff");
-          document.documentElement.style.setProperty("--surface", "rgba(240, 240, 240, 0.8)");
-          document.documentElement.style.setProperty("--surface2", "rgba(225, 225, 225, 0.9)");
-          document.documentElement.style.setProperty("--surface3", "rgba(200, 200, 200, 0.9)");
-          document.documentElement.style.setProperty("--border", "rgba(0, 0, 0, 0.1)");
-          document.documentElement.style.setProperty("--text", "#111111");
-          document.documentElement.style.setProperty("--text2", "#555555");
-          document.documentElement.style.setProperty("--text3", "#888888");
+          document.documentElement.classList.remove("dark");
         } else {
-          document.documentElement.style.setProperty("--bg", "#030303");
-          document.documentElement.style.setProperty("--surface", "rgba(18, 18, 18, 0.45)");
-          document.documentElement.style.setProperty("--surface2", "rgba(26, 26, 26, 0.65)");
-          document.documentElement.style.setProperty("--surface3", "rgba(38, 38, 38, 0.8)");
-          document.documentElement.style.setProperty("--border", "rgba(255, 255, 255, 0.07)");
-          document.documentElement.style.setProperty("--text", "#f9fafb");
-          document.documentElement.style.setProperty("--text2", "#9ca3af");
-          document.documentElement.style.setProperty("--text3", "#6b7280");
+          document.documentElement.classList.add("dark");
         }
       }
 
@@ -1750,23 +1708,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (settings.theme && typeof window !== "undefined") {
         localStorage.setItem("insta_theme", settings.theme);
         if (settings.theme === "light") {
-          document.documentElement.style.setProperty("--bg", "#ffffff");
-          document.documentElement.style.setProperty("--surface", "rgba(240, 240, 240, 0.8)");
-          document.documentElement.style.setProperty("--surface2", "rgba(225, 225, 225, 0.9)");
-          document.documentElement.style.setProperty("--surface3", "rgba(200, 200, 200, 0.9)");
-          document.documentElement.style.setProperty("--border", "rgba(0, 0, 0, 0.1)");
-          document.documentElement.style.setProperty("--text", "#111111");
-          document.documentElement.style.setProperty("--text2", "#555555");
-          document.documentElement.style.setProperty("--text3", "#888888");
+          document.documentElement.classList.remove("dark");
         } else {
-          document.documentElement.style.setProperty("--bg", "#030303");
-          document.documentElement.style.setProperty("--surface", "rgba(18, 18, 18, 0.45)");
-          document.documentElement.style.setProperty("--surface2", "rgba(26, 26, 26, 0.65)");
-          document.documentElement.style.setProperty("--surface3", "rgba(38, 38, 38, 0.8)");
-          document.documentElement.style.setProperty("--border", "rgba(255, 255, 255, 0.07)");
-          document.documentElement.style.setProperty("--text", "#f9fafb");
-          document.documentElement.style.setProperty("--text2", "#9ca3af");
-          document.documentElement.style.setProperty("--text3", "#6b7280");
+          document.documentElement.classList.add("dark");
         }
       }
       if (typeof window !== "undefined") {

@@ -34,6 +34,7 @@ export default function Settings() {
   // Activity log state
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "reaction" | "comment" | "save" | "story_view" | "reply" | "watch">("all");
 
   // Sync state if currentUser changes (e.g. from background refetches)
   useEffect(() => {
@@ -319,11 +320,11 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none bg-black">
+    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
       <div className="max-w-[900px] mx-auto px-4 py-8">
         <div className="flex items-center gap-3.5 mb-8">
-          <SettingsIcon size={24} className="text-[#888]" />
-          <h1 className="text-2xl font-bold tracking-tight text-gray-100">Settings</h1>
+          <SettingsIcon size={24} className="text-[var(--text3)]" />
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">Settings</h1>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -341,8 +342,8 @@ export default function Settings() {
                 onClick={() => setActiveSection(section.id as any)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left text-[14px] font-semibold transition cursor-pointer ${
                   activeSection === section.id
-                    ? "bg-[#1a1a1a] text-white"
-                    : "text-zinc-400 hover:text-white hover:bg-[#111]"
+                    ? "bg-[var(--surface3)] text-[var(--text)]"
+                    : "text-[var(--text2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
                 }`}
               >
                 {section.icon}
@@ -352,7 +353,7 @@ export default function Settings() {
           </nav>
 
           {/* Section Content */}
-          <div className="md:col-span-3 bg-[#0c0c0c] border border-zinc-900 rounded-2xl p-6 relative">
+          <div className="md:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 relative">
             {/* General Section */}
             {activeSection === "general" && (
               <form onSubmit={handleSaveGeneral} className="space-y-5">
@@ -370,7 +371,7 @@ export default function Settings() {
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-[#141414] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                         required
                       />
                     </div>
@@ -382,7 +383,7 @@ export default function Settings() {
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-[#141414] border border-zinc-800 rounded-xl px-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+                      className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                       required
                     />
                   </div>
@@ -395,7 +396,7 @@ export default function Settings() {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-[#141414] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                         required
                       />
                     </div>
@@ -410,7 +411,7 @@ export default function Settings() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="e.g. +123456789"
-                        className="w-full bg-[#141414] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                       />
                     </div>
                   </div>
@@ -420,7 +421,7 @@ export default function Settings() {
                   <button
                     type="submit"
                     disabled={savingGeneral}
-                    className="bg-white text-black text-[13px] font-bold px-6 py-2.5 rounded-xl hover:bg-zinc-200 transition disabled:opacity-50"
+                    className="bg-[var(--text)] text-[var(--bg)] text-[13px] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition disabled:opacity-50"
                   >
                     {savingGeneral ? "Saving..." : "Save Changes"}
                   </button>
@@ -446,7 +447,7 @@ export default function Settings() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#141414] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                         required
                       />
                     </div>
@@ -461,7 +462,7 @@ export default function Settings() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#141414] border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                         required
                       />
                     </div>
@@ -472,7 +473,7 @@ export default function Settings() {
                   <button
                     type="submit"
                     disabled={changingPass}
-                    className="bg-white text-black text-[13px] font-bold px-6 py-2.5 rounded-xl hover:bg-zinc-200 transition disabled:opacity-50"
+                    className="bg-[var(--text)] text-[var(--bg)] text-[13px] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition disabled:opacity-50"
                   >
                     {changingPass ? "Changing..." : "Change Password"}
                   </button>
@@ -515,9 +516,9 @@ export default function Settings() {
                       set: setPrivateDays,
                     },
                   ].map((priv, idx) => (
-                    <div key={idx} className="flex items-start justify-between p-3 rounded-xl hover:bg-[#111] transition">
+                    <div key={idx} className="flex items-start justify-between p-3 rounded-xl hover:bg-[var(--surface3)] transition">
                       <div className="flex-1 pr-4">
-                        <span className="text-[14px] font-bold text-gray-200">{priv.label}</span>
+                        <span className="text-[14px] font-bold text-[var(--text)]">{priv.label}</span>
                         <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{priv.desc}</p>
                       </div>
                       <button
@@ -540,7 +541,7 @@ export default function Settings() {
                   <button
                     onClick={handleSavePrivacy}
                     disabled={savingPrivacy}
-                    className="bg-white text-black text-[13px] font-bold px-6 py-2.5 rounded-xl hover:bg-zinc-200 transition disabled:opacity-50"
+                    className="bg-[var(--text)] text-[var(--bg)] text-[13px] font-bold px-6 py-2.5 rounded-xl hover:opacity-90 transition disabled:opacity-50"
                   >
                     {savingPrivacy ? "Saving..." : "Save Privacy Rules"}
                   </button>
@@ -550,9 +551,6 @@ export default function Settings() {
 
             {/* Activity Log Section */}
             {activeSection === "activity" && (() => {
-              // Local state for category filtering
-              const [selectedFilter, setSelectedFilter] = React.useState<"all" | "reaction" | "comment" | "save" | "story_view" | "reply" | "watch">("all");
-
               const filters = [
                 { id: "all", label: "All" },
                 { id: "reaction", label: "Reactions" },
@@ -582,10 +580,10 @@ export default function Settings() {
                         key={f.id}
                         type="button"
                         onClick={() => setSelectedFilter(f.id as any)}
-                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition border border-[#222] whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition border border-[var(--border)] whitespace-nowrap ${
                           selectedFilter === f.id
-                            ? "bg-white text-black border-white"
-                            : "bg-[#141414] text-zinc-400 hover:text-white"
+                            ? "bg-[var(--text)] text-[var(--bg)] border-[var(--text)]"
+                            : "bg-[var(--surface2)] text-[var(--text2)] hover:text-[var(--text)]"
                         }`}
                       >
                         {f.label}
@@ -600,7 +598,7 @@ export default function Settings() {
                       <div className="text-center py-10 text-zinc-500 text-sm font-semibold">No activity recorded under this category.</div>
                     ) : (
                       filteredActivities.map((act, idx) => (
-                        <div key={idx} className="flex flex-col p-3 rounded-xl bg-[#141414] border border-zinc-900/60 gap-1.5 select-text">
+                        <div key={idx} className="flex flex-col p-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] gap-1.5 select-text">
                           <span className="text-[13px] text-zinc-200 font-semibold leading-relaxed">{act.text}</span>
                           <div className="flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
                             <span>{act.category.replace("_", " ")}</span>
@@ -634,12 +632,12 @@ export default function Settings() {
                       onClick={() => handleThemeChange(theme.id as any)}
                       className={`flex flex-col items-center gap-3 p-6 rounded-2xl border transition cursor-pointer text-center ${
                         activeTheme === theme.id
-                          ? "border-white bg-[#1a1a1a]"
-                          : "border-zinc-800 bg-[#141414] opacity-65 hover:opacity-100"
+                          ? "border-[var(--text)] bg-[var(--surface3)]"
+                          : "border-[var(--border)] bg-[var(--surface2)] opacity-65 hover:opacity-100"
                       }`}
                     >
                       {theme.icon}
-                      <span className="text-[14px] font-bold text-gray-200">{theme.label}</span>
+                      <span className="text-[14px] font-bold text-[var(--text)]">{theme.label}</span>
                       {activeTheme === theme.id && (
                         <div className="bg-[#2ecc71] text-white p-1 rounded-full text-xs">
                           <Check size={12} />

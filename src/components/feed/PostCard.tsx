@@ -49,7 +49,7 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
           onMouseLeave={onMouseLeave}
           className={`absolute ${
             anchorBottom ? "bottom-[calc(100%+8px)] left-0" : "bottom-4 left-1/2 -translate-x-1/2"
-          } flex items-end gap-1 bg-[#111]/95 backdrop-blur-xl border border-white/10 rounded-full px-3 py-2 shadow-2xl z-50 select-none`}
+          } flex items-end gap-1 bg-[var(--surface2)]/95 backdrop-blur-xl border border-[var(--border)] rounded-full px-3 py-2 shadow-2xl z-50 select-none`}
           onClick={(e) => e.stopPropagation()}
         >
           {REACTIONS.map((r, idx) => (
@@ -776,14 +776,14 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-[24px] mb-6 overflow-hidden w-full text-white shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+    <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-[24px] mb-6 overflow-hidden w-full text-[var(--text)] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 p-3.5 select-none">
         <img
           src={post.user.img}
           className={`w-[38px] h-[38px] rounded-full object-cover cursor-pointer ${
-            post.hasStory ? "p-[2px] bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]" : "border border-[#222]"
+            post.hasStory ? "p-[2px] bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]" : "border border-[var(--border)]"
           }`}
           alt={post.user.name}
           onClick={() => handleUserClick(post.user.name)}
@@ -801,8 +801,8 @@ export default function PostCard({ post }: PostCardProps) {
                   onClick={() => toggleFollow(post.user.id)}
                   className={`text-[12px] font-bold cursor-pointer transition ${
                     followStates[post.user.id] || followStates[post.user.name]
-                      ? "text-zinc-500 hover:text-white"
-                      : "text-insta-blue hover:text-white"
+                      ? "text-zinc-500 hover:text-[var(--text)]"
+                      : "text-insta-blue hover:text-[var(--text)]"
                   }`}
                 >
                   {followStates[post.user.id] || followStates[post.user.name] ? "Following" : "Follow"}
@@ -810,10 +810,10 @@ export default function PostCard({ post }: PostCardProps) {
               </>
             )}
           </div>
-          {post.location && <div className="text-[11px] text-[#a8a8a8]">{post.location}</div>}
+          {post.location && <div className="text-[11px] text-[var(--text2)]">{post.location}</div>}
         </div>
         <div className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="text-[#a8a8a8] hover:text-white p-1 cursor-pointer">
+          <button onClick={() => setShowMenu(!showMenu)} className="text-[var(--text2)] hover:text-[var(--text)] p-1 cursor-pointer">
             <MoreHorizontal size={18} />
           </button>
           <AnimatePresence>
@@ -823,12 +823,12 @@ export default function PostCard({ post }: PostCardProps) {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.1 }}
-                  className="absolute right-0 mt-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl w-40 shadow-xl overflow-hidden z-50 text-[13px]"
+                  className="absolute right-0 mt-2 bg-[var(--surface2)] border border-[var(--border)] rounded-xl w-40 shadow-xl overflow-hidden z-50 text-[13px]"
                 >
-                  <div onClick={() => { setReportPostId(post.id); setShowMenu(false); }} className="p-3 text-red-500 hover:bg-[#222] cursor-pointer">🚩 Report</div>
-                  <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🚫 Not interested</div>
-                  <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">➕ Follow</div>
-                  <div onClick={() => { setSharePostId(post.id); setShowMenu(false); }} className="p-3 hover:bg-[#222] cursor-pointer border-t border-[#222]">🔗 Share</div>
+                  <div onClick={() => { setReportPostId(post.id); setShowMenu(false); }} className="p-3 text-red-500 hover:bg-[var(--surface3)] cursor-pointer">🚩 Report</div>
+                  <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🚫 Not interested</div>
+                  <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">➕ Follow</div>
+                  <div onClick={() => { setSharePostId(post.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🔗 Share</div>
                 </motion.div>
               </>
             )}
@@ -981,7 +981,7 @@ export default function PostCard({ post }: PostCardProps) {
               <motion.div
                 initial={{ opacity: 0, scale: 0.7, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.7, y: 12 }} transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[#111]/95 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
+                className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-end gap-1.5 bg-[var(--surface2)]/95 backdrop-blur-2xl border border-[var(--border)] rounded-full px-4 py-2.5 shadow-2xl z-40 select-none"
                 onPointerUp={(e) => e.stopPropagation()}
               >
                 {REACTIONS.map((r, idx) => (
@@ -1005,17 +1005,17 @@ export default function PostCard({ post }: PostCardProps) {
 
         {/* NSFW Blurred Overlay */}
         {showNsfwOverlay && (
-          <div className="absolute inset-0 bg-[#0a0a0af2] backdrop-blur-3xl z-30 flex flex-col items-center justify-center p-6 text-center select-text">
+          <div className="absolute inset-0 bg-[var(--bg)]/95 backdrop-blur-3xl z-30 flex flex-col items-center justify-center p-6 text-center select-text">
             <span className="text-[36px] mb-3">🔞</span>
-            <h4 className="text-[17px] font-bold text-white mb-1">Sensitive Content</h4>
-            <p className="text-[12px] text-gray-400 max-w-[240px] mb-6 leading-relaxed">
+            <h4 className="text-[17px] font-bold text-[var(--text)] mb-1">Sensitive Content</h4>
+            <p className="text-[12px] text-[var(--text2)] max-w-[240px] mb-6 leading-relaxed">
               This post may contain adult or sensitive content.
             </p>
             <div className="flex flex-col gap-2.5 w-full max-w-[200px]">
               <button
                 type="button"
                 onClick={() => setRevealed(true)}
-                className="w-full py-2.5 rounded-full bg-white text-black font-extrabold text-[12px] hover:bg-gray-200 transition active:scale-95 cursor-pointer shadow-md"
+                className="w-full py-2.5 rounded-full bg-[var(--text)] text-[var(--bg)] font-extrabold text-[12px] hover:opacity-90 transition active:scale-95 cursor-pointer shadow-md"
               >
                 See NSFW Post
               </button>
@@ -1023,7 +1023,7 @@ export default function PostCard({ post }: PostCardProps) {
                 <button
                   type="button"
                   onClick={handleUnflag}
-                  className="w-full py-2.5 rounded-full bg-transparent hover:bg-white/5 border border-white/20 text-white font-bold text-[11px] transition active:scale-95 cursor-pointer"
+                  className="w-full py-2.5 rounded-full bg-transparent hover:bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] font-bold text-[11px] transition active:scale-95 cursor-pointer"
                 >
                   This is not NSFW Post
                 </button>
@@ -1082,30 +1082,30 @@ export default function PostCard({ post }: PostCardProps) {
           ))}
         </div>
         <span>{formatLikes(localLikes)}</span>
-        <span className="font-normal text-[#a8a8a8]">{localLikes === 1 ? 'reaction' : 'reactions'}</span>
+        <span className="font-normal text-[var(--text2)]">{localLikes === 1 ? 'reaction' : 'reactions'}</span>
       </div>
 
       {/* Caption */}
       {!post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] leading-relaxed">
-          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline">{post.user.name}</span>
+          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
           {formatCaption(post.caption)}
         </div>
       )}
       {post.isTextOnly && (
-        <div className="px-3.5 py-1 text-[13px] text-[#a8a8a8]">
+        <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
           <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-white">{post.user.name}</span>
           Text post
         </div>
       )}
 
       {/* Comments link */}
-      <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[#a8a8a8] cursor-pointer hover:text-white transition">
+      <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
         {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
       </div>
 
       {/* Time */}
-      <div className="px-3.5 pt-0.5 pb-3.5 text-[11px] text-[#555] uppercase tracking-wider">
+      <div className="px-3.5 pt-0.5 pb-3.5 text-[11px] text-[var(--text3)] uppercase tracking-wider">
         {post.time} · AURAGRAM
       </div>
 
@@ -1122,7 +1122,7 @@ export default function PostCard({ post }: PostCardProps) {
           type="text"
           placeholder="Add a comment…"
           readOnly
-          className="flex-1 bg-transparent border-none text-[13px] text-white outline-none placeholder-[#666] cursor-pointer"
+          className="flex-1 bg-transparent border-none text-[13px] text-[var(--text)] outline-none placeholder-[var(--text3)] cursor-pointer"
         />
         <button type="button" className="text-[#3897f0] font-bold text-[13px]">
           Post

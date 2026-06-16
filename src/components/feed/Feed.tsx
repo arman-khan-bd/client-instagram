@@ -7,30 +7,30 @@ import PostCard from "./PostCard";
 import RightSidebar from "./RightSidebar";
 
 const PostSkeleton = () => (
-  <div className="bg-[#121212] border border-zinc-900 rounded-[24px] mb-6 p-4 w-full animate-pulse select-none">
+  <div className="bg-[var(--surface)] border border-[var(--border)] backdrop-blur-md rounded-[24px] mb-6 p-4 w-full animate-pulse select-none">
     {/* Header Skeleton */}
     <div className="flex items-center gap-3 mb-4">
-      <div className="w-[38px] h-[38px] rounded-full bg-zinc-800" />
+      <div className="w-[38px] h-[38px] rounded-full bg-zinc-800/40" />
       <div className="flex-1 space-y-2">
-        <div className="h-3.5 bg-zinc-800 rounded w-1/3" />
-        <div className="h-2.5 bg-zinc-800 rounded w-1/4" />
+        <div className="h-3.5 bg-zinc-800/40 rounded w-1/3" />
+        <div className="h-2.5 bg-zinc-800/40 rounded w-1/4" />
       </div>
     </div>
     {/* Media Image Skeleton */}
-    <div className="aspect-square bg-zinc-900 rounded-2xl mb-4 w-full" />
+    <div className="aspect-square bg-zinc-900/40 rounded-2xl mb-4 w-full" />
     {/* Actions Skeleton */}
     <div className="flex items-center gap-4 mb-4">
-      <div className="w-6 h-6 bg-zinc-800 rounded-full" />
-      <div className="w-6 h-6 bg-zinc-800 rounded-full" />
-      <div className="w-6 h-6 bg-zinc-800 rounded-full" />
-      <div className="w-6 h-6 bg-zinc-800 rounded-full ml-auto" />
+      <div className="w-6 h-6 bg-zinc-800/40 rounded-full" />
+      <div className="w-6 h-6 bg-zinc-800/40 rounded-full" />
+      <div className="w-6 h-6 bg-zinc-800/40 rounded-full" />
+      <div className="w-6 h-6 bg-zinc-800/40 rounded-full ml-auto" />
     </div>
     {/* Likes Skeleton */}
-    <div className="h-3 bg-zinc-800 rounded w-1/4 mb-3" />
+    <div className="h-3 bg-zinc-800/40 rounded w-1/4 mb-3" />
     {/* Caption Skeleton */}
     <div className="space-y-2">
-      <div className="h-3 bg-zinc-800 rounded w-5/6" />
-      <div className="h-3 bg-zinc-800 rounded w-2/3" />
+      <div className="h-3 bg-zinc-800/40 rounded w-5/6" />
+      <div className="h-3 bg-zinc-800/40 rounded w-2/3" />
     </div>
   </div>
 );

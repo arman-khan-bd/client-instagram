@@ -45,13 +45,13 @@ export default function RightSidebar() {
   };
 
   return (
-    <div className="hidden lg:block w-[260px] shrink-0 text-white select-none">
+    <div className="hidden lg:block w-[260px] shrink-0 text-[var(--text)] select-none">
       {/* Current User Card */}
       <div className="flex items-center gap-3 mb-6.5">
         <img
           src={currentUser?.img || "https://i.pravatar.cc/150?img=1"}
           alt="me"
-          className="w-12 h-12 rounded-full object-cover border border-[#222] cursor-pointer"
+          className="w-12 h-12 rounded-full object-cover border border-[var(--border)] cursor-pointer"
           onClick={handleSelfProfileClick}
         />
         <div className="flex-1 min-w-0">
@@ -61,13 +61,13 @@ export default function RightSidebar() {
           >
             {currentUser?.name || "alex_dev"}
           </div>
-          <div className="text-[12px] text-[#a8a8a8] truncate">
+          <div className="text-[12px] text-[var(--text2)] truncate">
             {currentUser?.full || "Alex Developer"}
           </div>
         </div>
         <button
           onClick={() => {}}
-          className="text-[#3897f0] font-semibold text-[12px] hover:text-white transition cursor-pointer"
+          className="text-[#3897f0] font-semibold text-[12px] hover:text-[var(--text)] transition cursor-pointer"
         >
           Switch
         </button>
@@ -75,10 +75,10 @@ export default function RightSidebar() {
 
       {/* Suggestions Header */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-[13px] font-bold text-[#a8a8a8]">Suggested for you</span>
+        <span className="text-[13px] font-bold text-[var(--text2)]">Suggested for you</span>
         <button
           onClick={() => setActiveTab("search")}
-          className="text-[12px] font-bold text-[#f5f5f5] hover:text-[#a8a8a8] transition cursor-pointer"
+          className="text-[12px] font-bold text-[var(--text)] hover:text-[var(--text2)] transition cursor-pointer"
         >
           See all
         </button>
@@ -92,7 +92,7 @@ export default function RightSidebar() {
             <div key={u.id} className="flex items-center gap-2.5">
               <img
                 src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
-                className="w-[38px] h-[38px] rounded-full object-cover cursor-pointer border border-[#222]"
+                className="w-[38px] h-[38px] rounded-full object-cover cursor-pointer border border-[var(--border)]"
                 alt={u.username}
                 onClick={() => handleUserClick(u.username)}
               />
@@ -104,14 +104,14 @@ export default function RightSidebar() {
                   {u.username}
                   {u.isVerified && <span className="verified-badge" title="Verified" />}
                 </div>
-                <div className="text-[11px] text-[#a8a8a8] truncate">
+                <div className="text-[11px] text-[var(--text2)] truncate">
                   {u.fullName || u.username}
                 </div>
               </div>
               <button
                 onClick={() => toggleFollow(u.id)}
                 className={`text-[12px] font-bold cursor-pointer transition ${
-                  isFollowing ? "text-[#a8a8a8] hover:text-white" : "text-[#3897f0] hover:text-white"
+                  isFollowing ? "text-[var(--text2)] hover:text-[var(--text)]" : "text-[#3897f0] hover:text-[var(--text)]"
                 }`}
               >
                 {isFollowing ? "Following" : "Follow"}
@@ -122,7 +122,7 @@ export default function RightSidebar() {
       </div>
 
       {/* Footer */}
-      <div className="text-[10px] text-[#666] leading-relaxed select-text">
+      <div className="text-[10px] text-[var(--text3)] leading-relaxed select-text">
         <a href="#" className="hover:underline">About</a> ·{" "}
         <a href="#" className="hover:underline">Help</a> ·{" "}
         <a href="#" className="hover:underline">Press</a> ·{" "}

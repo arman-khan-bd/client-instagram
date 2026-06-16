@@ -61,13 +61,13 @@ export default function StoriesBar() {
   };
 
   return (
-    <div className="bg-[#111] border border-[#222] rounded-2xl p-4.5 mb-5 select-none w-full relative group/bar">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4.5 mb-5 select-none w-full relative group/bar">
       
       {/* Desktop Navigation Left Button */}
       {showLeftBtn && (
         <button
           onClick={() => handleScrollClick("left")}
-          className="hidden md:flex absolute left-3.5 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-black/85 border border-zinc-800 items-center justify-center text-white cursor-pointer hover:bg-black transition shadow-lg"
+          className="hidden md:flex absolute left-3.5 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-[var(--surface3)] border border-[var(--border)] items-center justify-center text-[var(--text)] cursor-pointer hover:bg-[var(--surface)] transition shadow-lg"
           title="Scroll Left"
         >
           <ChevronLeft size={16} />
@@ -78,7 +78,7 @@ export default function StoriesBar() {
       {showRightBtn && (
         <button
           onClick={() => handleScrollClick("right")}
-          className="hidden md:flex absolute right-3.5 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-black/85 border border-zinc-800 items-center justify-center text-white cursor-pointer hover:bg-black transition shadow-lg"
+          className="hidden md:flex absolute right-3.5 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-[var(--surface3)] border border-[var(--border)] items-center justify-center text-[var(--text)] cursor-pointer hover:bg-[var(--surface)] transition shadow-lg"
           title="Scroll Right"
         >
           <ChevronRight size={16} />
@@ -94,18 +94,18 @@ export default function StoriesBar() {
           <div className="relative">
             <div
               onClick={handleAddStory}
-              className="w-[60px] h-[60px] rounded-full bg-[#1a1a1a] border-2 border-dashed border-[#333] flex items-center justify-center text-xl font-bold text-gray-300 hover:text-white transition cursor-pointer"
+              className="w-[60px] h-[60px] rounded-full bg-[var(--surface2)] border-2 border-dashed border-[var(--border)] flex items-center justify-center text-xl font-bold text-[var(--text2)] hover:text-[var(--text)] transition cursor-pointer"
             >
               ➕
             </div>
             <div
               onClick={handleAddStory}
-              className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white border-2 border-[#111] font-bold text-xs cursor-pointer select-none"
+              className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white border-2 border-[var(--bg)] font-bold text-xs cursor-pointer select-none"
             >
               +
             </div>
           </div>
-          <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+          <span className="text-[11px] text-[var(--text2)] text-center max-w-[64px] truncate">
             Add story
           </span>
         </div>
@@ -118,12 +118,12 @@ export default function StoriesBar() {
           >
             <div className="w-[60px] h-[60px] rounded-full p-[2px] bg-[linear-gradient(45deg,#f09433_0%,#e6683c_25%,#dc2743_50%,#cc2366_75%,#bc1888_100%)]">
               <img
-                className="w-full h-full rounded-full border-2 border-[#111] object-cover"
+                className="w-full h-full rounded-full border-2 border-[var(--bg)] object-cover"
                 src={currentUser?.img || "https://i.pravatar.cc/150?img=1"}
                 alt="Your story"
               />
             </div>
-            <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+            <span className="text-[11px] text-[var(--text2)] text-center max-w-[64px] truncate">
               Your story
             </span>
           </div>
@@ -142,13 +142,13 @@ export default function StoriesBar() {
             >
               <div className="w-[60px] h-[60px] rounded-full p-[2px] bg-[linear-gradient(45deg,#f09433_0%,#e6683c_25%,#dc2743_50%,#cc2366_75%,#bc1888_100%)]">
                 <img
-                  className="w-full h-full rounded-full border-2 border-[#111] object-cover"
+                  className="w-full h-full rounded-full border-2 border-[var(--bg)] object-cover"
                   src={group.avatarUrl}
                   alt={group.username}
                   loading="lazy"
                 />
               </div>
-              <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+              <span className="text-[11px] text-[var(--text2)] text-center max-w-[64px] truncate">
                 {group.username}
               </span>
             </div>
