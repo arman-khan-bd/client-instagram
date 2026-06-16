@@ -24,6 +24,7 @@ import {
   Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 
 interface TvChannel {
   id: number;
@@ -613,7 +614,7 @@ export default function TvPortal() {
         </AnimatePresence>
 
         {/* Video Player Section */}
-        <div className="flex-1 flex items-center justify-center p-0 sm:p-4 md:p-8 bg-[#040406] min-h-0">
+        <div className="flex-1 flex items-center justify-center p-0 sm:p-4 md:p-8 bg-[#040406] min-h-[180px] sm:min-h-0">
           {selectedChannel ? (
             <div 
               ref={playerContainerRef}
@@ -843,34 +844,37 @@ export default function TvPortal() {
                 exit={{ height: 0, opacity: 0 }}
                 className="p-3 pb-5 overflow-hidden"
               >
-                <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-1">
-                  {filteredChannels.map((channel) => (
-                    <button
-                      key={channel.id}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedChannel(channel);
-                      }}
-                      className={`snap-start flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition shrink-0 text-left cursor-pointer border relative z-10 ${
-                        selectedChannel?.id === channel.id
-                          ? "bg-white/[0.08] border-[#FF2E93]/60"
-                          : "bg-white/[0.02] border-transparent hover:bg-white/[0.04]"
-                      }`}
-                    >
-                      {/* Logo 20x20px */}
-                      <div className="w-[20px] h-[20px] rounded-md bg-zinc-800/80 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
-                        {channel.logoUrl ? (
-                          <img src={channel.logoUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <Tv size={10} className="text-zinc-400" />
-                        )}
-                      </div>
-                      {/* Name */}
-                      <p className="text-[10px] font-bold text-zinc-200 truncate max-w-[80px] select-none">{channel.name}</p>
-                    </button>
-                  ))}
-                </div>
+                <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+                  <CarouselContent className="-ml-2">
+                    {filteredChannels.map((channel) => (
+                      <CarouselItem key={channel.id} className="pl-2 basis-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedChannel(channel);
+                          }}
+                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition text-left cursor-pointer border relative z-10 ${
+                            selectedChannel?.id === channel.id
+                              ? "bg-white/[0.08] border-[#FF2E93]/60"
+                              : "bg-white/[0.02] border-transparent hover:bg-white/[0.04]"
+                          }`}
+                        >
+                          {/* Logo 20x20px */}
+                          <div className="w-[20px] h-[20px] rounded-md bg-zinc-800/80 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
+                            {channel.logoUrl ? (
+                              <img src={channel.logoUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Tv size={10} className="text-zinc-400" />
+                            )}
+                          </div>
+                          {/* Name */}
+                          <p className="text-[10px] font-bold text-zinc-200 truncate max-w-[80px] select-none">{channel.name}</p>
+                        </button>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
               </motion.div>
             )}
           </AnimatePresence>
