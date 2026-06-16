@@ -172,12 +172,24 @@ export default function TvPortal() {
           .catch((err) => console.log("Auto-play blocked:", err));
       });
 
+      let networkRetryCount = 0;
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.warn("HLS network error, trying to recover...", data);
-              hls.startLoad();
+              if (networkRetryCount < 3) {
+                networkRetryCount++;
+                setTimeout(() => {
+                  if (hlsRef.current) {
+                    hlsRef.current.startLoad();
+                  }
+                }, 2000);
+              } else {
+                console.error("HLS network error recovery failed after 3 retries");
+                setVideoError(true);
+                hls.destroy();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.warn("HLS media error, trying to recover...", data);
@@ -373,7 +385,7 @@ export default function TvPortal() {
     <div className="flex flex-col lg:flex-row h-[calc(100vh-54px)] sm:h-screen w-full bg-[#0a0a0c] text-white overflow-hidden">
       
       {/* Channels List Sidebar (Left / Top on Mobile) */}
-      <div className="w-full lg:w-[320px] shrink-0 bg-[#121216]/60 backdrop-blur-md border-r border-white/[0.06] flex flex-col h-[300px] lg:h-full">
+      <div className="hidden lg:flex lg:w-[320px] shrink-0 bg-[#121216]/60 backdrop-blur-md border-r border-white/[0.06] flex-col h-full">
         {/* Sidebar Header */}
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -685,6 +697,37 @@ export default function TvPortal() {
               <p className="text-sm">Select a channel from the left sidebar to start streaming.</p>
             </div>
           )}
+        </div>
+
+        {/* Bottom Carousel for mobile channel list */}
+        <div className="lg:hidden w-full bg-[#121216]/80 backdrop-blur-md border-t border-white/[0.06] p-4 pb-6 shrink-0 overflow-hidden">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 mb-2 px-1">
+            Live TV Channels
+          </p>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-1">
+            {filteredChannels.map((channel) => (
+              <button
+                key={channel.id}
+                onClick={() => setSelectedChannel(channel)}
+                className={`snap-start flex flex-col items-center gap-1.5 p-2 rounded-xl transition w-[75px] shrink-0 text-center ${
+                  selectedChannel?.id === channel.id
+                    ? "bg-white/[0.08] border border-[#FF2E93]/60"
+                    : "bg-white/[0.02] border border-transparent hover:bg-white/[0.04]"
+                }`}
+              >
+                {/* Logo 50x50px */}
+                <div className="w-[50px] h-[50px] rounded-xl bg-zinc-800/80 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
+                  {channel.logoUrl ? (
+                    <img src={channel.logoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Tv size={22} className="text-zinc-400" />
+                  )}
+                </div>
+                {/* Name */}
+                <p className="text-[9px] font-bold text-zinc-200 truncate w-full select-none">{channel.name}</p>
+              </button>
+            ))}
+          </div>
         </div>
 
       </div>
