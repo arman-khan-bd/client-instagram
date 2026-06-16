@@ -24,7 +24,7 @@ import {
   Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "../ui/carousel";
 
 interface TvChannel {
   id: number;
@@ -59,6 +59,7 @@ export default function TvPortal() {
   const [showControls, setShowControls] = useState(true);
   const [isCarouselExpanded, setIsCarouselExpanded] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
 
   const resetControlsTimeout = () => {
     if (controlsTimeoutRef.current) {
@@ -429,6 +430,15 @@ export default function TvPortal() {
     const matchesCategory = selectedCategory === "All" || c.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Auto-scroll carousel to selected channel item
+  useEffect(() => {
+    if (!carouselApi || !selectedChannel) return;
+    const index = filteredChannels.findIndex((c) => c.id === selectedChannel.id);
+    if (index !== -1) {
+      carouselApi.scrollTo(index, false);
+    }
+  }, [selectedChannel, carouselApi, filteredChannels]);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || seconds === Infinity) return "00:00";
@@ -844,7 +854,7 @@ export default function TvPortal() {
                 exit={{ height: 0, opacity: 0 }}
                 className="p-3 pb-5 overflow-hidden"
               >
-                <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+                <Carousel opts={{ align: "start", dragFree: true }} setApi={setCarouselApi} className="w-full">
                   <CarouselContent className="-ml-2">
                     {filteredChannels.map((channel) => (
                       <CarouselItem key={channel.id} className="pl-2 basis-auto">
