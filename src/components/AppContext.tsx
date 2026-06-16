@@ -196,7 +196,7 @@ interface AppContextType {
   deleteMessage: (messageId: number) => Promise<void>;
   reactToMessage: (messageId: number, emoji: string) => Promise<void>;
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
-  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }) => Promise<void>;
+  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }) => Promise<AppContextType["currentUser"]>;
   refetchCurrentUser: () => Promise<void>;
 
