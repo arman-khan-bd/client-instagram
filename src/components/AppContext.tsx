@@ -804,7 +804,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const fallback = INITIAL_DM_MESSAGES[conversationId] || [];
         return {
           ...prev,
-          [conversationId]: mapped.length > 0 ? mapped : fallback
+          [conversationId]: [...fallback, ...mapped]
         };
       });
     } catch (err) {
