@@ -63,19 +63,19 @@ export default function Settings() {
     try {
       const logs: any[] = [];
 
-      // 1. Fetch Likes
+      // 1. Fetch Likes (Mapped to 'reaction')
       const { data: likes } = await supabase
         .from("Like")
         .select("createdAt, Post(id, caption)")
         .eq("userId", currentUser.id)
         .order("createdAt", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (likes) {
         likes.forEach((l: any) => {
           if (l.Post) {
             logs.push({
-              type: "like",
+              category: "reaction",
               text: `You liked post: "${l.Post.caption || 'Photo/Video'}"`,
               date: new Date(l.createdAt),
             });
@@ -83,19 +83,39 @@ export default function Settings() {
         });
       }
 
-      // 2. Fetch Comments
+      // Fetch Reaction table (Facebook reactions - Mapped to 'reaction')
+      const { data: reactions } = await supabase
+        .from("Reaction")
+        .select("createdAt, type, Post(id, caption)")
+        .eq("userId", currentUser.id)
+        .order("createdAt", { ascending: false })
+        .limit(30);
+
+      if (reactions) {
+        reactions.forEach((r: any) => {
+          if (r.Post) {
+            logs.push({
+              category: "reaction",
+              text: `You reacted ${r.type} to post: "${r.Post.caption || 'Photo/Video'}"`,
+              date: new Date(r.createdAt),
+            });
+          }
+        });
+      }
+
+      // 2. Fetch Comments (Mapped to 'comment')
       const { data: comments } = await supabase
         .from("Comment")
         .select("createdAt, text, Post(id, caption)")
         .eq("userId", currentUser.id)
         .order("createdAt", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (comments) {
         comments.forEach((c: any) => {
           if (c.Post) {
             logs.push({
-              type: "comment",
+              category: "comment",
               text: `You commented "${c.text}" on post: "${c.Post.caption || 'Photo/Video'}"`,
               date: new Date(c.createdAt),
             });
@@ -103,19 +123,19 @@ export default function Settings() {
         });
       }
 
-      // 3. Fetch Saved posts
+      // 3. Fetch Saved posts (Mapped to 'save')
       const { data: saves } = await supabase
         .from("Save")
         .select("createdAt, Post(id, caption)")
         .eq("userId", currentUser.id)
         .order("createdAt", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (saves) {
         saves.forEach((s: any) => {
           if (s.Post) {
             logs.push({
-              type: "save",
+              category: "save",
               text: `You saved post: "${s.Post.caption || 'Photo/Video'}"`,
               date: new Date(s.createdAt),
             });
@@ -123,43 +143,52 @@ export default function Settings() {
         });
       }
 
-      // 4. Fetch Story Interactions (views/replies)
+      // 4. Fetch Story Interactions (views/likes mapped to 'story_view', replies mapped to 'reply', reactions to 'reaction')
       const { data: interactions } = await supabase
         .from("StoryInteraction")
-        .select("createdAt, type, value, Story(id, caption)")
+        .select("createdAt, type, value")
         .eq("userId", currentUser.id)
         .order("createdAt", { ascending: false })
-        .limit(20);
+        .limit(40);
 
       if (interactions) {
         interactions.forEach((i: any) => {
+          let category = "story_view";
           let description = "You viewed a story";
-          if (i.type === "like") description = "You liked a story";
-          if (i.type === "reaction") description = `You reacted "${i.value}" to a story`;
-          if (i.type === "message") description = `You replied "${i.value}" to a story`;
+
+          if (i.type === "like") {
+            category = "reaction";
+            description = "You liked a story";
+          } else if (i.type === "reaction") {
+            category = "reaction";
+            description = `You reacted "${i.value}" to a story`;
+          } else if (i.type === "message") {
+            category = "reply";
+            description = `You replied "${i.value}" to a story`;
+          }
           
           logs.push({
-            type: "story",
+            category,
             text: description,
             date: new Date(i.createdAt),
           });
         });
       }
 
-      // 5. Fetch Video Watches
+      // 5. Fetch Video Watches (Mapped to 'watch', duration removed)
       const { data: watches } = await supabase
         .from("VideoWatchLog")
-        .select("createdAt, duration, Post(id, caption)")
+        .select("createdAt, Post(id, caption)")
         .eq("userId", currentUser.id)
         .order("createdAt", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (watches) {
         watches.forEach((w: any) => {
           if (w.Post) {
             logs.push({
-              type: "watch",
-              text: `You watched video: "${w.Post.caption || 'Video'}" for ${Math.round(w.duration)}s`,
+              category: "watch",
+              text: `You watched video post: "${w.Post.caption || 'Video'}"`,
               date: new Date(w.createdAt),
             });
           }
@@ -168,7 +197,7 @@ export default function Settings() {
 
       // Sort logs by date descending
       logs.sort((a, b) => b.date.getTime() - a.date.getTime());
-      setActivities(logs.slice(0, 40));
+      setActivities(logs);
     } catch (err) {
       console.error("Failed to load activity logs:", err);
     } finally {
@@ -520,31 +549,72 @@ export default function Settings() {
             )}
 
             {/* Activity Log Section */}
-            {activeSection === "activity" && (
-              <div className="space-y-5">
-                <div>
-                  <h3 className="text-lg font-bold mb-1">Activity Log</h3>
-                  <p className="text-xs text-zinc-500 mb-4 font-medium">History of your likes, comments, story views, and video watches.</p>
-                </div>
+            {activeSection === "activity" && (() => {
+              // Local state for category filtering
+              const [selectedFilter, setSelectedFilter] = React.useState<"all" | "reaction" | "comment" | "save" | "story_view" | "reply" | "watch">("all");
 
-                <div className="space-y-3.5 max-h-[400px] overflow-y-auto custom-scroll pr-1.5">
-                  {loadingActivity ? (
-                    <div className="text-center py-10 text-zinc-500 text-sm">Loading activities...</div>
-                  ) : activities.length === 0 ? (
-                    <div className="text-center py-10 text-zinc-500 text-sm">No activity recorded yet.</div>
-                  ) : (
-                    activities.map((act, idx) => (
-                      <div key={idx} className="flex flex-col p-3 rounded-xl bg-[#141414] border border-zinc-900/60 gap-1 select-text">
-                        <span className="text-[13px] text-zinc-200 font-semibold leading-relaxed">{act.text}</span>
-                        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                          {act.date.toLocaleDateString()} {act.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    ))
-                  )}
+              const filters = [
+                { id: "all", label: "All" },
+                { id: "reaction", label: "Reactions" },
+                { id: "comment", label: "Comments" },
+                { id: "save", label: "Saves" },
+                { id: "story_view", label: "Story Views" },
+                { id: "reply", label: "Replies" },
+                { id: "watch", label: "Watched Videos" },
+              ];
+
+              const filteredActivities = activities.filter((act) => {
+                if (selectedFilter === "all") return true;
+                return act.category === selectedFilter;
+              });
+
+              return (
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-lg font-bold mb-1">Activity Log</h3>
+                    <p className="text-xs text-zinc-500 mb-4 font-medium">History of your actions sorted by categories.</p>
+                  </div>
+
+                  {/* Filter Tabs */}
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 shrink-0">
+                    {filters.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setSelectedFilter(f.id as any)}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide transition border border-[#222] whitespace-nowrap ${
+                          selectedFilter === f.id
+                            ? "bg-white text-black border-white"
+                            : "bg-[#141414] text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-3.5 max-h-[360px] overflow-y-auto custom-scroll pr-1.5">
+                    {loadingActivity ? (
+                      <div className="text-center py-10 text-zinc-500 text-sm font-semibold">Loading activities...</div>
+                    ) : filteredActivities.length === 0 ? (
+                      <div className="text-center py-10 text-zinc-500 text-sm font-semibold">No activity recorded under this category.</div>
+                    ) : (
+                      filteredActivities.map((act, idx) => (
+                        <div key={idx} className="flex flex-col p-3 rounded-xl bg-[#141414] border border-zinc-900/60 gap-1.5 select-text">
+                          <span className="text-[13px] text-zinc-200 font-semibold leading-relaxed">{act.text}</span>
+                          <div className="flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+                            <span>{act.category.replace("_", " ")}</span>
+                            <span>
+                              {act.date.toLocaleDateString()} {act.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Appearance Section */}
             {activeSection === "appearance" && (
