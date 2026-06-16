@@ -44,7 +44,7 @@ const COUNTRIES = [
 ];
 
 export default function EditProfileModal() {
-  const { showEditProfileModal, setShowEditProfileModal, currentUser, saveProfileChanges, showToast } = useApp();
+  const { showEditProfileModal, setShowEditProfileModal, currentUser, saveProfileChanges, refetchCurrentUser, showToast } = useApp();
 
   // Basic
   const [name, setName] = useState("");
@@ -73,6 +73,8 @@ export default function EditProfileModal() {
 
   const [activeSection, setActiveSection] = useState<Section>("basic");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const saveSuccessTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -94,9 +96,37 @@ export default function EditProfileModal() {
       setPhone(currentUser.phone || "");
       setHobbies(currentUser.hobbies || "");
       setInterests(currentUser.interests || "");
-      setActiveSection("basic");
+      // Only reset section on initial open, not on every currentUser update
     }
-  }, [currentUser, showEditProfileModal]);
+  }, [showEditProfileModal]); // Only re-init when modal opens
+
+  // Sync form when currentUser changes (e.g. after save updates it)
+  useEffect(() => {
+    if (currentUser && showEditProfileModal) {
+      setName(currentUser.full || "");
+      setUsername(currentUser.name || "");
+      setWeb(currentUser.web || "");
+      setBio(currentUser.bio || "");
+      setGender(currentUser.gender || "Prefer not to say");
+      setAvatarUrl(currentUser.img || "");
+      setCoverPhoto(currentUser.coverPhoto || "");
+      setEducation(currentUser.education || "");
+      setWork(currentUser.work || "");
+      setCity(currentUser.city || "");
+      setCountry(currentUser.country || "");
+      setHometown(currentUser.hometown || "");
+      setPhone(currentUser.phone || "");
+      setHobbies(currentUser.hobbies || "");
+      setInterests(currentUser.interests || "");
+    }
+  }, [currentUser]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveSuccessTimerRef.current) clearTimeout(saveSuccessTimerRef.current);
+    };
+  }, []);
 
   if (!showEditProfileModal) return null;
 
@@ -156,11 +186,22 @@ export default function EditProfileModal() {
     }
     try {
       setIsSaving(true);
+      setSaveSuccess(false);
+
+      // Save and get back the updated user object
       await saveProfileChanges({
         name, username, web, bio, gender, avatarUrl, coverPhoto,
         education, work, city, country, hometown, phone, hobbies, interests,
       });
-      handleClose();
+
+      // Show success state in the button (don't close modal)
+      setSaveSuccess(true);
+      if (saveSuccessTimerRef.current) clearTimeout(saveSuccessTimerRef.current);
+      saveSuccessTimerRef.current = setTimeout(() => setSaveSuccess(false), 3000);
+
+      // Background refetch to confirm DB data is in sync
+      refetchCurrentUser();
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -195,12 +236,21 @@ export default function EditProfileModal() {
           <button
             onClick={handleSave}
             disabled={isSaving || isUploading || isCoverUploading}
-            className="px-4 py-1.5 bg-[#3897f0] hover:bg-[#2d86d9] text-white rounded-lg text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+            className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 ${
+              saveSuccess
+                ? "bg-[#22c55e] text-white"
+                : "bg-[#3897f0] hover:bg-[#2d86d9] text-white"
+            }`}
           >
             {isSaving ? (
               <>
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
                 Saving...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <Check size={14} />
+                Saved!
               </>
             ) : (
               <>
@@ -543,13 +593,19 @@ export default function EditProfileModal() {
           <button
             onClick={handleSave}
             disabled={isSaving || isUploading || isCoverUploading}
-            className="flex-1 max-w-[160px] py-2.5 bg-[#3897f0] hover:bg-[#2d86d9] text-white rounded-xl text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className={`flex-1 max-w-[160px] py-2.5 rounded-xl text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              saveSuccess
+                ? "bg-[#22c55e] text-white"
+                : "bg-[#3897f0] hover:bg-[#2d86d9] text-white"
+            }`}
           >
             {isSaving ? (
               <>
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Saving...
               </>
+            ) : saveSuccess ? (
+              "Saved ✅"
             ) : (
               "Save Changes"
             )}

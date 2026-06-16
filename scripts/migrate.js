@@ -306,6 +306,18 @@ CREATE TABLE IF NOT EXISTS "Report" (
   "status"       TEXT        DEFAULT 'pending',
   "createdAt"    TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── Extended User Profile Fields ──────────────────────────────────────────────
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "education"   TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "work"        TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "city"        TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "country"     TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "hometown"    TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "phone"       TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "hobbies"     TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "interests"   TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "coverPhoto"  TEXT    DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "website"     TEXT    DEFAULT '';
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────

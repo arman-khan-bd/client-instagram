@@ -86,7 +86,7 @@ class ApiClient {
 
     const { data: user, error: dbError } = await supabase
       .from('User')
-      .select('id, username, email, fullName, bio, avatarUrl, isVerified')
+      .select('id, username, email, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website')
       .eq('id', authUser.id)
       .single();
 
@@ -613,7 +613,7 @@ class ApiClient {
   async getProfile(username: string) {
     const { data: user, error: userError } = await supabase
       .from('User')
-      .select('id, username, fullName, bio, avatarUrl, isVerified')
+      .select('id, username, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website')
       .eq('username', username)
       .single();
 

@@ -171,7 +171,8 @@ interface AppContextType {
   reactToMessage: (messageId: number, emoji: string) => Promise<void>;
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }) => Promise<void>;
-  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) => Promise<void>;
+  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) => Promise<AppContextType["currentUser"]>;
+  refetchCurrentUser: () => Promise<void>;
 
   // Share dialog
   sharePostId: number | null;
@@ -1512,10 +1513,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) => {
-    if (!currentUser) return;
+  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }): Promise<AppContextType["currentUser"]> => {
+    if (!currentUser) return null;
     try {
-      showToast("Updating profile... ⚡", "info");
+      showToast("Saving profile... ⚡", "info");
       await api.updateProfile({
         fullName: data.name,
         username: data.username,
@@ -1532,7 +1533,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         coverPhoto: data.coverPhoto,
       });
 
-      const updated = {
+      const updated: AppContextType["currentUser"] = {
         ...currentUser,
         full: data.name,
         name: data.username,
@@ -1555,10 +1556,50 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("insta_me", JSON.stringify(updated));
       }
       showToast("Profile saved! ✅", "success");
+
+      // Background: invalidate the profile cache so next time Profile renders
+      // it fetches fresh data from the server automatically.
+      if (typeof window !== "undefined") {
+        // Dispatch a custom event so Profile.tsx can bust its module-level cache
+        window.dispatchEvent(new CustomEvent("profile-updated", { detail: { username: data.username } }));
+      }
+
+      return updated;
     } catch (err: any) {
       console.error("Failed to save profile changes:", err);
       showToast(err.message || "Failed to update profile", "info");
       throw err;
+    }
+  };
+
+  // Refetch the current user's profile from the DB and update currentUser state
+  const refetchCurrentUser = async () => {
+    if (!currentUser?.name) return;
+    try {
+      const fresh = await api.getProfile(currentUser.name);
+      if (!fresh) return;
+      const updated: AppContextType["currentUser"] = {
+        ...currentUser,
+        full: fresh.fullName || currentUser.full,
+        bio: fresh.bio || currentUser.bio,
+        img: fresh.avatarUrl || currentUser.img,
+        education: fresh.education || "",
+        work: fresh.work || "",
+        city: fresh.city || "",
+        country: fresh.country || "",
+        hometown: fresh.hometown || "",
+        phone: fresh.phone || "",
+        hobbies: fresh.hobbies || "",
+        interests: fresh.interests || "",
+        coverPhoto: fresh.coverPhoto || "",
+        web: fresh.website || currentUser.web,
+      };
+      setCurrentUser(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("insta_me", JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.error("Failed to refetch current user:", err);
     }
   };
 
@@ -1603,6 +1644,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         createConversation,
         createPost,
         saveProfileChanges,
+        refetchCurrentUser,
         sharePostId: sharePostIdState,
         setSharePostId,
         reportPostId: reportPostIdState,

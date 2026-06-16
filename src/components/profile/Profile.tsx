@@ -84,14 +84,14 @@ export default function Profile() {
         following: dbProfile._count?.following || 0,
         bio: dbProfile.bio || "",
         verified: dbProfile.isVerified || false,
-        web: dbProfile.web || "",
+        web: dbProfile.website || "",
         coverPhoto: dbProfile.coverPhoto || "",
         education: dbProfile.education || "",
         work: dbProfile.work || "",
         city: dbProfile.city || "",
         country: dbProfile.country || "",
         hometown: dbProfile.hometown || "",
-        phone: "",
+        phone: dbProfile.phone || "",
         hobbies: dbProfile.hobbies || "",
         interests: dbProfile.interests || "",
       };
@@ -204,6 +204,27 @@ export default function Profile() {
     return () => {
       active = false;
     };
+  }, [profileUser?.name]);
+
+  // Listen for profile-updated events dispatched by saveProfileChanges
+  // to bust the cache and re-render the profile immediately.
+  useEffect(() => {
+    const handleProfileUpdated = (e: Event) => {
+      const evt = e as CustomEvent<{ username: string }>;
+      const updatedUsername = evt.detail?.username;
+      // Clear cache for this username (new username) AND old username
+      if (updatedUsername) {
+        delete profileCache[updatedUsername];
+      }
+      if (profileUser?.name) {
+        delete profileCache[profileUser.name];
+      }
+      // Force a re-fetch by resetting dbProfile
+      setDbProfile(null);
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
   }, [profileUser?.name]);
 
   // Handle follow / follow back
