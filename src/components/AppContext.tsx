@@ -1415,14 +1415,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   }
                 }
 
+                const wasAuthenticated = typeof window !== 'undefined' && !!localStorage.getItem('token');
+
                 if (typeof window !== 'undefined') {
                   localStorage.setItem("insta_theme", user.theme);
                   localStorage.setItem('insta_me', JSON.stringify(user));
                   localStorage.setItem('token', session.access_token);
                 }
                 // Only redirect to home on explicit sign-in (not on token refresh or initial session restore)
-                if (event === 'SIGNED_IN') {
-                  setActiveTab('home');
+                if (event === 'SIGNED_IN' && !wasAuthenticated) {
+                  const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+                  if (currentPath === "/" || currentPath === "" || activeTab === "home") {
+                    setActiveTab('home');
+                  }
                 }
               } else {
                 console.error('Could not load or create User profile for:', session.user.id);
