@@ -1049,7 +1049,7 @@ export default function PostCard({ post }: PostCardProps) {
             ) : hasReacted && reactionInfo ? (
               <span className="text-[22px] leading-none">{reactionInfo.emoji}</span>
             ) : (
-              <Heart size={24} fill="none" className="text-white" />
+              <Heart size={24} fill="none" className="text-[var(--text)]" />
             )}
           </button>
           <div onMouseEnter={cancelHoverHide} onMouseLeave={startHoverHide}>
@@ -1061,15 +1061,15 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         </div>
 
-        <button onClick={() => setActivePostId(post.id)} className="text-white cursor-pointer hover:scale-105 active:scale-95 transition">
+        <button onClick={() => setActivePostId(post.id)} className="text-[var(--text)] cursor-pointer hover:scale-105 active:scale-95 transition">
           <MessageCircle size={24} />
         </button>
 
-        <button onClick={() => setSharePostId(post.id)} className="text-white cursor-pointer hover:scale-105 active:scale-95 transition">
+        <button onClick={() => setSharePostId(post.id)} className="text-[var(--text)] cursor-pointer hover:scale-105 active:scale-95 transition">
           <Send size={24} />
         </button>
 
-        <button onClick={() => toggleSave(post.id)} className="ml-auto cursor-pointer transition hover:scale-105 active:scale-95 text-white">
+        <button onClick={() => toggleSave(post.id)} className="ml-auto cursor-pointer transition hover:scale-105 active:scale-95 text-[var(--text)]">
           <Bookmark size={24} fill={isSaved ? "currentColor" : "none"} />
         </button>
       </div>
@@ -1094,7 +1094,7 @@ export default function PostCard({ post }: PostCardProps) {
       )}
       {post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
-          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-white">{post.user.name}</span>
+          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
           Text post
         </div>
       )}
