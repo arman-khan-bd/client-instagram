@@ -1184,7 +1184,7 @@ class ApiClient {
     return data || [];
   }
 
-  async updateProfile(data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string }) {
+  async updateProfile(data: { fullName?: string; username?: string; bio?: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
 
@@ -1221,14 +1221,25 @@ class ApiClient {
       }
     }
 
+    // Build update payload — only include fields that were provided
+    const updatePayload: Record<string, any> = {};
+    if (data.fullName !== undefined) updatePayload.fullName = data.fullName;
+    if (data.username !== undefined) updatePayload.username = data.username;
+    if (data.bio !== undefined) updatePayload.bio = data.bio;
+    if (data.avatarUrl !== undefined) updatePayload.avatarUrl = data.avatarUrl;
+    if (data.education !== undefined) updatePayload.education = data.education;
+    if (data.work !== undefined) updatePayload.work = data.work;
+    if (data.city !== undefined) updatePayload.city = data.city;
+    if (data.country !== undefined) updatePayload.country = data.country;
+    if (data.hometown !== undefined) updatePayload.hometown = data.hometown;
+    if (data.phone !== undefined) updatePayload.phone = data.phone;
+    if (data.hobbies !== undefined) updatePayload.hobbies = data.hobbies;
+    if (data.interests !== undefined) updatePayload.interests = data.interests;
+    if (data.coverPhoto !== undefined) updatePayload.coverPhoto = data.coverPhoto;
+
     const { data: updatedUser, error } = await supabase
       .from('User')
-      .update({
-        fullName: data.fullName,
-        username: data.username,
-        bio: data.bio,
-        avatarUrl: data.avatarUrl,
-      })
+      .update(updatePayload)
       .eq('id', authUser.id)
       .select()
       .single();

@@ -126,7 +126,7 @@ interface AppContextType {
   // Navigation & Auth
   activeTab: string;
   setActiveTab: (tab: string, customViewingUserId?: string | number | null) => void;
-  currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string; role?: string } | null;
+  currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string; role?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string } | null;
   doLogin: (email: string, pass: string) => Promise<void>;
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
   doLoginWithGoogle: () => Promise<void>;
@@ -171,7 +171,7 @@ interface AppContextType {
   reactToMessage: (messageId: number, emoji: string) => Promise<void>;
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string> }) => Promise<void>;
-  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => Promise<void>;
+  saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) => Promise<void>;
 
   // Share dialog
   sharePostId: number | null;
@@ -1512,7 +1512,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string }) => {
+  const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string }) => {
     if (!currentUser) return;
     try {
       showToast("Updating profile... ⚡", "info");
@@ -1521,6 +1521,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         username: data.username,
         bio: data.bio,
         avatarUrl: data.avatarUrl,
+        education: data.education,
+        work: data.work,
+        city: data.city,
+        country: data.country,
+        hometown: data.hometown,
+        phone: data.phone,
+        hobbies: data.hobbies,
+        interests: data.interests,
+        coverPhoto: data.coverPhoto,
       });
 
       const updated = {
@@ -1531,6 +1540,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         bio: data.bio,
         gender: data.gender,
         img: data.avatarUrl || currentUser.img,
+        education: data.education,
+        work: data.work,
+        city: data.city,
+        country: data.country,
+        hometown: data.hometown,
+        phone: data.phone,
+        hobbies: data.hobbies,
+        interests: data.interests,
+        coverPhoto: data.coverPhoto,
       };
       setCurrentUser(updated);
       if (typeof window !== "undefined") {

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
-import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus } from "lucide-react";
+import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star } from "lucide-react";
 import { api } from "../../lib/api";
 import { VideoThumbnailCard } from "../search/Search";
 
@@ -57,6 +57,15 @@ export default function Profile() {
         bio: currentUser?.bio || "Welcome to AuraGram! ✨",
         verified: false,
         web: currentUser?.web || "",
+        coverPhoto: currentUser?.coverPhoto || "",
+        education: currentUser?.education || "",
+        work: currentUser?.work || "",
+        city: currentUser?.city || "",
+        country: currentUser?.country || "",
+        hometown: currentUser?.hometown || "",
+        phone: currentUser?.phone || "",
+        hobbies: currentUser?.hobbies || "",
+        interests: currentUser?.interests || "",
       };
     }
 
@@ -75,7 +84,16 @@ export default function Profile() {
         following: dbProfile._count?.following || 0,
         bio: dbProfile.bio || "",
         verified: dbProfile.isVerified || false,
-        web: "",
+        web: dbProfile.web || "",
+        coverPhoto: dbProfile.coverPhoto || "",
+        education: dbProfile.education || "",
+        work: dbProfile.work || "",
+        city: dbProfile.city || "",
+        country: dbProfile.country || "",
+        hometown: dbProfile.hometown || "",
+        phone: "",
+        hobbies: dbProfile.hobbies || "",
+        interests: dbProfile.interests || "",
       };
     }
     
@@ -92,12 +110,21 @@ export default function Profile() {
         bio: postUser.bio || "Capturing life's best moments! 📸",
         verified: postUser.verified || false,
         web: "",
+        coverPhoto: "",
+        education: "",
+        work: "",
+        city: "",
+        country: "",
+        hometown: "",
+        phone: "",
+        hobbies: "",
+        interests: "",
       };
     }
 
     const found = users.find((u) => u.id === viewingUserId || u.name === viewingUserId);
     if (found) {
-      return { ...found, id: found.id.toString(), web: "myport.io" };
+      return { ...found, id: found.id.toString(), web: "myport.io", coverPhoto: "", education: "", work: "", city: "", country: "", hometown: "", phone: "", hobbies: "", interests: "" };
     }
 
     // Fallback: If it's a string username, return a placeholder so we can query the DB.
@@ -112,6 +139,15 @@ export default function Profile() {
         bio: "",
         verified: false,
         web: "",
+        coverPhoto: "",
+        education: "",
+        work: "",
+        city: "",
+        country: "",
+        hometown: "",
+        phone: "",
+        hobbies: "",
+        interests: "",
       };
     }
 
@@ -362,123 +398,225 @@ export default function Profile() {
 
   return (
     <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">
-      <div className="max-w-[900px] mx-auto px-4 py-8">
-        
-        {/* Profile Header */}
-        <div className="flex gap-10 items-start mb-8">
-          <div className="relative shrink-0 select-none">
-            <div
-              onClick={handleAvatarClick}
-              className={`w-[90px] h-[90px] md:w-[140px] md:h-[140px] rounded-full p-[3px] cursor-pointer overflow-hidden flex items-center justify-center ${
-                hasStory
-                  ? "bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
-                  : "bg-zinc-800"
-              }`}
-            >
-              <img
-                src={dbProfile?.avatarUrl || profileUser.img}
-                className="w-full h-full rounded-full object-cover border-2 border-black"
-                alt="Profile"
-              />
-            </div>
-            {isSelf && (
+      <div className="max-w-[900px] mx-auto">
+
+        {/* ── Cover Photo ── */}
+        <div className="relative h-[180px] md:h-[240px] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] overflow-hidden">
+          {profileUser.coverPhoto ? (
+            <img
+              src={profileUser.coverPhoto}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)" }} />
+          )}
+          {/* Gradient overlay at bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+        </div>
+
+        <div className="px-4 pb-8">
+          {/* ── Profile Header ── */}
+          <div className="flex gap-5 items-end mb-5 -mt-10 relative z-10">
+            {/* Avatar */}
+            <div className="relative shrink-0 select-none">
               <div
-                onClick={() => setShowStoryCreate(true)}
-                className="absolute bottom-1 right-1 bg-insta-blue border border-black hover:bg-insta-blue/90 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer active:scale-95 transition"
-                title="Create Day / Story"
+                onClick={handleAvatarClick}
+                className={`w-[90px] h-[90px] md:w-[120px] md:h-[120px] rounded-full p-[3px] cursor-pointer overflow-hidden flex items-center justify-center ${
+                  hasStory
+                    ? "bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
+                    : "bg-zinc-800"
+                } ring-4 ring-black`}
               >
-                <Plus size={14} />
+                <img
+                  src={dbProfile?.avatarUrl || profileUser.img}
+                  className="w-full h-full rounded-full object-cover border-2 border-black"
+                  alt="Profile"
+                />
               </div>
+              {isSelf && (
+                <div
+                  onClick={() => setShowStoryCreate(true)}
+                  className="absolute bottom-1 right-1 bg-insta-blue border border-black hover:bg-insta-blue/90 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer active:scale-95 transition"
+                  title="Create Day / Story"
+                >
+                  <Plus size={14} />
+                </div>
+              )}
+            </div>
+
+            {/* Name + Actions (desktop) */}
+            <div className="flex-1 flex flex-col min-w-0 pb-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-[22px] font-light truncate drop-shadow-sm">{dbProfile?.username || profileUser.name}</h2>
+                {(dbProfile?.isVerified || profileUser.verified) && (
+                  <span className="verified-badge" title="Verified" />
+                )}
+              </div>
+              <p className="text-[13px] text-[#888] truncate">{dbProfile?.fullName || profileUser.full}</p>
+            </div>
+          </div>
+
+          {/* ── Actions Row ── */}
+          <div className="flex items-center gap-2.5 flex-wrap mb-5">
+            {isSelf ? (
+              <>
+                <button
+                  onClick={() => setShowEditProfileModal(true)}
+                  className="px-4 py-2 border border-[#2a2a2a] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
+                >
+                  Edit profile
+                </button>
+                <button
+                  onClick={() => setShowStoryCreate(true)}
+                  className="px-4 py-2 border border-[#2a2a2a] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
+                >
+                  Add Day
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleFollowToggle}
+                  className={`px-4.5 py-2 rounded-lg text-[13px] font-bold cursor-pointer transition ${
+                    dbProfile?.isFollowing
+                      ? "border border-[#222] hover:bg-[#111] text-white"
+                      : "bg-insta-blue hover:bg-insta-blue/90 text-white"
+                  }`}
+                >
+                  {dbProfile?.isFollowing ? "Following" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
+                </button>
+                <button
+                  onClick={handleMessageUser}
+                  className="px-4.5 py-2 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
+                >
+                  Message
+                </button>
+              </>
             )}
           </div>
 
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Username Row */}
-            <div className="flex items-center gap-3.5 flex-wrap mb-4 select-none">
-              <h2 className="text-[22px] font-light truncate">{dbProfile?.username || profileUser.name}</h2>
-              {(dbProfile?.isVerified || profileUser.verified) && (
-                <span className="verified-badge" title="Verified" />
-              )}
-
-              {isSelf ? (
-                <>
-                  <button
-                    onClick={() => setShowEditProfileModal(true)}
-                    className="px-4.5 py-1.5 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
-                  >
-                    Edit profile
-                  </button>
-                  <button
-                    onClick={() => setShowStoryCreate(true)}
-                    className="px-4.5 py-1.5 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
-                  >
-                    Add Day
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={handleFollowToggle}
-                    className={`px-4.5 py-1.5 rounded-lg text-[13px] font-bold cursor-pointer transition ${
-                      dbProfile?.isFollowing
-                        ? "border border-[#222] hover:bg-[#111] text-white"
-                        : "bg-insta-blue hover:bg-insta-blue/90 text-white"
-                    }`}
-                  >
-                    {dbProfile?.isFollowing ? "Following" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
-                  </button>
-                  <button
-                    onClick={handleMessageUser}
-                    className="px-4.5 py-1.5 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
-                  >
-                    Message
-                  </button>
-                </>
-              )}
+          {/* ── Stats Row ── */}
+          <div className="flex gap-7 mb-5 text-[14px]">
+            <div>
+              <span className="font-bold mr-1">{dbProfile?._count?.posts ?? tabPosts.length}</span>
+              <span className="text-[#a8a8a8]">posts</span>
             </div>
-
-            {/* Stats Row */}
-            <div className="flex gap-7 mb-4 select-none text-[14px]">
-              <div>
-                <span className="font-bold mr-1">
-                  {dbProfile?._count?.posts ?? tabPosts.length}
-                </span>
-                <span className="text-[#a8a8a8]">posts</span>
-              </div>
-              <div onClick={() => handleOpenFollowers("followers")} className="cursor-pointer hover:opacity-80">
-                <span className="font-bold mr-1">
-                  {dbProfile?._count?.followers ?? profileUser.followers}
-                </span>
-                <span className="text-[#a8a8a8]">followers</span>
-              </div>
-              <div onClick={() => handleOpenFollowers("following")} className="cursor-pointer hover:opacity-80">
-                <span className="font-bold mr-1">
-                  {dbProfile?._count?.following ?? profileUser.following}
-                </span>
-                <span className="text-[#a8a8a8]">following</span>
-              </div>
+            <div onClick={() => handleOpenFollowers("followers")} className="cursor-pointer hover:opacity-80">
+              <span className="font-bold mr-1">{dbProfile?._count?.followers ?? profileUser.followers}</span>
+              <span className="text-[#a8a8a8]">followers</span>
             </div>
-
-            {/* Bio Row */}
-            <div className="text-[14px] leading-relaxed select-text">
-              <span className="font-bold block mb-0.5">{dbProfile?.fullName || profileUser.full}</span>
-              <p className="whitespace-pre-line text-gray-200">{dbProfile?.bio || profileUser.bio}</p>
-              {profileUser.web && (
-                <a
-                  href={`https://${profileUser.web}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-insta-blue hover:underline font-semibold block mt-1 select-all"
-                >
-                  {profileUser.web}
-                </a>
-              )}
+            <div onClick={() => handleOpenFollowers("following")} className="cursor-pointer hover:opacity-80">
+              <span className="font-bold mr-1">{dbProfile?._count?.following ?? profileUser.following}</span>
+              <span className="text-[#a8a8a8]">following</span>
             </div>
           </div>
-        </div>
 
-        {/* Highlights / Day List */}
-        {activeStories.length > 0 && (
+          {/* ── Bio ── */}
+          {(dbProfile?.bio || profileUser.bio) && (
+            <div className="text-[14px] leading-relaxed select-text mb-4">
+              <p className="whitespace-pre-line text-gray-200">{dbProfile?.bio || profileUser.bio}</p>
+            </div>
+          )}
+
+          {/* ── Website ── */}
+          {profileUser.web && (
+            <div className="mb-4">
+              <a
+                href={profileUser.web.startsWith("http") ? profileUser.web : `https://${profileUser.web}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-insta-blue hover:underline font-semibold text-[14px] select-all"
+              >
+                {profileUser.web}
+              </a>
+            </div>
+          )}
+
+          {/* ── About / Info Card ── */}
+          {(
+            profileUser.education ||
+            profileUser.work ||
+            profileUser.city ||
+            profileUser.country ||
+            profileUser.hometown ||
+            profileUser.hobbies ||
+            profileUser.interests
+          ) && (
+            <div className="mb-6 bg-[#0f0f0f] border border-[#1e1e1e] rounded-2xl p-4 space-y-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[#555] mb-3">About</p>
+
+              {profileUser.work && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <Briefcase size={15} className="text-[#555] shrink-0" />
+                  <span className="text-[#ccc]">{profileUser.work}</span>
+                </div>
+              )}
+
+              {profileUser.education && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <GraduationCap size={15} className="text-[#555] shrink-0" />
+                  <span className="text-[#ccc]">{profileUser.education}</span>
+                </div>
+              )}
+
+              {(profileUser.city || profileUser.country) && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <MapPin size={15} className="text-[#555] shrink-0" />
+                  <span className="text-[#ccc]">
+                    {[profileUser.city, profileUser.country].filter(Boolean).join(", ")}
+                  </span>
+                </div>
+              )}
+
+              {profileUser.hometown && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <Home size={15} className="text-[#555] shrink-0" />
+                  <span className="text-[#ccc]">From {profileUser.hometown}</span>
+                </div>
+              )}
+
+              {profileUser.web && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <Globe size={15} className="text-[#555] shrink-0" />
+                  <a
+                    href={profileUser.web.startsWith("http") ? profileUser.web : `https://${profileUser.web}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-insta-blue hover:underline truncate"
+                  >
+                    {profileUser.web.replace(/^https?:\/\//, "")}
+                  </a>
+                </div>
+              )}
+
+              {(profileUser.hobbies || profileUser.interests) && (
+                <div className="pt-2 border-t border-[#1a1a1a] mt-2">
+                  {profileUser.hobbies && (
+                    <div className="flex items-start gap-3 text-[13px] mt-2">
+                      <Star size={15} className="text-[#555] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-[#666] text-[11px] uppercase tracking-wider block mb-1">Hobbies</span>
+                        <span className="text-[#ccc]">{profileUser.hobbies}</span>
+                      </div>
+                    </div>
+                  )}
+                  {profileUser.interests && (
+                    <div className="flex items-start gap-3 text-[13px] mt-2">
+                      <Heart size={15} className="text-[#555] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-[#666] text-[11px] uppercase tracking-wider block mb-1">Interests</span>
+                        <span className="text-[#ccc]">{profileUser.interests}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Highlights / Day List */}
+          {activeStories.length > 0 && (
           <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[#222]/80">
             {activeStories.map((story, idx) => (
               <div
@@ -517,10 +655,10 @@ export default function Profile() {
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {/* Profile Tabs */}
-        <div className="flex border-t border-[#222] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
+          {/* Profile Tabs */}
+          <div className="flex border-t border-[#222] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
           <button
             onClick={() => setActiveTabName("posts")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
@@ -558,15 +696,15 @@ export default function Profile() {
           >
             <UserSquare size={14} /> Tagged
           </button>
-        </div>
-
-        {/* Profile Grid */}
-        {profilePostsList.length === 0 ? (
-          <div className="text-center py-12 text-[#a8a8a8] text-[14px]">
-            {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-1 md:gap-2 mt-4">
+
+          {/* Profile Grid */}
+          {profilePostsList.length === 0 ? (
+            <div className="text-center py-12 text-[#a8a8a8] text-[14px]">
+              {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-1 md:gap-2 mt-4">
             {profilePostsList.map((post: any, i: number) => (
               <div
                 key={`grid-post-${post.id}-${i}`}
@@ -616,8 +754,9 @@ export default function Profile() {
                 </div>
               </div>
             ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
