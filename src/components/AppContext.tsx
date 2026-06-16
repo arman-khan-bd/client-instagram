@@ -1037,8 +1037,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // Set up periodic polling fallback every 8 seconds to ensure updates are fetched
     const pollInterval = setInterval(() => {
-      loadNotifications();
-      loadFollowRequests();
+      if (document.visibilityState === "visible") {
+        loadNotifications();
+        loadFollowRequests();
+      }
     }, 8000);
 
     // Set up Supabase Realtime channel subscription for instant updates on Notification insertions or updates

@@ -562,10 +562,10 @@ export default function TvPortal() {
           {selectedChannel ? (
             <div 
               ref={playerContainerRef}
-              className="w-full max-w-[960px] aspect-video bg-[#000] rounded-2xl overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/[0.08] group flex flex-col"
+              className="w-full max-w-[960px] aspect-video bg-[#000] rounded-2xl overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/[0.08] group"
             >
               {/* Main Video Element */}
-              <div className="relative flex-1 bg-black flex items-center justify-center">
+              <div className="relative w-full h-full bg-black flex items-center justify-center">
                 <video
                   ref={videoRef}
                   onTimeUpdate={handleTimeUpdate}
@@ -631,7 +631,9 @@ export default function TvPortal() {
               </div>
 
               {/* Custom Player Controls Bar */}
-              <div className="bg-[#121216]/90 backdrop-blur-md border-t border-white/[0.08] p-3 md:p-4 flex flex-col gap-2 relative z-10 shrink-0 select-none">
+              <div className={`bg-gradient-to-t from-black/95 via-black/85 to-transparent p-3 md:p-4 pb-4 pt-10 flex flex-col gap-2 absolute bottom-0 left-0 right-0 z-20 select-none transition-all duration-300 ${
+                !isPlaying ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0"
+              }`}>
                 
                 {/* Progress bar / Seekbar */}
                 <div className="flex items-center gap-3">

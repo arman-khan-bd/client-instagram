@@ -159,7 +159,11 @@ export default function Admin() {
   useEffect(() => {
     if (isAdmin && activeTab === "tv") {
       loadTvStats();
-      const interval = setInterval(loadTvStats, 5000); // Poll every 5s for live counts
+      const interval = setInterval(() => {
+        if (document.visibilityState === "visible") {
+          loadTvStats();
+        }
+      }, 5000); // Poll every 5s for live counts
       return () => clearInterval(interval);
     }
   }, [isAdmin, activeTab]);
