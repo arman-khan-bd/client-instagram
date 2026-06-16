@@ -1833,11 +1833,16 @@ class ApiClient {
   }
 
   // ── TV Channels ──
-  async getTvChannels() {
-    const { data, error } = await supabase
+  async getTvChannels(onlyEnabled = false) {
+    let query = supabase
       .from('TvChannel')
-      .select('*')
-      .order('createdAt', { ascending: false });
+      .select('*');
+    
+    if (onlyEnabled) {
+      query = query.eq('enabled', true);
+    }
+
+    const { data, error } = await query.order('createdAt', { ascending: false });
     if (error) throw error;
     return data || [];
   }
@@ -1854,7 +1859,20 @@ class ApiClient {
         category: data.category || 'General',
         logoUrl: data.logoUrl || '',
         info: data.info || '',
+        enabled: true,
       })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return channel;
+  }
+
+  async updateTvChannel(channelId: number, updates: { name?: string; url?: string; category?: string; logoUrl?: string; info?: string; enabled?: boolean }) {
+    const { data: channel, error } = await supabase
+      .from('TvChannel')
+      .update(updates)
+      .eq('id', channelId)
       .select()
       .single();
 

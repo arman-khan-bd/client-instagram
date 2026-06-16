@@ -71,7 +71,7 @@ export default function TvPortal() {
   const loadChannels = async () => {
     try {
       setLoadingChannels(true);
-      const data = await api.getTvChannels();
+      const data = await api.getTvChannels(true);
       setChannels(data);
       if (data.length > 0) {
         setSelectedChannel(data[0]);

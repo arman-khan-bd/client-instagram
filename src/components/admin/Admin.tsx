@@ -224,6 +224,16 @@ export default function Admin() {
     }
   };
 
+  const handleToggleTvChannel = async (channelId: number, currentEnabled: boolean) => {
+    try {
+      const updated = await api.updateTvChannel(channelId, { enabled: !currentEnabled });
+      showToast(`Channel "${updated.name}" is now ${!currentEnabled ? "enabled" : "disabled"}`, "success");
+      setTvChannels(prev => prev.map(ch => ch.id === channelId ? { ...ch, enabled: !currentEnabled } : ch));
+    } catch (err: any) {
+      showToast(err.message || "Failed to toggle channel status", "info");
+    }
+  };
+
   const handleToggleVerify = async (userId: string, currentStatus: boolean) => {
     try {
       await api.updateUserVerified(userId, !currentStatus);
@@ -1310,6 +1320,17 @@ export default function Admin() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => handleToggleTvChannel(channel.id, channel.enabled !== false)}
+                                className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition cursor-pointer border ${
+                                  channel.enabled !== false
+                                    ? "bg-green-500/10 text-green-500 border-green-500/20"
+                                    : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                                }`}
+                                title={channel.enabled !== false ? "Click to Disable" : "Click to Enable"}
+                              >
+                                {channel.enabled !== false ? "Enabled" : "Disabled"}
+                              </button>
                               <button
                                 onClick={() => handleDeleteTvChannel(channel.id)}
                                 className="p-1.5 hover:bg-red-500/10 text-red-500 rounded-lg transition border border-transparent hover:border-red-500/20 cursor-pointer"

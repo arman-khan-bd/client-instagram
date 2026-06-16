@@ -344,6 +344,7 @@ CREATE TABLE IF NOT EXISTS "TvChannel" (
   "category"     TEXT        DEFAULT 'General',
   "logoUrl"      TEXT        DEFAULT '',
   "info"         TEXT        DEFAULT '',
+  "enabled"      BOOLEAN     DEFAULT TRUE,
   "createdAt"    TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -814,6 +815,7 @@ const rlsStatements = [
   `CREATE POLICY "TvChannel: public read" ON "TvChannel" FOR SELECT USING (true)`,
   `CREATE POLICY "TvChannel: admin all" ON "TvChannel" FOR ALL USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin')) WITH CHECK (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
   `ALTER TABLE "TvChannel" ADD COLUMN IF NOT EXISTS "info" TEXT DEFAULT ''`,
+  `ALTER TABLE "TvChannel" ADD COLUMN IF NOT EXISTS "enabled" BOOLEAN DEFAULT TRUE`,
 
   // ── TvActiveSession policies ──
   `DROP POLICY IF EXISTS "TvActiveSession: public select" ON "TvActiveSession"`,
