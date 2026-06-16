@@ -40,9 +40,9 @@ export default function Explore() {
   }, [posts]);
 
   return (
-    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none bg-black">
+    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
       <div className="max-w-[935px] mx-auto px-4 py-6 sm:py-8">
-        <h2 className="text-[20px] font-bold mb-6 tracking-wide text-gray-100 hidden sm:block">Explore</h2>
+        <h2 className="text-[20px] font-bold mb-6 tracking-wide text-[var(--text)] hidden sm:block">Explore</h2>
         
         {/* Explore Grid */}
         <div className="grid grid-cols-3 grid-flow-dense gap-1 md:gap-2 auto-rows-[110px] sm:auto-rows-[160px] md:auto-rows-[220px]">
@@ -56,7 +56,7 @@ export default function Explore() {
               <div
                 key={item.uniqueId}
                 onClick={() => setActivePostId(item.id)}
-                className={`relative overflow-hidden cursor-pointer group select-none rounded-sm sm:rounded-md border border-[#111] ${
+                className={`relative overflow-hidden cursor-pointer group select-none rounded-sm sm:rounded-md border border-[var(--border)] ${
                   item.isTall ? "row-span-2" : ""
                 }`}
               >
@@ -69,7 +69,7 @@ export default function Explore() {
                     <span className="line-clamp-4 px-1">{item.caption}</span>
                   </div>
                 ) : isVideo ? (
-                  <div className="w-full h-full relative bg-zinc-900">
+                  <div className="w-full h-full relative bg-[var(--surface2)]">
                     <VideoThumbnailCard videoUrl={item.img || item.imgs?.[0] || ""} thumbnailUrl={item.thumbnailUrls?.[0]} />
                     {/* Play symbol/Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />

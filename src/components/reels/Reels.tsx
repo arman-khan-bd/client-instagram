@@ -659,7 +659,7 @@ export default function Reels() {
   }`;
 
   return (
-    <div className="flex-1 bg-black h-full w-full relative flex items-center justify-center">
+    <div className="flex-1 bg-[var(--bg)] h-full w-full relative flex items-center justify-center">
       {/* Settings Dropdown on Left-Top */}
       <div className="absolute top-4 left-4 z-30 flex flex-col items-start select-none">
         <button
@@ -667,7 +667,7 @@ export default function Reels() {
             setShowSettingsDropdown(!showSettingsDropdown);
             resetHideTimer();
           }}
-          className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/15 transition shadow-lg"
+          className="w-9 h-9 rounded-full bg-[var(--surface2)] backdrop-blur-md border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:bg-[var(--surface3)] transition shadow-lg cursor-pointer"
         >
           <Settings size={18} />
         </button>
@@ -682,22 +682,22 @@ export default function Reels() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute top-11 left-0 z-50 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-xl p-4 flex flex-col gap-4 shadow-2xl text-white w-52"
+                className="absolute top-11 left-0 z-50 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-4 flex flex-col gap-4 shadow-2xl text-[var(--text)] w-52"
               >
                 {/* Auto Scroll Option */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-semibold text-zinc-300">Auto Scroll</span>
+                  <span className="text-[12px] font-semibold text-[var(--text2)]">Auto Scroll</span>
                   <button
                     onClick={() => {
                       setAutoScroll(!autoScroll);
                       resetHideTimer();
                     }}
-                    className={`w-9 h-5 rounded-full relative transition-colors ${
-                      autoScroll ? "bg-white" : "bg-white/30"
+                    className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer ${
+                      autoScroll ? "bg-insta-blue" : "bg-[var(--surface3)]"
                     }`}
                   >
                     <div
-                      className={`w-3.5 h-3.5 rounded-full bg-black absolute top-[3px] transition-all ${
+                      className={`w-3.5 h-3.5 rounded-full bg-[var(--bg)] absolute top-[3px] transition-all ${
                         autoScroll ? "left-[18px]" : "left-[4px]"
                       }`}
                     />
@@ -706,7 +706,7 @@ export default function Reels() {
 
                 {/* Mute Option */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-semibold text-zinc-300">Muted</span>
+                  <span className="text-[12px] font-semibold text-[var(--text2)]">Muted</span>
                   <button
                     onClick={() => {
                       const nextMute = !muted;
@@ -719,7 +719,7 @@ export default function Reels() {
                         }
                       }
                     }}
-                    className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white hover:bg-zinc-800 transition"
+                    className="w-8 h-8 rounded-lg bg-[var(--surface3)] border border-[var(--border)] flex items-center justify-center text-[var(--text)] hover:opacity-85 transition cursor-pointer"
                   >
                     {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
                   </button>
@@ -727,13 +727,13 @@ export default function Reels() {
 
                 {/* Loop Option */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-semibold text-zinc-300">Loop</span>
+                  <span className="text-[12px] font-semibold text-[var(--text2)]">Loop</span>
                   <button
                     onClick={() => {
                       toggleLoopLimit();
                       resetHideTimer();
                     }}
-                    className="px-2.5 py-1 text-[11px] font-bold bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition"
+                    className="px-2.5 py-1 text-[11px] font-bold bg-[var(--surface3)] border border-[var(--border)] rounded-lg hover:opacity-85 transition cursor-pointer text-[var(--text)]"
                   >
                     {loopLimit === "infinite" ? "Infinite" : `${loopLimit}x`}
                   </button>
@@ -747,7 +747,7 @@ export default function Reels() {
       {/* Scrollable Reels Container */}
       <div
         ref={containerRef}
-        className="w-full h-full md:aspect-[9/16] md:h-[calc(100vh-40px)] md:w-auto md:rounded-2xl md:border md:border-zinc-800 overflow-y-auto snap-y snap-mandatory scrollbar-none custom-scroll relative bg-zinc-950"
+        className="w-full h-full md:aspect-[9/16] md:h-[calc(100vh-40px)] md:w-auto md:rounded-2xl md:border md:border-[var(--border)] overflow-y-auto snap-y snap-mandatory scrollbar-none custom-scroll relative bg-zinc-950"
       >
         {reelsList.map((post, idx) => {
           const origId = post.originalPostId || post.id;
@@ -979,7 +979,7 @@ export default function Reels() {
                 >
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-[280px] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col text-center text-sm shadow-2xl scale-100"
+                    className="w-full max-w-[280px] bg-[var(--surface2)] border border-[var(--border)] rounded-2xl overflow-hidden flex flex-col text-center text-sm shadow-2xl scale-100 text-[var(--text)]"
                   >
                     <button
                       onClick={() => {
@@ -987,7 +987,7 @@ export default function Reels() {
                         setReportPostId(post.id);
                         resetHideTimer();
                       }}
-                      className="py-3.5 text-red-500 font-bold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
+                      className="py-3.5 text-red-500 font-bold border-b border-[var(--border)] hover:bg-[var(--surface3)] transition cursor-pointer"
                     >
                       Report
                     </button>
@@ -996,7 +996,7 @@ export default function Reels() {
                         setShowMenuId(null);
                         resetHideTimer();
                       }}
-                      className="py-3.5 font-semibold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
+                      className="py-3.5 font-semibold border-b border-[var(--border)] hover:bg-[var(--surface3)] transition cursor-pointer"
                     >
                       Not Interested
                     </button>
@@ -1006,7 +1006,7 @@ export default function Reels() {
                         copyReelLink(post);
                         resetHideTimer();
                       }}
-                      className="py-3.5 font-semibold border-b border-zinc-800 hover:bg-zinc-800 transition cursor-pointer"
+                      className="py-3.5 font-semibold border-b border-[var(--border)] hover:bg-[var(--surface3)] transition cursor-pointer"
                     >
                       Copy Link
                     </button>
@@ -1015,7 +1015,7 @@ export default function Reels() {
                         setShowMenuId(null);
                         resetHideTimer();
                       }}
-                      className="py-3.5 text-zinc-400 hover:bg-zinc-800 transition cursor-pointer"
+                      className="py-3.5 text-[var(--text3)] hover:bg-[var(--surface3)] transition cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1063,24 +1063,24 @@ export default function Reels() {
                 animate={{ y: 0, x: "-50%" }}
                 exit={{ y: "100%", x: "-50%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 220 }}
-                className="fixed bottom-0 left-1/2 w-[calc(100%-32px)] max-w-[500px] h-[65vh] bg-zinc-950 border border-b-0 border-zinc-850 rounded-t-3xl z-[210] flex flex-col overflow-hidden text-white shadow-2xl"
+                className="fixed bottom-0 left-1/2 w-[calc(100%-32px)] max-w-[500px] h-[65vh] bg-[var(--surface2)] border border-b-0 border-[var(--border)] rounded-t-3xl z-[210] flex flex-col overflow-hidden text-[var(--text)] shadow-2xl"
               >
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-900">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-[16px]">Comments</span>
                     <button 
                       onClick={() => {
                         setReactorPostId(origId);
                       }}
-                      className="text-[12px] bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 px-3 py-1 rounded-full text-zinc-300 transition"
+                      className="text-[12px] bg-[var(--surface3)] border border-[var(--border)] hover:opacity-90 px-3 py-1 rounded-full text-[var(--text2)] transition cursor-pointer"
                     >
                       Reactions: {reactionsData.list.length}
                     </button>
                   </div>
                   <button
                     onClick={() => setDrawerPost(null)}
-                    className="p-1 hover:bg-zinc-900 rounded-full transition text-zinc-400 hover:text-white"
+                    className="p-1 hover:bg-[var(--surface3)] rounded-full transition text-[var(--text3)] hover:text-[var(--text)] cursor-pointer"
                   >
                     <X size={20} />
                   </button>
@@ -1089,12 +1089,12 @@ export default function Reels() {
                 {/* Comments List */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scroll">
                   {loadingComments && drawerComments.length === 0 && (drawerPost.commentsCount ?? drawerPost.comments?.length ?? 0) > 0 ? (
-                    <div className="text-center text-[12px] text-[#555] py-8 animate-pulse">
+                    <div className="text-center text-[12px] text-[var(--text3)] py-8 animate-pulse">
                       Loading comments…
                     </div>
                   ) : parentComments.length === 0 ? (
-                    <div className="text-center text-[12px] text-zinc-500 py-10">
-                      not comment
+                    <div className="text-center text-[12px] text-[var(--text3)] py-10">
+                      No comments yet.
                     </div>
                   ) : (
                     parentComments.map((c, cIdx) => {
@@ -1115,28 +1115,28 @@ export default function Reels() {
                           <div className="flex gap-3 items-start">
                             <img
                               src={avatarUrl}
-                              className="w-8 h-8 rounded-full object-cover border border-[#222] shrink-0"
+                              className="w-8 h-8 rounded-full object-cover border border-[var(--border)] shrink-0"
                               alt={username}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-[13px] leading-relaxed break-words text-zinc-200">
-                                <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                              <div className="text-[13px] leading-relaxed break-words text-[var(--text2)]">
+                                <span className="font-bold mr-1.5 text-[var(--text)] cursor-pointer hover:underline">
                                   {username}
                                 </span>
                                 {c.text}
                               </div>
-                              <div className="flex items-center gap-3.5 mt-1 text-[10px] text-zinc-500">
+                              <div className="flex items-center gap-3.5 mt-1 text-[10px] text-[var(--text3)]">
                                 <span>{displayTime}</span>
                                 {(c.likeCount || 0) > 0 && <span>{c.likeCount} likes</span>}
                                 <button
                                   onClick={() => setReplyingTo(c)}
-                                  className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                  className="font-bold text-[var(--text3)] hover:text-[var(--text)] cursor-pointer"
                                 >
                                   Reply
                                 </button>
                                 <button
                                   onClick={() => handleCommentLike(c.id)}
-                                  className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[11px] text-zinc-400"
+                                  className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[11px] text-[var(--text3)]"
                                 >
                                   {c.isLiked ? "❤️" : "🤍"}
                                 </button>
@@ -1146,7 +1146,7 @@ export default function Reels() {
 
                           {/* Nested Replies */}
                           {replies.length > 0 && (
-                            <div className="pl-11 space-y-3 border-l border-zinc-850/60 ml-4">
+                            <div className="pl-11 space-y-3 border-l border-[var(--border)] ml-4">
                               {replies.map((reply, rIdx) => {
                                 const repUser = reply.user as any;
                                 const repUsername = repUser?.username || repUser?.name || "user";
@@ -1162,28 +1162,28 @@ export default function Reels() {
                                   <div key={reply.id || rIdx} className="flex gap-2.5 items-start">
                                     <img
                                       src={repAvatar}
-                                      className="w-6 h-6 rounded-full object-cover border border-[#222] shrink-0"
+                                      className="w-6 h-6 rounded-full object-cover border border-[var(--border)] shrink-0"
                                       alt={repUsername}
                                     />
                                     <div className="flex-1 min-w-0">
-                                      <div className="text-[12.5px] leading-relaxed break-words text-zinc-300">
-                                        <span className="font-bold mr-1.5 text-white cursor-pointer hover:underline">
+                                      <div className="text-[12.5px] leading-relaxed break-words text-[var(--text2)]">
+                                        <span className="font-bold mr-1.5 text-[var(--text)] cursor-pointer hover:underline">
                                           {repUsername}
                                         </span>
                                         {reply.text}
                                       </div>
-                                      <div className="flex items-center gap-3.5 mt-1 text-[9.5px] text-zinc-500">
+                                      <div className="flex items-center gap-3.5 mt-1 text-[9.5px] text-[var(--text3)]">
                                         <span>{repTime}</span>
                                         {(reply.likeCount || 0) > 0 && <span>{reply.likeCount} likes</span>}
                                         <button
                                           onClick={() => setReplyingTo(c)} // Reply to parent comment
-                                          className="font-bold text-zinc-400 hover:text-white cursor-pointer"
+                                          className="font-bold text-[var(--text3)] hover:text-[var(--text)] cursor-pointer"
                                         >
                                           Reply
                                         </button>
                                         <button
                                           onClick={() => handleCommentLike(reply.id)}
-                                          className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[10px] text-zinc-400"
+                                          className="ml-auto hover:scale-115 active:scale-90 transition cursor-pointer text-[10px] text-[var(--text3)]"
                                         >
                                           {reply.isLiked ? "❤️" : "🤍"}
                                         </button>
@@ -1202,27 +1202,27 @@ export default function Reels() {
 
                 {/* Replying To Bar */}
                 {replyingTo && (
-                  <div className="px-5 py-1.5 bg-zinc-900 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-400 shrink-0 select-none">
+                  <div className="px-5 py-1.5 bg-[var(--surface3)] border-t border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text2)] shrink-0 select-none">
                     <span>Replying to @{replyingTo.user?.username || (replyingTo.user as any)?.name || "user"}</span>
-                    <button onClick={() => setReplyingTo(null)} className="hover:text-white">
+                    <button onClick={() => setReplyingTo(null)} className="hover:text-[var(--text)] cursor-pointer">
                       Cancel
                     </button>
                   </div>
                 )}
 
                 {/* Comment Form */}
-                <form onSubmit={handleCommentSubmit} className="p-4 bg-zinc-950 border-t border-zinc-900 flex gap-2">
+                <form onSubmit={handleCommentSubmit} className="p-4 bg-[var(--surface2)] border-t border-[var(--border)] flex gap-2">
                   <input
                     type="text"
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
                     placeholder={replyingTo ? `Reply to @${replyingTo.user?.username || (replyingTo.user as any)?.name || "user"}...` : "Add a comment..."}
-                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-2 text-sm text-white outline-none focus:border-zinc-700 transition"
+                    className="flex-1 bg-[var(--surface3)] border border-[var(--border)] rounded-full px-4 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--text2)] transition"
                   />
                   <button
                     type="submit"
                     disabled={!newCommentText.trim()}
-                    className="px-5 bg-white text-black font-semibold rounded-full text-sm hover:bg-zinc-200 disabled:opacity-50 transition"
+                    className="px-5 bg-insta-blue text-white font-semibold rounded-full text-sm hover:bg-insta-blue/90 disabled:opacity-50 transition cursor-pointer"
                   >
                     Post
                   </button>
