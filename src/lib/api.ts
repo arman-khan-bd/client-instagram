@@ -613,7 +613,7 @@ class ApiClient {
   async getProfile(username: string) {
     const { data: user, error: userError } = await supabase
       .from('User')
-      .select('id, username, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website')
+      .select('id, username, email, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
       .eq('username', username)
       .single();
 
@@ -1236,6 +1236,7 @@ class ApiClient {
     if (data.hobbies !== undefined) updatePayload.hobbies = data.hobbies;
     if (data.interests !== undefined) updatePayload.interests = data.interests;
     if (data.coverPhoto !== undefined) updatePayload.coverPhoto = data.coverPhoto;
+    if ((data as any).website !== undefined) updatePayload.website = (data as any).website;
 
     const { data: updatedUser, error } = await supabase
       .from('User')

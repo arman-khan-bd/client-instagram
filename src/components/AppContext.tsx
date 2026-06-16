@@ -126,7 +126,32 @@ interface AppContextType {
   // Navigation & Auth
   activeTab: string;
   setActiveTab: (tab: string, customViewingUserId?: string | number | null) => void;
-  currentUser: { id: string; name: string; img: string; full: string; bio: string; web: string; gender: string; role?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string } | null;
+  currentUser: {
+    id: string;
+    name: string;
+    img: string;
+    full: string;
+    bio: string;
+    web: string;
+    gender: string;
+    email?: string;
+    role?: string;
+    education?: string;
+    work?: string;
+    city?: string;
+    country?: string;
+    hometown?: string;
+    phone?: string;
+    hobbies?: string;
+    interests?: string;
+    coverPhoto?: string;
+    private_profile?: boolean;
+    private_stories?: boolean;
+    private_reels?: boolean;
+    private_days?: boolean;
+    theme?: string;
+  } | null;
+  updateSettings: (settings: { private_profile?: boolean; private_stories?: boolean; private_reels?: boolean; private_days?: boolean; theme?: string }) => Promise<void>;
   doLogin: (email: string, pass: string) => Promise<void>;
   doRegister: (data: { username: string; email: string; pass: string; fullName: string }) => Promise<void>;
   doLoginWithGoogle: () => Promise<void>;
@@ -1080,7 +1105,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               // Try to load existing profile first (fastest path)
               let { data: dbUser } = await supabase
                 .from('User')
-                .select('id, username, fullName, bio, avatarUrl, isVerified, role')
+                .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
                 .eq('id', session.user.id)
                 .maybeSingle();
 
@@ -1113,7 +1138,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     isVerified: false,
                     role: initialRole,
                   }, { onConflict: 'id' })
-                  .select('id, username, fullName, bio, avatarUrl, isVerified, role')
+                  .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
                   .maybeSingle();
 
                 if (insertErr) {
@@ -1121,7 +1146,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   // Last resort: try to fetch again in case of race condition
                   const { data: retryUser } = await supabase
                     .from('User')
-                    .select('id, username, fullName, bio, avatarUrl, isVerified, role')
+                    .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
                     .eq('id', session.user.id)
                     .maybeSingle();
                   dbUser = retryUser;
@@ -1137,9 +1162,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   img: dbUser.avatarUrl || `https://i.pravatar.cc/150?u=${session.user.id}`,
                   full: dbUser.fullName || dbUser.username,
                   bio: dbUser.bio || 'Welcome to AuraGram! ✨',
-                  web: '',
+                  web: dbUser.website || '',
                   gender: 'Prefer not to say',
+                  email: dbUser.email || '',
                   role: dbUser.role || 'user',
+                  education: dbUser.education || '',
+                  work: dbUser.work || '',
+                  city: dbUser.city || '',
+                  country: dbUser.country || '',
+                  hometown: dbUser.hometown || '',
+                  phone: dbUser.phone || '',
+                  hobbies: dbUser.hobbies || '',
+                  interests: dbUser.interests || '',
+                  coverPhoto: dbUser.coverPhoto || '',
+                  private_profile: dbUser.private_profile || false,
+                  private_stories: dbUser.private_stories || false,
+                  private_reels: dbUser.private_reels || false,
+                  private_days: dbUser.private_days || false,
+                  theme: dbUser.theme || 'dark',
                 };
                 setCurrentUser(user);
                 if (typeof window !== 'undefined') {
@@ -1531,7 +1571,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         hobbies: data.hobbies,
         interests: data.interests,
         coverPhoto: data.coverPhoto,
-      });
+        website: data.web,
+      } as any);
 
       const updated: AppContextType["currentUser"] = {
         ...currentUser,
@@ -1593,6 +1634,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         interests: fresh.interests || "",
         coverPhoto: fresh.coverPhoto || "",
         web: fresh.website || currentUser.web,
+        email: fresh.email || currentUser?.email,
+        private_profile: fresh.private_profile,
+        private_stories: fresh.private_stories,
+        private_reels: fresh.private_reels,
+        private_days: fresh.private_days,
+        theme: fresh.theme || 'dark',
       };
       setCurrentUser(updated);
       if (typeof window !== "undefined") {
@@ -1603,12 +1650,43 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateSettings = async (settings: { private_profile?: boolean; private_stories?: boolean; private_reels?: boolean; private_days?: boolean; theme?: string }) => {
+    if (!currentUser) return;
+    try {
+      const { data, error } = await supabase
+        .from('User')
+        .update(settings)
+        .eq('id', currentUser.id)
+        .select()
+        .single();
+      if (error) throw error;
+      const updated = {
+        ...currentUser,
+        private_profile: data.private_profile,
+        private_stories: data.private_stories,
+        private_reels: data.private_reels,
+        private_days: data.private_days,
+        theme: data.theme,
+      };
+      setCurrentUser(updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("insta_me", JSON.stringify(updated));
+      }
+      showToast("Settings updated successfully! ✅", "success");
+    } catch (err: any) {
+      console.error("Failed to update settings:", err);
+      showToast(err.message || "Failed to update settings", "info");
+      throw err;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
         activeTab,
         setActiveTab,
         currentUser,
+        updateSettings,
         doLogin,
         doRegister,
         doLoginWithGoogle,

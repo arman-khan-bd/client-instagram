@@ -13,6 +13,7 @@ import Messages from "../components/messages/Messages";
 import Notifications from "../components/notifications/Notifications";
 import Profile from "../components/profile/Profile";
 import Admin from "../components/admin/Admin";
+import Settings from "../components/settings/Settings";
 
 // Modals
 import StoryViewerModal from "../components/modals/StoryViewerModal";
@@ -24,7 +25,7 @@ import StoryCreateModal from "../components/modals/StoryCreateModal";
 import ShareModal from "../components/modals/ShareModal";
 import ReportModal from "../components/modals/ReportModal";
 
-import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User } from "lucide-react";
+import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User, Settings as SettingsIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import SplashScreen from "../components/layout/SplashScreen";
 
@@ -94,6 +95,8 @@ export function AppContent() {
         return <Profile />;
       case "admin":
         return <Admin />;
+      case "settings":
+        return <Settings />;
       default:
         return <Feed />;
     }
@@ -179,6 +182,7 @@ export function AppContent() {
                   { name: "Messages", tab: "messages", icon: <MessageSquare size={20} /> },
                   { name: "Notifications", tab: "notifications", icon: <Heart size={20} /> },
                   { name: "Profile", tab: "profile", icon: <User size={20} /> },
+                  { name: "Settings", tab: "settings", icon: <SettingsIcon size={20} /> },
                 ].map((item) => (
                   <button
                     key={item.name}

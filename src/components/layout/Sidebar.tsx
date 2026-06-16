@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApp } from "../AppContext";
-import { Home, Search, Compass, Film, MessageCircle, Heart, PlusSquare, Menu, LogOut, ShieldAlert } from "lucide-react";
+import { Home, Search, Compass, Film, MessageCircle, Heart, PlusSquare, Menu, LogOut, ShieldAlert, Settings as SettingsIcon } from "lucide-react";
 
 export default function Sidebar() {
   const {
@@ -164,6 +164,15 @@ export default function Sidebar() {
       {/* Sidebar bottom */}
       <div className="flex flex-col gap-1 mt-auto">
         <div className="h-[1px] bg-[#222] my-2 mx-1" />
+        <button
+          onClick={() => handleNav("settings")}
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full ${
+            activeTab === "settings" ? "bg-[#1a1a1a] font-bold text-white" : "text-[#a8a8a8] hover:text-white"
+          }`}
+        >
+          <SettingsIcon size={22} className="min-w-[22px]" />
+          <span className="hidden lg:inline text-[15px]">Settings</span>
+        </button>
         <button
           onClick={() => handleNav("profile")}
           className="flex items-center gap-4 p-3 rounded-xl hover:bg-[#1a1a1a] transition text-left w-full text-[#a8a8a8] hover:text-white"

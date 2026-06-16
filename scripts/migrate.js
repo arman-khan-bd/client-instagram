@@ -318,6 +318,13 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "hobbies"     TEXT    DEFAULT '';
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "interests"   TEXT    DEFAULT '';
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "coverPhoto"  TEXT    DEFAULT '';
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "website"     TEXT    DEFAULT '';
+
+-- ── Settings and Privacy Fields ──
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_profile" BOOLEAN DEFAULT FALSE;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_stories" BOOLEAN DEFAULT FALSE;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_reels"   BOOLEAN DEFAULT FALSE;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "private_days"    BOOLEAN DEFAULT FALSE;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "theme"           TEXT    DEFAULT 'dark';
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
