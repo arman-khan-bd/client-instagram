@@ -300,14 +300,27 @@ export function AppContent() {
 }
 
 export default function Home() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hasLoaded = sessionStorage.getItem("insta_splash_loaded");
+      return !hasLoaded;
+    }
+    return true;
+  });
+
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("insta_splash_loaded", "true");
+    }
+  };
 
   return (
     <>
       <AppContent />
       <AnimatePresence>
         {showSplash && (
-          <SplashScreen onComplete={() => setShowSplash(false)} />
+          <SplashScreen onComplete={handleSplashComplete} />
         )}
       </AnimatePresence>
     </>
