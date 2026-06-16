@@ -71,17 +71,17 @@ export default function ShareModal() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            className="fixed bottom-0 left-0 right-0 z-[301] bg-[#111] border-t border-[#2a2a2a] rounded-t-3xl pb-safe-or-6 max-h-[75vh] flex flex-col"
+            className="fixed bottom-0 left-0 right-0 z-[301] bg-[var(--surface2)] border-t border-[var(--border)] rounded-t-3xl pb-safe-or-6 max-h-[75vh] flex flex-col text-[var(--text)]"
           >
             {/* Handle */}
-            <div className="w-10 h-1 bg-[#333] rounded-full mx-auto mt-3 mb-1 shrink-0" />
+            <div className="w-10 h-1 bg-[var(--surface3)] rounded-full mx-auto mt-3 mb-1 shrink-0" />
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 shrink-0 border-b border-[#1e1e1e]">
-              <h3 className="text-[15px] font-bold text-white">Share</h3>
+            <div className="flex items-center justify-between px-5 py-3 shrink-0 border-b border-[var(--border)]">
+              <h3 className="text-[15px] font-bold text-[var(--text)]">Share</h3>
               <button
                 onClick={handleClose}
-                className="p-1.5 rounded-full hover:bg-[#222] transition text-[#a8a8a8] hover:text-white cursor-pointer"
+                className="p-1.5 rounded-full hover:bg-[var(--surface3)] transition text-[var(--text2)] hover:text-[var(--text)] cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -89,7 +89,7 @@ export default function ShareModal() {
 
             {/* DM Contacts Row */}
             <div className="px-4 py-4 shrink-0">
-              <p className="text-[11px] text-[#666] font-semibold uppercase tracking-wider mb-3">
+              <p className="text-[11px] text-[var(--text3)] font-semibold uppercase tracking-wider mb-3">
                 Send to
               </p>
               <div className="flex gap-4 overflow-x-auto pb-1 no-scrollbar">
@@ -111,10 +111,10 @@ export default function ShareModal() {
                         </div>
                       )}
                       {chat.online && (
-                        <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[#111]" />
+                        <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--bg)]" />
                       )}
                     </div>
-                    <span className="text-[11px] text-[#a8a8a8] group-hover:text-white transition max-w-[60px] truncate">
+                    <span className="text-[11px] text-[var(--text2)] group-hover:text-[var(--text)] transition max-w-[60px] truncate">
                       {chat.user.name}
                     </span>
                   </button>
@@ -123,13 +123,13 @@ export default function ShareModal() {
             </div>
 
             {/* Copy Link Section */}
-            <div className="px-4 pb-2 shrink-0 border-t border-[#1e1e1e] pt-4">
-              <p className="text-[11px] text-[#666] font-semibold uppercase tracking-wider mb-3">
+            <div className="px-4 pb-2 shrink-0 border-t border-[var(--border)] pt-4">
+              <p className="text-[11px] text-[var(--text3)] font-semibold uppercase tracking-wider mb-3">
                 Link
               </p>
-              <div className="flex items-center gap-2 bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
-                <Link2 size={15} className="text-[#a8a8a8] shrink-0" />
-                <span className="flex-1 text-[12px] text-[#666] truncate">{postUrl}</span>
+              <div className="flex items-center gap-2 bg-[var(--surface3)] rounded-xl p-3 border border-[var(--border)]">
+                <Link2 size={15} className="text-[var(--text3)] shrink-0" />
+                <span className="flex-1 text-[12px] text-[var(--text2)] truncate">{postUrl}</span>
                 <button
                   onClick={handleCopyLink}
                   className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition cursor-pointer ${

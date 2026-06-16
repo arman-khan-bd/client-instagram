@@ -68,21 +68,21 @@ export default function FollowersModal() {
   return (
     <div
       onClick={handleClose}
-      className="fixed inset-0 bg-black/75 z-[200] flex items-center justify-center p-4 text-white select-none"
+      className="fixed inset-0 bg-black/75 z-[200] flex items-center justify-center p-4 text-[var(--text)] select-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[400px] overflow-hidden shadow-2xl"
+        className="bg-[var(--surface2)] border border-[var(--border)] rounded-2xl w-full max-w-[400px] overflow-hidden shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#222]">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
           <div className="w-6" /> {/* spacer */}
           <h3 className="font-bold text-[15px] capitalize">
             {followersModal.type}
           </h3>
           <button
             onClick={handleClose}
-            className="text-[#a8a8a8] hover:text-white transition cursor-pointer"
+            className="text-[var(--text2)] hover:text-[var(--text)] transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -91,12 +91,12 @@ export default function FollowersModal() {
         {/* Users List */}
         <div className={`p-3.5 flex flex-col gap-3 max-h-[60vh] overflow-y-auto custom-scroll ${loading || modalUsers.length === 0 ? "justify-center items-center min-h-[155px]" : ""}`}>
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400 gap-2">
+            <div className="flex flex-col items-center justify-center py-8 text-[var(--text2)] gap-2">
               <Loader2 className="animate-spin text-insta-blue" size={24} />
               <span className="text-xs">Loading users...</span>
             </div>
           ) : modalUsers.length === 0 ? (
-            <div className="text-center text-[#737373] text-[14px] py-8">
+            <div className="text-center text-[var(--text3)] text-[14px] py-8">
               No users found.
             </div>
           ) : (
@@ -109,7 +109,7 @@ export default function FollowersModal() {
                       src={u.img}
                       alt={u.name}
                       onClick={() => handleUserClick(u.name)}
-                      className="w-10 h-10 rounded-full object-cover border border-[#222] cursor-pointer"
+                      className="w-10 h-10 rounded-full object-cover border border-[var(--border)] cursor-pointer"
                     />
                     
                     <div className="flex-1 min-w-0">
@@ -120,14 +120,14 @@ export default function FollowersModal() {
                         {u.name}
                         {u.verified && <span className="verified-badge" title="Verified" />}
                       </div>
-                      <div className="text-[11px] text-[#a8a8a8] truncate">{u.full}</div>
+                      <div className="text-[11px] text-[var(--text3)] truncate">{u.full}</div>
                     </div>
 
                     <button
                       onClick={() => toggleFollow(u.id)}
                       className={`text-[12px] font-bold px-3.5 py-1.5 rounded-lg border transition cursor-pointer ${
                         isFollowing
-                          ? "border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+                          ? "border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface3)]"
                           : "bg-insta-blue hover:bg-insta-blue/95 border-transparent text-white"
                       }`}
                     >

@@ -365,14 +365,14 @@ export default function Settings() {
               <form onSubmit={handleSaveGeneral} className="space-y-5">
                 <div>
                   <h3 className="text-lg font-bold mb-1">General Settings</h3>
-                  <p className="text-xs text-zinc-500 mb-4">Update your profile identity details.</p>
+                  <p className="text-xs text-[var(--text3)] mb-4">Update your profile identity details.</p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-bold text-zinc-400">Full Name</label>
+                    <label className="text-[12px] font-bold text-[var(--text2)]">Full Name</label>
                     <div className="relative">
-                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
                       <input
                         type="text"
                         value={fullName}
@@ -384,7 +384,7 @@ export default function Settings() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-bold text-zinc-400">Username</label>
+                    <label className="text-[12px] font-bold text-[var(--text2)]">Username</label>
                     <input
                       type="text"
                       value={username}
@@ -395,9 +395,9 @@ export default function Settings() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-bold text-zinc-400">Email Address</label>
+                    <label className="text-[12px] font-bold text-[var(--text2)]">Email Address</label>
                     <div className="relative">
-                      <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                      <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
                       <input
                         type="email"
                         value={email}
@@ -409,9 +409,9 @@ export default function Settings() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-bold text-zinc-400">Phone Number</label>
+                    <label className="text-[12px] font-bold text-[var(--text2)]">Phone Number</label>
                     <div className="relative">
-                      <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                      <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
                       <input
                         type="tel"
                         value={phone}
@@ -440,14 +440,14 @@ export default function Settings() {
               <form onSubmit={handleChangePassword} className="space-y-5">
                 <div>
                   <h3 className="text-lg font-bold mb-1">Security Settings</h3>
-                  <p className="text-xs text-zinc-500 mb-4">Ensure your account safety by updating your password.</p>
+                  <p className="text-xs text-[var(--text3)] mb-4">Ensure your account safety by updating your password.</p>
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-bold text-zinc-400">New Password</label>
+                    <label className="text-[12px] font-bold text-[var(--text2)]">New Password</label>
                     <div className="relative">
-                      <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                      <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
                       <input
                         type="password"
                         value={password}
@@ -460,9 +460,9 @@ export default function Settings() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[12px] font-bold text-zinc-400">Confirm Password</label>
+                    <label className="text-[12px] font-bold text-[var(--text2)]">Confirm Password</label>
                     <div className="relative">
-                      <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                      <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
                       <input
                         type="password"
                         value={confirmPassword}
@@ -492,7 +492,7 @@ export default function Settings() {
               <div className="space-y-5">
                 <div>
                   <h3 className="text-lg font-bold mb-1">Privacy & Visibility</h3>
-                  <p className="text-xs text-zinc-500 mb-4 font-medium">Control who can view your social activities.</p>
+                  <p className="text-xs text-[var(--text3)] mb-4 font-medium">Control who can view your social activities.</p>
                 </div>
 
                 <div className="space-y-4">
@@ -525,12 +525,12 @@ export default function Settings() {
                     <div key={idx} className="flex items-start justify-between p-3 rounded-xl hover:bg-[var(--surface3)] transition">
                       <div className="flex-1 pr-4">
                         <span className="text-[14px] font-bold text-[var(--text)]">{priv.label}</span>
-                        <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{priv.desc}</p>
+                        <p className="text-[11px] text-[var(--text3)] mt-0.5 leading-relaxed">{priv.desc}</p>
                       </div>
                       <button
                         onClick={() => priv.set(!priv.val)}
                         className={`w-11 h-6 rounded-full transition-colors relative flex items-center shrink-0 ${
-                          priv.val ? "bg-[#2ecc71]" : "bg-zinc-800"
+                          priv.val ? "bg-[#2ecc71]" : "bg-[var(--surface3)]"
                         }`}
                       >
                         <div
@@ -584,7 +584,7 @@ export default function Settings() {
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-lg font-bold mb-1">Activity Log</h3>
-                    <p className="text-xs text-zinc-500 mb-4 font-medium">History of your actions sorted by categories.</p>
+                    <p className="text-xs text-[var(--text3)] mb-4 font-medium">History of your actions sorted by categories.</p>
                   </div>
 
                   {/* Filter Tabs */}
@@ -607,14 +607,14 @@ export default function Settings() {
 
                   <div className="space-y-3.5 max-h-[360px] overflow-y-auto custom-scroll pr-1.5">
                     {loadingActivity ? (
-                      <div className="text-center py-10 text-zinc-500 text-sm font-semibold">Loading activities...</div>
+                      <div className="text-center py-10 text-[var(--text3)] text-sm font-semibold">Loading activities...</div>
                     ) : paginatedActivities.length === 0 ? (
-                      <div className="text-center py-10 text-zinc-500 text-sm font-semibold">No activity recorded under this category.</div>
+                      <div className="text-center py-10 text-[var(--text3)] text-sm font-semibold">No activity recorded under this category.</div>
                     ) : (
                       paginatedActivities.map((act, idx) => (
                         <div key={idx} className="flex flex-col p-3 rounded-xl bg-[var(--surface2)] border border-[var(--border)] gap-1.5 select-text">
-                          <span className="text-[13px] text-zinc-200 font-semibold leading-relaxed">{act.text}</span>
-                          <div className="flex items-center justify-between text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+                          <span className="text-[13px] text-[var(--text)] font-semibold leading-relaxed">{act.text}</span>
+                          <div className="flex items-center justify-between text-[10px] text-[var(--text3)] font-bold uppercase tracking-wider">
                             <span>{act.category.replace("_", " ")}</span>
                             <span>
                               {act.date.toLocaleDateString()} {act.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -658,7 +658,7 @@ export default function Settings() {
               <div className="space-y-5">
                 <div>
                   <h3 className="text-lg font-bold mb-1">Appearance</h3>
-                  <p className="text-xs text-zinc-500 mb-4 font-medium">Choose your workspace display mode theme preference.</p>
+                  <p className="text-xs text-[var(--text3)] mb-4 font-medium">Choose your workspace display mode theme preference.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

@@ -50,14 +50,14 @@ export default function Notifications() {
       <div
         key={`notif-${item.id}`}
         onClick={() => handleNotificationClick(item)}
-        className={`flex items-center gap-3.5 px-4.5 py-3.5 hover:bg-[#1a1a1a]/40 transition cursor-pointer select-none ${
+        className={`flex items-center gap-3.5 px-4.5 py-3.5 hover:bg-[var(--surface3)]/40 transition cursor-pointer select-none ${
           item.unread ? "bg-insta-blue/5 border-l-2 border-insta-blue" : ""
         }`}
       >
         <img
           src={item.user.img}
           alt={item.user.name}
-          className="w-11 h-11 rounded-full object-cover border border-[#222]"
+          className="w-11 h-11 rounded-full object-cover border border-[var(--border)]"
           onClick={(e) => {
             e.stopPropagation();
             handleUserClick(item.user.name);
@@ -74,7 +74,7 @@ export default function Notifications() {
           >
             {item.user.name}
           </strong>
-          {item.text} <span className="text-[#666] text-[11px] ml-1">{item.time}</span>
+          {item.text} <span className="text-[var(--text3)] text-[11px] ml-1">{item.time}</span>
         </div>
 
         {item.type === "follow" && (
@@ -85,7 +85,7 @@ export default function Notifications() {
             }}
             className={`px-4.5 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
               isFollowing
-                ? "bg-transparent border border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+                ? "bg-transparent border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)]"
                 : "bg-insta-blue hover:bg-insta-blue/90 text-white"
             }`}
           >
@@ -99,7 +99,7 @@ export default function Notifications() {
               <>
                 <video
                   src={item.img}
-                  className="w-full h-full rounded-lg object-cover cursor-pointer border border-[#222] hover:opacity-85 transition bg-zinc-900"
+                  className="w-full h-full rounded-lg object-cover cursor-pointer border border-[var(--border)] hover:opacity-85 transition bg-[var(--surface2)]"
                   muted
                   playsInline
                   onClick={(e) => {
@@ -118,7 +118,7 @@ export default function Notifications() {
               <img
                 src={item.img}
                 alt="Preview"
-                className="w-full h-full rounded-lg object-cover cursor-pointer border border-[#222] hover:opacity-85 transition"
+                className="w-full h-full rounded-lg object-cover cursor-pointer border border-[var(--border)] hover:opacity-85 transition"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (item.postId) {
@@ -157,15 +157,15 @@ export default function Notifications() {
   });
 
   return (
-    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">
+    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
       <div className="max-w-[600px] mx-auto py-8">
         <h2 className="text-[18px] font-bold px-4.5 mb-6">Notifications</h2>
 
         {/* Today */}
         {todayNotifs.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-[13px] font-bold text-[#a8a8a8] px-4.5 mb-2.5">Today</h3>
-            <div className="flex flex-col border-y border-[#222] bg-[#111] divide-y divide-[#222]/60 rounded-xl overflow-hidden">
+            <h3 className="text-[13px] font-bold text-[var(--text2)] px-4.5 mb-2.5">Today</h3>
+            <div className="flex flex-col border-y border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border)]/60 rounded-xl overflow-hidden">
               {todayNotifs.map(renderNotifItem)}
             </div>
           </div>
@@ -174,8 +174,8 @@ export default function Notifications() {
         {/* This Week */}
         {weekNotifs.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-[13px] font-bold text-[#a8a8a8] px-4.5 mb-2.5">This Week</h3>
-            <div className="flex flex-col border-y border-[#222] bg-[#111] divide-y divide-[#222]/60 rounded-xl overflow-hidden">
+            <h3 className="text-[13px] font-bold text-[var(--text2)] px-4.5 mb-2.5">This Week</h3>
+            <div className="flex flex-col border-y border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border)]/60 rounded-xl overflow-hidden">
               {weekNotifs.map(renderNotifItem)}
             </div>
           </div>
@@ -184,8 +184,8 @@ export default function Notifications() {
         {/* This Month */}
         {monthNotifs.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-[13px] font-bold text-[#a8a8a8] px-4.5 mb-2.5">This Month</h3>
-            <div className="flex flex-col border-y border-[#222] bg-[#111] divide-y divide-[#222]/60 rounded-xl overflow-hidden">
+            <h3 className="text-[13px] font-bold text-[var(--text2)] px-4.5 mb-2.5">This Month</h3>
+            <div className="flex flex-col border-y border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border)]/60 rounded-xl overflow-hidden">
               {monthNotifs.map(renderNotifItem)}
             </div>
           </div>

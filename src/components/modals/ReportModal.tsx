@@ -59,17 +59,17 @@ export default function ReportModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="relative w-full max-w-[400px] bg-[#1c1c1e] border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl z-10 text-white"
+            className="relative w-full max-w-[400px] bg-[var(--surface2)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl z-10 text-[var(--text)]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800/65">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
               <div className="flex items-center gap-2 text-red-500 font-bold text-base">
                 <AlertTriangle size={18} />
                 <span>Report Content</span>
               </div>
               <button
                 onClick={handleClose}
-                className="text-zinc-400 hover:text-white transition p-1 hover:bg-zinc-800/50 rounded-full cursor-pointer"
+                className="text-[var(--text2)] hover:text-[var(--text)] transition p-1 hover:bg-[var(--surface3)]/50 rounded-full cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -77,7 +77,7 @@ export default function ReportModal() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-[var(--text3)] leading-relaxed">
                 Please help us keep AuraGram safe. Tell us why you are reporting this post or reel. Your report is confidential.
               </p>
 
@@ -85,7 +85,7 @@ export default function ReportModal() {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Write reason (e.g., spam, hate speech, inappropriate, spamming comments, etc.)..."
-                className="w-full h-32 bg-[#121212] border border-zinc-800 focus:border-red-500 rounded-2xl p-4 text-sm outline-none resize-none text-white transition placeholder-zinc-600"
+                className="w-full h-32 bg-[var(--surface3)] border border-[var(--border)] focus:border-red-500 rounded-2xl p-4 text-sm outline-none resize-none text-[var(--text)] transition placeholder-[var(--text3)]"
                 maxLength={400}
                 required
               />
@@ -94,7 +94,7 @@ export default function ReportModal() {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-5 py-2.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 hover:bg-zinc-700/80 cursor-pointer transition"
+                  className="px-5 py-2.5 rounded-full text-xs font-bold bg-[var(--surface3)] text-[var(--text)] hover:opacity-90 cursor-pointer transition"
                 >
                   Cancel
                 </button>

@@ -76,32 +76,32 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-black/75 z-[250] flex items-center justify-center p-4 text-white select-none backdrop-blur-sm"
+      className="fixed inset-0 bg-black/75 z-[250] flex items-center justify-center p-4 text-[var(--text)] select-none backdrop-blur-sm"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#111] border border-[#2a2a2a] rounded-2xl w-full max-w-[440px] overflow-hidden shadow-2xl flex flex-col h-[500px]"
+        className="bg-[var(--surface2)] border border-[var(--border)] rounded-2xl w-full max-w-[440px] overflow-hidden shadow-2xl flex flex-col h-[500px]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#222]">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
           <div className="w-6" />
           <h3 className="font-bold text-[16px]">Reactions</h3>
           <button
             onClick={onClose}
-            className="text-[#a8a8a8] hover:text-white transition cursor-pointer"
+            className="text-[var(--text2)] hover:text-[var(--text)] transition cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto border-b border-[#222] px-3 py-2 custom-scroll shrink-0">
+        <div className="flex gap-2 overflow-x-auto border-b border-[var(--border)] px-3 py-2 custom-scroll shrink-0">
           <button
             onClick={() => setActiveTabLocal("all")}
             className={`px-3 py-1.5 rounded-full text-[13px] font-semibold transition shrink-0 cursor-pointer ${
               activeTab === "all"
-                ? "bg-white text-black"
-                : "bg-zinc-900 text-zinc-400 hover:text-white"
+                ? "bg-[var(--text)] text-[var(--bg)]"
+                : "bg-[var(--surface3)] text-[var(--text2)] hover:text-[var(--text)]"
             }`}
           >
             All {reactions.length}
@@ -115,8 +115,8 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
                 onClick={() => setActiveTabLocal(type)}
                 className={`px-3 py-1.5 rounded-full text-[13px] font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   activeTab === type
-                    ? "bg-white text-black"
-                    : "bg-zinc-900 text-zinc-400 hover:text-white"
+                    ? "bg-[var(--text)] text-[var(--bg)]"
+                    : "bg-[var(--surface3)] text-[var(--text2)] hover:text-[var(--text)]"
                 }`}
               >
                 <span>{emoji}</span>
@@ -129,11 +129,11 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
         {/* Users List */}
         <div className="p-4 flex-1 overflow-y-auto custom-scroll flex flex-col gap-4">
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-zinc-500 text-[14px]">
+            <div className="flex items-center justify-center py-10 text-[var(--text3)] text-[14px]">
               Loading reactions...
             </div>
           ) : filteredReactions.length === 0 ? (
-            <div className="flex items-center justify-center py-10 text-zinc-500 text-[14px]">
+            <div className="flex items-center justify-center py-10 text-[var(--text3)] text-[14px]">
               No reactions yet.
             </div>
           ) : (
@@ -151,9 +151,9 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
                       src={u.avatarUrl || "https://i.pravatar.cc/80?img=1"}
                       alt={u.username}
                       onClick={() => handleUserClick(u.username)}
-                      className="w-[42px] h-[42px] rounded-full object-cover border border-[#222] cursor-pointer"
+                      className="w-[42px] h-[42px] rounded-full object-cover border border-[var(--border)] cursor-pointer"
                     />
-                    <div className="absolute -bottom-1 -right-1 bg-zinc-950 border border-zinc-800 rounded-full w-[18px] h-[18px] flex items-center justify-center text-[11px] leading-none shadow-md">
+                    <div className="absolute -bottom-1 -right-1 bg-[var(--surface2)] border border-[var(--border)] rounded-full w-[18px] h-[18px] flex items-center justify-center text-[11px] leading-none shadow-md">
                       {emoji}
                     </div>
                   </div>
@@ -165,7 +165,7 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
                     >
                       {u.username}
                     </div>
-                    <div className="text-[11.5px] text-[#a8a8a8] truncate">
+                    <div className="text-[11.5px] text-[var(--text3)] truncate">
                       {u.fullName || u.username}
                     </div>
                   </div>
@@ -175,7 +175,7 @@ export default function ReactionsModal({ isOpen, onClose, postId }: ReactionsMod
                       onClick={() => toggleFollow(u.id)}
                       className={`text-[12px] font-bold px-3.5 py-1.5 rounded-lg border transition cursor-pointer ${
                         isFollowing
-                          ? "border-[#2a2a2a] text-white hover:bg-[#1a1a1a]"
+                          ? "border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface3)]"
                           : "bg-[#3897f0] hover:bg-[#3897f0]/95 border-transparent text-white"
                       }`}
                     >
