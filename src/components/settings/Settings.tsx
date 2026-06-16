@@ -178,13 +178,33 @@ export default function Settings() {
 
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!username.trim()) {
+      showToast("Username cannot be empty!", "info");
+      return;
+    }
+    const targetUsername = username.trim().toLowerCase();
+    
     setSavingGeneral(true);
     try {
+      // Check if username is taken by another user in the database
+      if (targetUsername !== currentUser?.name?.toLowerCase()) {
+        const { data: existingUser, error: checkError } = await supabase
+          .from("User")
+          .select("id")
+          .eq("username", targetUsername)
+          .maybeSingle();
+
+        if (checkError) throw checkError;
+        if (existingUser) {
+          throw new Error("You can't use this username. It is already taken by another account!");
+        }
+      }
+
       const { error } = await supabase
         .from("User")
         .update({
           fullName,
-          username: username.trim().toLowerCase(),
+          username: targetUsername,
           email: email.trim(),
           phone: phone.trim(),
         })

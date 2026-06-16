@@ -194,13 +194,11 @@ export default function EditProfileModal() {
         education, work, city, country, hometown, phone, hobbies, interests,
       });
 
-      // Show success state in the button (don't close modal)
-      setSaveSuccess(true);
-      if (saveSuccessTimerRef.current) clearTimeout(saveSuccessTimerRef.current);
-      saveSuccessTimerRef.current = setTimeout(() => setSaveSuccess(false), 3000);
-
       // Background refetch to confirm DB data is in sync
-      refetchCurrentUser();
+      await refetchCurrentUser();
+
+      // Close modal on successful save
+      handleClose();
 
     } catch (err) {
       console.error(err);
@@ -300,15 +298,28 @@ export default function EditProfileModal() {
               <img
                 src={avatarUrl || "https://i.pravatar.cc/150?img=1"}
                 alt="avatar"
-                className="w-full h-full object-cover group-hover:opacity-70 transition"
+                className={`w-full h-full object-cover transition ${isUploading ? "blur-[2px] opacity-40" : "group-hover:opacity-75"}`}
               />
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                {isUploading ? (
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Camera size={18} className="text-white" />
-                )}
+              
+              {/* Permanent Camera Icon overlay indicator */}
+              <div className="absolute right-1.5 bottom-1.5 bg-black/70 p-1.5 rounded-full border border-zinc-800 text-white z-10 pointer-events-none">
+                <Camera size={12} />
               </div>
+
+              {/* Uploading loading spinner */}
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5">
+                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider">Uploading</span>
+                </div>
+              )}
+
+              {/* Hover overlay indicator when not uploading */}
+              {!isUploading && (
+                <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                  <Camera size={18} className="text-white" />
+                </div>
+              )}
             </div>
             <input
               type="file"
