@@ -31,6 +31,7 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
     video.crossOrigin = "anonymous";
     video.muted = true;
     video.playsInline = true;
+    video.preload = "metadata";
     
     const onSeeked = () => {
       try {
@@ -51,9 +52,10 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
     };
 
     const onLoadedMetadata = () => {
-      const duration = video.duration || 10;
-      const randomTime = 0.2 + Math.random() * Math.min(duration - 0.5, 5);
-      video.currentTime = randomTime;
+      const duration = video.duration;
+      // Seek to 25% or 1s into the video based on duration to get a good frame
+      const targetTime = isFinite(duration) && duration > 0 ? Math.min(1.5, duration * 0.25) : 0.5;
+      video.currentTime = targetTime;
     };
 
     video.addEventListener("seeked", onSeeked);

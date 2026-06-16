@@ -739,8 +739,8 @@ export default function Profile() {
                   >
                     <span className="line-clamp-4">{post.caption}</span>
                   </div>
-                ) : post.isReel ? (
-                  <VideoThumbnailCard videoUrl={post.img} />
+                ) : (post.isReel || post.mediaType === "video" || (post.mediaUrls?.[0]?.type === "video")) ? (
+                  <VideoThumbnailCard videoUrl={post.img || post.mediaUrls?.[0]?.url || ""} thumbnailUrl={post.thumbnailUrl || post.mediaUrls?.[0]?.thumbnailUrl} />
                 ) : (
                   <img
                     src={post.img}
