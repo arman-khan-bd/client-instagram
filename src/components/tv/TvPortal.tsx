@@ -88,6 +88,55 @@ export default function TvPortal() {
     loadChannels();
   }, []);
 
+  const sessionIdRef = useRef<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let id = sessionStorage.getItem("tv_session_id");
+      if (!id) {
+        id = `tv_session_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+        sessionStorage.setItem("tv_session_id", id);
+      }
+      sessionIdRef.current = id;
+    }
+  }, []);
+
+  // Send heartbeats to track live viewers
+  useEffect(() => {
+    if (!selectedChannel || !isPlaying) return;
+
+    const sendHeartbeat = async (isNew = false) => {
+      try {
+        await fetch("/api/tv/heartbeat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            channelId: selectedChannel.id,
+            sessionId: sessionIdRef.current || `fallback_${currentUser?.id || "anon"}`,
+            userId: currentUser?.id || null,
+            isNewChannel: isNew,
+          }),
+        });
+      } catch (err) {
+        console.error("Heartbeat error:", err);
+      }
+    };
+
+    // Send immediately when channel is selected
+    sendHeartbeat(true);
+
+    // Set up interval for subsequent heartbeats
+    const interval = setInterval(() => {
+      sendHeartbeat(false);
+    }, 10000); // every 10 seconds
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [selectedChannel, isPlaying, currentUser]);
+
   // Initialize Hls.js on video stream changes
   useEffect(() => {
     if (!selectedChannel || !videoRef.current) return;

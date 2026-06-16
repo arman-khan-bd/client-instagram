@@ -345,6 +345,23 @@ CREATE TABLE IF NOT EXISTS "TvChannel" (
   "logoUrl"      TEXT        DEFAULT '',
   "createdAt"    TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── TvActiveSession ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "TvActiveSession" (
+  "sessionId"    TEXT        PRIMARY KEY,
+  "channelId"    INTEGER     NOT NULL CONSTRAINT "TvActiveSession_channelId_fkey" REFERENCES "TvChannel"("id") ON DELETE CASCADE,
+  "userId"       UUID        CONSTRAINT "TvActiveSession_userId_fkey" REFERENCES "User"("id") ON DELETE SET NULL,
+  "lastActiveAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── TvViewingHistory ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "TvViewingHistory" (
+  "id"           SERIAL      PRIMARY KEY,
+  "channelId"    INTEGER     NOT NULL CONSTRAINT "TvViewingHistory_channelId_fkey" REFERENCES "TvChannel"("id") ON DELETE CASCADE,
+  "userId"       UUID        CONSTRAINT "TvViewingHistory_userId_fkey" REFERENCES "User"("id") ON DELETE SET NULL,
+  "sessionId"    TEXT        NOT NULL,
+  "viewedAt"     TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -376,6 +393,8 @@ const rlsStatements = [
   `ALTER TABLE "VideoUnmuteLog"          ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "FollowRequest"           ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvChannel"               ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "TvActiveSession"         ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "TvViewingHistory"        ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
@@ -397,6 +416,8 @@ const rlsStatements = [
   `ALTER TABLE "VideoUnmuteLog"          FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "FollowRequest"           FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvChannel"               FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "TvActiveSession"         FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "TvViewingHistory"        FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -791,6 +812,14 @@ const rlsStatements = [
   `DROP POLICY IF EXISTS "TvChannel: admin all" ON "TvChannel"`,
   `CREATE POLICY "TvChannel: public read" ON "TvChannel" FOR SELECT USING (true)`,
   `CREATE POLICY "TvChannel: admin all" ON "TvChannel" FOR ALL USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin')) WITH CHECK (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
+
+  // ── TvActiveSession policies ──
+  `DROP POLICY IF EXISTS "TvActiveSession: public select" ON "TvActiveSession"`,
+  `CREATE POLICY "TvActiveSession: public select" ON "TvActiveSession" FOR SELECT USING (true)`,
+
+  // ── TvViewingHistory policies ──
+  `DROP POLICY IF EXISTS "TvViewingHistory: public select" ON "TvViewingHistory"`,
+  `CREATE POLICY "TvViewingHistory: public select" ON "TvViewingHistory" FOR SELECT USING (true)`,
 
   // Enable supabase realtime for Message table
   `do $$

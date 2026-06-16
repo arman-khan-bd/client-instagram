@@ -22,10 +22,12 @@ import {
   TrendingUp,
   Search,
   Check,
-  Menu
+  Menu,
+  Tv,
+  Radio
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "posts" | "comments" | "reports" | "seo" | "settings" | "messages";
+type AdminTab = "overview" | "users" | "posts" | "comments" | "reports" | "seo" | "settings" | "messages" | "tv";
 
 export default function Admin() {
   const { showToast, currentUser } = useApp();
@@ -39,6 +41,11 @@ export default function Admin() {
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [reportsList, setReportsList] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // TV analytics states
+  const [tvLiveViewers, setTvLiveViewers] = useState<any[]>([]);
+  const [tvHistory, setTvHistory] = useState<any[]>([]);
+  const [tvChannelsCount, setTvChannelsCount] = useState(0);
   
   // SEO Local Settings
   const [seoTitlePrefix, setSeoTitlePrefix] = useState("AuraGram");
@@ -97,11 +104,39 @@ export default function Admin() {
     }
   };
 
+  const loadTvStats = async () => {
+    try {
+      const [channelsData, sessions, historyData] = await Promise.all([
+        api.getTvChannels(),
+        api.getTvActiveSessions(),
+        api.getTvViewingHistory()
+      ]);
+      setTvChannelsCount(channelsData.length);
+      
+      // Filter sessions active within the last 30 seconds
+      const activeCutoff = new Date(Date.now() - 30 * 1000);
+      const activeSessions = sessions.filter((s: any) => new Date(s.lastActiveAt) > activeCutoff);
+      setTvLiveViewers(activeSessions);
+      setTvHistory(historyData);
+    } catch (err: any) {
+      console.error(err);
+      showToast("Failed to load TV statistics", "info");
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       loadDashboardData();
     }
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === "tv") {
+      loadTvStats();
+      const interval = setInterval(loadTvStats, 5000); // Poll every 5s for live counts
+      return () => clearInterval(interval);
+    }
+  }, [isAdmin, activeTab]);
 
   // Strict Access Control Guard view
   if (!isAdmin) {
@@ -291,6 +326,7 @@ export default function Admin() {
             { id: "seo", label: "SEO Settings", icon: <Globe size={16} /> },
             { id: "settings", label: "Site Config", icon: <Settings size={16} /> },
             { id: "messages", label: "DMs Manager", icon: <Mail size={16} /> },
+            { id: "tv", label: "AuraTV Stats", icon: <Tv size={16} /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -962,6 +998,135 @@ export default function Admin() {
             >
               Optimize DMs Cache
             </button>
+          </div>
+        )}
+
+        {/* TAB 9: TV CHANNELS OVERVIEW */}
+        {activeTab === "tv" && (
+          <div className="flex flex-col gap-6 animate-fade-in">
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#111] border border-[#222] p-5 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden">
+                <div className="flex flex-col gap-1 z-10">
+                  <span className="text-[12px] text-zinc-400 font-medium">Total Live Viewers</span>
+                  <span className="text-3xl font-extrabold text-white animate-pulse">{tvLiveViewers.length}</span>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white shadow-md">
+                  <Tv size={20} />
+                </div>
+                <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full bg-white/2 blur-2xl pointer-events-none" />
+              </div>
+
+              <div className="bg-[#111] border border-[#222] p-5 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden">
+                <div className="flex flex-col gap-1 z-10">
+                  <span className="text-[12px] text-zinc-400 font-medium">Active TV Channels</span>
+                  <span className="text-3xl font-extrabold text-white">{tvChannelsCount}</span>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                  <Radio className="text-white animate-pulse" size={20} />
+                </div>
+                <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full bg-white/2 blur-2xl pointer-events-none" />
+              </div>
+
+              <div className="bg-[#111] border border-[#222] p-5 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden">
+                <div className="flex flex-col gap-1 z-10">
+                  <span className="text-[12px] text-zinc-400 font-medium">All-time Channel Views</span>
+                  <span className="text-3xl font-extrabold text-white">{tvHistory.length}</span>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white shadow-md">
+                  <TrendingUp size={20} />
+                </div>
+                <div className="absolute -right-4 -bottom-4 w-16 h-16 rounded-full bg-white/2 blur-2xl pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Split Screen breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Channel View Breakdown */}
+              <div className="bg-[#111] border border-[#222] rounded-2xl shadow-xl overflow-hidden flex flex-col h-[400px]">
+                <div className="p-4 border-b border-[#222] bg-[#1a1a1a]/50 text-zinc-300 font-extrabold text-xs uppercase tracking-wider">
+                  Channel Performance & Live Metrics
+                </div>
+                <div className="flex-1 overflow-y-auto divide-y divide-[#222]">
+                  {tvLiveViewers.length === 0 && tvHistory.length === 0 ? (
+                    <div className="text-center py-20 text-zinc-500 text-xs">No channel data available.</div>
+                  ) : (
+                    // Group channels by viewer statistics
+                    // Retrieve all channels and map stats
+                    Array.from(new Set(tvHistory.map(h => h.channel?.id).concat(tvLiveViewers.map(l => l.channel?.id))))
+                      .filter(Boolean)
+                      .map(channelId => {
+                        const firstSession = tvLiveViewers.find(l => l.channel?.id === channelId) || tvHistory.find(h => h.channel?.id === channelId);
+                        const channelName = firstSession?.channel?.name || `Channel #${channelId}`;
+                        
+                        const liveCount = tvLiveViewers.filter(s => s.channel?.id === channelId).length;
+                        const histCount = tvHistory.filter(h => h.channel?.id === channelId).length;
+
+                        return (
+                          <div key={channelId} className="p-4 flex items-center justify-between text-sm hover:bg-white/[0.01] transition">
+                            <div className="min-w-0">
+                              <p className="font-bold text-white truncate">{channelName}</p>
+                              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">ID: {channelId}</p>
+                            </div>
+                            <div className="flex items-center gap-4 text-right">
+                              <div>
+                                <p className="text-xs text-red-400 font-bold flex items-center justify-end gap-1 select-none">
+                                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                                  {liveCount} live
+                                </p>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">{histCount} total views</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+
+              {/* Real-time Viewing Activity Log */}
+              <div className="bg-[#111] border border-[#222] rounded-2xl shadow-xl overflow-hidden flex flex-col h-[400px]">
+                <div className="p-4 border-b border-[#222] bg-[#1a1a1a]/50 text-zinc-300 font-extrabold text-xs uppercase tracking-wider">
+                  Live Viewers Session Log
+                </div>
+                <div className="flex-1 overflow-y-auto divide-y divide-[#222]">
+                  {tvLiveViewers.length === 0 ? (
+                    <div className="text-center py-20 text-zinc-500 text-xs">No active live viewers currently.</div>
+                  ) : (
+                    tvLiveViewers.map((viewer, idx) => {
+                      const isRegistered = !!viewer.user;
+                      
+                      return (
+                        <div key={idx} className="p-4 flex items-center justify-between text-xs hover:bg-white/[0.01] transition">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/[0.05] overflow-hidden flex items-center justify-center shrink-0">
+                              {isRegistered && viewer.user?.avatarUrl ? (
+                                <img src={viewer.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs">👤</span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-white truncate">
+                                {isRegistered ? `@${viewer.user.username}` : "Anonymous Guest"}
+                              </p>
+                              <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                Watching: <span className="text-zinc-200 font-semibold">{viewer.channel?.name}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right text-[10px] text-zinc-500 shrink-0 font-mono">
+                            {new Date(viewer.lastActiveAt).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
 

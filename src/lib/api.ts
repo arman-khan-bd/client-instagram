@@ -1869,6 +1869,33 @@ class ApiClient {
     if (error) throw error;
     return true;
   }
+
+  async getTvActiveSessions() {
+    const { data, error } = await supabase
+      .from('TvActiveSession')
+      .select(`
+        sessionId,
+        lastActiveAt,
+        user:User!TvActiveSession_userId_fkey(id, username, fullName, avatarUrl),
+        channel:TvChannel!TvActiveSession_channelId_fkey(id, name)
+      `);
+    if (error) throw error;
+    return data || [];
+  }
+
+  async getTvViewingHistory() {
+    const { data, error } = await supabase
+      .from('TvViewingHistory')
+      .select(`
+        id,
+        viewedAt,
+        user:User!TvViewingHistory_userId_fkey(id, username, fullName, avatarUrl),
+        channel:TvChannel!TvViewingHistory_channelId_fkey(id, name)
+      `)
+      .order('viewedAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
 }
 
 export const api = new ApiClient();
