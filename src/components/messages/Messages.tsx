@@ -281,14 +281,14 @@ export default function Messages() {
   const displayUsers = searchQuery.trim() ? searchResults : followers;
 
   return (
-    <div className="flex-1 bg-black h-full w-full select-none text-white flex relative">
+    <div className="flex-1 bg-[var(--bg)] h-full w-full select-none text-[var(--text)] flex relative">
       {/* 1. Conversations List / Sidebar */}
       <div
-        className={`w-full md:w-[340px] border-r border-[#222] flex flex-col h-full shrink-0 ${
+        className={`w-full md:w-[340px] border-r border-[var(--border)] flex flex-col h-full shrink-0 ${
           activeChatId !== null ? "hidden md:flex" : "flex"
         }`}
       >
-        <div className="p-4.5 pb-3 flex items-center justify-between border-b border-[#222]">
+        <div className="p-4.5 pb-3 flex items-center justify-between border-b border-[var(--border)]">
           <h2 className="font-bold text-[16px] truncate">
             {currentUser?.name || "messages"}
           </h2>
@@ -297,7 +297,7 @@ export default function Messages() {
               setModalMode("dm");
               setShowNewChatModal(true);
             }}
-            className="text-white hover:text-gray-300 font-bold text-[20px] cursor-pointer"
+            className="text-[var(--text)] hover:text-gray-400 font-bold text-[20px] cursor-pointer"
             title="Create Message / Group"
           >
             ✏️
@@ -306,7 +306,7 @@ export default function Messages() {
 
         <div className="flex-1 overflow-y-auto no-scrollbar">
           {chats.length === 0 ? (
-            <div className="p-8 text-center text-[#666] text-xs">
+            <div className="p-8 text-center text-[var(--text3)] text-xs">
               No conversations yet. Tap the edit icon above to start one!
             </div>
           ) : (
@@ -317,17 +317,17 @@ export default function Messages() {
                   key={`dm-session-${dm.id}`}
                   onClick={() => setActiveChatId(dm.id)}
                   className={`flex items-center gap-3.5 px-4 py-3.5 cursor-pointer transition ${
-                    isActive ? "bg-[#161616]" : "hover:bg-[#111]"
+                    isActive ? "bg-[var(--surface2)]" : "hover:bg-[var(--surface)]"
                   }`}
                 >
                   <div className="relative shrink-0">
                     <img
                       src={dm.user.img}
-                      className="w-12.5 h-12.5 rounded-full object-cover border border-[#222]"
+                      className="w-12.5 h-12.5 rounded-full object-cover border border-[var(--border)]"
                       alt={dm.user.name}
                     />
                     {dm.online && !dm.isGroup && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#58d68d] border-2 border-[#0a0a0a] rounded-full" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#58d68d] border-2 border-[var(--bg)] rounded-full" />
                     )}
                   </div>
                   
@@ -335,18 +335,18 @@ export default function Messages() {
                     <div className="text-[14px] font-semibold truncate flex items-center gap-1.5">
                       {dm.user.name}
                       {dm.isGroup && (
-                        <span className="bg-[#222] text-[#aaa] text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        <span className="bg-[var(--surface2)] text-[var(--text2)] text-[9px] font-bold px-1.5 py-0.5 rounded">
                           Group
                         </span>
                       )}
                     </div>
-                    <div className={`text-[12px] truncate ${dm.unread > 0 ? "text-white font-semibold" : "text-[#a8a8a8]"}`}>
+                    <div className={`text-[12px] truncate ${dm.unread > 0 ? "text-[var(--text)] font-semibold" : "text-[var(--text2)]"}`}>
                       {dm.preview}
                     </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-1 shrink-0 select-none">
-                    <span className="text-[11px] text-[#666]">{dm.time}</span>
+                    <span className="text-[11px] text-[var(--text3)]">{dm.time}</span>
                     {dm.unread > 0 && (
                       <span className="bg-insta-blue text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                         {dm.unread}
@@ -362,23 +362,23 @@ export default function Messages() {
 
       {/* 2. Active Chat Area */}
       <div
-        className={`flex-1 flex flex-col h-full bg-[#0a0a0a] ${
+        className={`flex-1 flex flex-col h-full bg-[var(--bg)] ${
           activeChatId === null ? "hidden md:flex" : "flex"
         }`}
       >
         {activeChatId !== null ? (
           !activeChatSession ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 bg-black">
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 bg-[var(--bg)]">
               <div className="w-8 h-8 border-2 border-insta-blue border-t-transparent rounded-full animate-spin"></div>
-              <div className="text-[14px] text-zinc-400">Loading conversation...</div>
+              <div className="text-[14px] text-[var(--text2)]">Loading conversation...</div>
             </div>
           ) : (
             <>
             {/* Chat Header */}
-            <div className="px-4.5 py-3 border-b border-[#222] flex items-center gap-3.5 bg-[#111] z-20">
+            <div className="px-4.5 py-3 border-b border-[var(--border)] flex items-center gap-3.5 bg-[var(--surface)] z-20">
               <button
                 onClick={() => setActiveChatId(null)}
-                className="md:hidden text-white font-bold text-[18px] mr-1.5 cursor-pointer"
+                className="md:hidden text-[var(--text)] font-bold text-[18px] mr-1.5 cursor-pointer"
               >
                 ←
               </button>
@@ -386,34 +386,34 @@ export default function Messages() {
               <img
                 src={activeChatSession.user.img}
                 alt={activeChatSession.user.name}
-                className="w-9 h-9 rounded-full object-cover border border-[#222]"
+                className="w-9 h-9 rounded-full object-cover border border-[var(--border)]"
               />
               
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-[14px] truncate">
                   {activeChatSession.user.name}
                 </div>
-                <div className="text-[11px] text-[#a8a8a8] truncate">
+                <div className="text-[11px] text-[var(--text2)] truncate">
                   {activeChatSession.isGroup
                     ? `${activeChatSession.participants.length} members`
                     : "Active now"}
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 text-[#a8a8a8]">
+              <div className="flex items-center gap-3 text-[var(--text2)]">
                 <button
                   onClick={() => {
                     setModalMode("dm");
                     setShowNewChatModal(true);
                   }}
-                  className="md:hidden p-1 hover:text-white transition cursor-pointer"
+                  className="md:hidden p-1 hover:text-[var(--text)] transition cursor-pointer"
                   title="Create Message / Group"
                 >
                   <PlusCircle size={18} />
                 </button>
                 <button
                   onClick={() => setShowMsgSearch(!showMsgSearch)}
-                  className={`p-1 transition cursor-pointer ${showMsgSearch ? "text-insta-blue" : "hover:text-white"}`}
+                  className={`p-1 transition cursor-pointer ${showMsgSearch ? "text-insta-blue" : "hover:text-[var(--text)]"}`}
                   title="Search Messages"
                 >
                   🔍
@@ -421,7 +421,7 @@ export default function Messages() {
                 <div className="relative">
                   <button
                     onClick={() => setShowThemeMenu(!showThemeMenu)}
-                    className="p-1 hover:text-white transition cursor-pointer"
+                    className="p-1 hover:text-[var(--text)] transition cursor-pointer"
                     title="Change Theme"
                   >
                     🎨
@@ -429,9 +429,9 @@ export default function Messages() {
                   {showThemeMenu && (
                     <>
                       <div className="fixed inset-0 z-20" onClick={() => setShowThemeMenu(false)} />
-                      <div className="absolute right-0 mt-2 bg-[#1c1c1e] border border-zinc-800 rounded-xl p-1.5 flex flex-col gap-0.5 shadow-2xl z-30 w-36">
+                      <div className="absolute right-0 mt-2 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-1.5 flex flex-col gap-0.5 shadow-2xl z-30 w-36">
                         {[
-                          { name: "Dark Mode", value: "default" },
+                          { name: "Dark/Light Mode", value: "default" },
                           { name: "Sunset", value: "sunset" },
                           { name: "Ocean", value: "ocean" },
                           { name: "Forest", value: "forest" },
@@ -441,11 +441,11 @@ export default function Messages() {
                             key={t.value}
                             type="button"
                             onClick={() => {
-                              setChatTheme(t.value);
-                              setShowThemeMenu(false);
+                               setChatTheme(t.value);
+                               setShowThemeMenu(false);
                             }}
-                            className={`text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-white/5 transition ${
-                              chatTheme === t.value ? "text-insta-blue font-bold" : "text-zinc-300"
+                            className={`text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition ${
+                              chatTheme === t.value ? "text-insta-blue font-bold" : "text-[var(--text)]"
                             }`}
                           >
                             {t.name}
@@ -455,20 +455,20 @@ export default function Messages() {
                     </>
                   )}
                 </div>
-                <button className="p-1 hover:text-white transition"><Phone size={18} /></button>
-                <button className="p-1 hover:text-white transition"><Video size={18} /></button>
-                <button className="p-1 hover:text-white transition"><Info size={18} /></button>
+                <button className="p-1 hover:text-[var(--text)] transition"><Phone size={18} /></button>
+                <button className="p-1 hover:text-[var(--text)] transition"><Video size={18} /></button>
+                <button className="p-1 hover:text-[var(--text)] transition"><Info size={18} /></button>
               </div>
             </div>
 
             {showMsgSearch && (
-              <div className="px-4.5 py-2 bg-[#161616] border-b border-[#222] flex items-center gap-2">
+              <div className="px-4.5 py-2 bg-[var(--surface2)] border-b border-[var(--border)] flex items-center gap-2">
                 <input
                   type="text"
                   placeholder="Search in conversation..."
                   value={msgSearchQuery}
                   onChange={(e) => setMsgSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent text-xs outline-none text-white placeholder-zinc-500"
+                  className="flex-1 bg-transparent text-xs outline-none text-[var(--text)] placeholder-[var(--text3)]"
                   autoFocus
                 />
                 <button
@@ -476,7 +476,7 @@ export default function Messages() {
                     setShowMsgSearch(false);
                     setMsgSearchQuery("");
                   }}
-                  className="text-xs text-zinc-400 hover:text-white"
+                  className="text-xs text-[var(--text2)] hover:text-[var(--text)]"
                 >
                   Cancel
                 </button>
@@ -494,11 +494,11 @@ export default function Messages() {
                   ? "bg-gradient-to-b from-[#091f15] via-[#0d2a1b] to-[#0a1510]"
                   : chatTheme === "cyber"
                   ? "bg-gradient-to-b from-[#180828] via-[#240c3c] to-[#0f051a]"
-                  : "bg-black"
+                  : "bg-[var(--bg)]"
               }`}
             >
               {filteredMessages.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-[#555]">
+                <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 text-[var(--text3)]">
                   <span>✨</span>
                   <div className="text-[13px]">
                     {msgSearchQuery ? "No matching messages found." : "No messages yet. Send a message to start!"}
@@ -539,15 +539,15 @@ export default function Messages() {
                     >
                       {/* Sender name for Group chats */}
                       {!msg.mine && activeChatSession.isGroup && msg.sender && (
-                        <span className="text-[10px] text-zinc-500 font-semibold px-2 mb-0.5">
+                        <span className="text-[10px] text-[var(--text3)] font-semibold px-2 mb-0.5">
                           {msg.sender.username}
                         </span>
                       )}
 
                       {/* Reply Reference Preview */}
                       {msg.replyTo && (
-                        <div className="text-[11px] bg-[#161616] text-zinc-400 px-3 py-1.5 rounded-t-xl border-l-2 border-insta-blue/70 max-w-full truncate opacity-80 mb-[-6px]">
-                          <span className="font-bold text-[10px] text-zinc-500 block">
+                        <div className="text-[11px] bg-[var(--surface2)] text-[var(--text2)] px-3 py-1.5 rounded-t-xl border-l-2 border-insta-blue/70 max-w-full truncate opacity-80 mb-[-6px]">
+                          <span className="font-bold text-[10px] text-[var(--text3)] block">
                             Replying to {msg.replyTo.senderName}
                           </span>
                           {msg.replyTo.text}
@@ -561,7 +561,7 @@ export default function Messages() {
                           {!msg.mine && (
                             <button
                               onClick={() => setReplyingToMsg(msg)}
-                              className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
+                              className="p-1 text-[var(--text3)] hover:text-[var(--text)] transition cursor-pointer"
                               title="Reply"
                             >
                               <Reply size={14} />
@@ -580,7 +580,7 @@ export default function Messages() {
                                 msg,
                               });
                             }}
-                            className="p-1 text-zinc-500 hover:text-white transition cursor-pointer"
+                            className="p-1 text-[var(--text3)] hover:text-[var(--text)] transition cursor-pointer"
                             title="React / Options"
                           >
                             <Smile size={14} />
@@ -627,7 +627,7 @@ export default function Messages() {
                             className={`px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed word-break relative select-none cursor-grab active:cursor-grabbing ${
                               msg.mine
                                 ? "bg-insta-blue text-white rounded-br-[6px]"
-                                : "bg-[#1c1c1e] text-white rounded-bl-[6px]"
+                                : "bg-[var(--surface2)] text-[var(--text)] rounded-bl-[6px]"
                             }`}
                           >
                             {msg.mediaUrl ? (
@@ -635,13 +635,13 @@ export default function Messages() {
                                 <video
                                   src={msg.mediaUrl}
                                   controls
-                                  className="max-w-[240px] rounded-lg border border-[#222]"
+                                  className="max-w-[240px] rounded-lg border border-[var(--border)]"
                                 />
                               ) : (
                                 <img
                                   src={msg.mediaUrl}
                                   alt="Media message"
-                                  className="max-w-[240px] max-h-[300px] object-cover rounded-lg border border-[#222]"
+                                  className="max-w-[240px] max-h-[300px] object-cover rounded-lg border border-[var(--border)]"
                                 />
                               )
                             ) : (
@@ -650,12 +650,12 @@ export default function Messages() {
 
                             {/* Reaction emojis rendering */}
                             {reactionsList.length > 0 && (
-                              <div className="absolute bottom-[-10px] right-2 bg-[#222] border border-[#333] rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-[10px] shadow-lg">
+                              <div className="absolute bottom-[-10px] right-2 bg-[var(--surface3)] border border-[var(--border)] rounded-full px-1.5 py-0.5 flex items-center gap-0.5 text-[10px] shadow-lg text-[var(--text)]">
                                 {Array.from(new Set(reactionsList.map(([_, emoji]) => emoji))).map((emoji) => (
                                   <span key={`r-emoji-${emoji}`}>{emoji}</span>
                                 ))}
                                 {reactionsList.length > 1 && (
-                                  <span className="text-[#888] font-bold ml-0.5">{reactionsList.length}</span>
+                                  <span className="text-[var(--text3)] font-bold ml-0.5">{reactionsList.length}</span>
                                 )}
                               </div>
                             )}
@@ -664,7 +664,7 @@ export default function Messages() {
                       </div>
 
                       {/* Message details & Reactions Picker */}
-                      <div className="flex items-center gap-2.5 mt-1 text-[9px] text-[#666]">
+                      <div className="flex items-center gap-2.5 mt-1 text-[9px] text-[var(--text3)]">
                         <span>{msg.time}</span>
                         {msg.isEdited && <span>(edited)</span>}
                         {isTemp && (
@@ -683,7 +683,7 @@ export default function Messages() {
                 })
               )}
               {uploadingMedia && (
-                <div className="self-end bg-[#111] px-4 py-2.5 rounded-xl text-xs text-zinc-400 italic">
+                <div className="self-end bg-[var(--surface2)] px-4 py-2.5 rounded-xl text-xs text-[var(--text2)] italic">
                   Uploading file... ⚡
                 </div>
               )}
@@ -691,15 +691,15 @@ export default function Messages() {
             </div>
 
             {/* Input Panel with Edit/Reply contexts */}
-            <div className="p-4 bg-black border-t border-[#222]">
+            <div className="p-4 bg-[var(--bg)] border-t border-[var(--border)]">
               {/* Replying context bar */}
               {replyingToMsg && (
-                <div className="flex items-center justify-between bg-[#161618] border-l-2 border-insta-blue px-3 py-2 rounded-t-xl mb-2 text-xs">
-                  <div className="truncate text-zinc-400">
-                    Replying to <span className="font-bold text-white">@{replyingToMsg.mine ? "yourself" : replyingToMsg.sender?.username}</span>:{" "}
+                <div className="flex items-center justify-between bg-[var(--surface2)] border-l-2 border-insta-blue px-3 py-2 rounded-t-xl mb-2 text-xs">
+                  <div className="truncate text-[var(--text2)]">
+                    Replying to <span className="font-bold text-[var(--text)]">@{replyingToMsg.mine ? "yourself" : replyingToMsg.sender?.username}</span>:{" "}
                     {replyingToMsg.text || "Shared media"}
                   </div>
-                  <button onClick={() => setReplyingToMsg(null)} className="text-zinc-500 hover:text-white">
+                  <button onClick={() => setReplyingToMsg(null)} className="text-[var(--text3)] hover:text-[var(--text)]">
                     <X size={15} />
                   </button>
                 </div>
@@ -707,22 +707,22 @@ export default function Messages() {
 
               {/* Editing context bar */}
               {editingMsg && (
-                <div className="flex items-center justify-between bg-zinc-900 border-l-2 border-yellow-500 px-3 py-2 rounded-t-xl mb-2 text-xs">
-                  <div className="truncate text-zinc-400">
-                    Editing message: <span className="text-white italic">{editingMsg.text}</span>
+                <div className="flex items-center justify-between bg-[var(--surface2)] border-l-2 border-yellow-500 px-3 py-2 rounded-t-xl mb-2 text-xs">
+                  <div className="truncate text-[var(--text2)]">
+                    Editing message: <span className="text-[var(--text)] italic">{editingMsg.text}</span>
                   </div>
-                  <button onClick={() => { setEditingMsg(null); setInputText(""); }} className="text-zinc-500 hover:text-white">
+                  <button onClick={() => { setEditingMsg(null); setInputText(""); }} className="text-[var(--text3)] hover:text-[var(--text)]">
                     <X size={15} />
                   </button>
                 </div>
               )}
 
-              <form onSubmit={handleSend} className="flex items-center gap-3 bg-[#1c1c1e] rounded-full px-4 py-2 relative">
+              <form onSubmit={handleSend} className="flex items-center gap-3 bg-[var(--surface2)] rounded-full px-4 py-2 relative">
                 {/* Media Button */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-[#a8a8a8] hover:text-white transition cursor-pointer"
+                  className="text-[var(--text2)] hover:text-[var(--text)] transition cursor-pointer"
                   title="Upload image/video"
                 >
                   <ImageIcon size={20} />
@@ -740,7 +740,7 @@ export default function Messages() {
                   <button
                     type="button"
                     onClick={() => setShowTimerMenu(!showTimerMenu)}
-                    className={`${tempDuration ? "text-amber-500 animate-pulse font-bold" : "text-[#a8a8a8] hover:text-white"} transition cursor-pointer flex items-center justify-center`}
+                    className={`${tempDuration ? "text-amber-500 animate-pulse font-bold" : "text-[var(--text2)] hover:text-[var(--text)]"} transition cursor-pointer flex items-center justify-center`}
                     title="Disappearing messages"
                   >
                     <Timer size={20} />
@@ -748,8 +748,8 @@ export default function Messages() {
                   {showTimerMenu && (
                     <>
                       <div className="fixed inset-0 z-20" onClick={() => setShowTimerMenu(false)} />
-                      <div className="absolute bottom-10 left-0 bg-[#1e1e20] border border-zinc-800 rounded-xl p-2 flex flex-col gap-1 shadow-2xl z-30 w-44 backdrop-blur-md bg-opacity-90">
-                        <div className="text-[10px] text-zinc-500 font-bold px-2 py-1 uppercase tracking-wider">
+                      <div className="absolute bottom-10 left-0 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-2 flex flex-col gap-1 shadow-2xl z-30 w-44 backdrop-blur-md bg-opacity-90">
+                        <div className="text-[10px] text-[var(--text3)] font-bold px-2 py-1 uppercase tracking-wider">
                           Message Expiration
                         </div>
                         {[
@@ -766,8 +766,8 @@ export default function Messages() {
                               setTempDuration(opt.value);
                               setShowTimerMenu(false);
                             }}
-                            className={`text-left text-xs px-2 py-1.5 rounded-lg hover:bg-zinc-850 transition flex items-center justify-between ${
-                              tempDuration === opt.value ? "text-amber-400 font-bold bg-white/5" : "text-zinc-300"
+                            className={`text-left text-xs px-2 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center justify-between ${
+                              tempDuration === opt.value ? "text-amber-500 font-bold bg-black/5 dark:bg-white/5" : "text-[var(--text)]"
                             }`}
                           >
                             <span>{opt.label}</span>
@@ -790,7 +790,7 @@ export default function Messages() {
                   }
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  className="flex-1 bg-transparent text-[14px] outline-none text-white placeholder-zinc-500"
+                  className="flex-1 bg-transparent text-[14px] outline-none text-[var(--text)] placeholder-[var(--text3)]"
                 />
 
                 <button
@@ -806,12 +806,12 @@ export default function Messages() {
           )
         ) : (
           /* Empty Chat Selected State */
-          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 p-6 select-none bg-black">
-            <div className="w-24 h-24 rounded-full border border-zinc-800 flex items-center justify-center text-[40px]">
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 p-6 select-none bg-[var(--bg)]">
+            <div className="w-24 h-24 rounded-full border border-[var(--border)] flex items-center justify-center text-[40px]">
               💬
             </div>
             <div className="text-[18px] font-bold">Your private conversations</div>
-            <div className="text-[14px] text-[#a8a8a8] max-w-[280px]">
+            <div className="text-[14px] text-[var(--text2)] max-w-[280px]">
               Send private photos, videos, and group messages to your followers.
             </div>
             <button
@@ -819,7 +819,7 @@ export default function Messages() {
                 setModalMode("dm");
                 setShowNewChatModal(true);
               }}
-              className="mt-2.5 px-6 py-2.5 rounded-lg bg-insta-blue hover:bg-insta-blue/95 font-bold text-[13px] cursor-pointer"
+              className="mt-2.5 px-6 py-2.5 rounded-lg bg-insta-blue hover:bg-insta-blue/95 font-bold text-[13px] cursor-pointer text-white"
             >
               Start Chat
             </button>
@@ -829,10 +829,10 @@ export default function Messages() {
 
       {/* 3. Delete Confirmation Modal */}
       {deletingMsgId !== null && (
-        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 px-4">
-          <div className="bg-[#1c1c1e] border border-zinc-800 rounded-2xl w-full max-w-[360px] overflow-hidden p-6 text-center shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+          <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-2xl w-full max-w-[360px] overflow-hidden p-6 text-center shadow-2xl text-[var(--text)]">
             <h3 className="text-[16px] font-bold mb-2">Unsend message?</h3>
-            <p className="text-xs text-[#a8a8a8] mb-6">
+            <p className="text-xs text-[var(--text2)] mb-6">
               This will remove the message for everyone in the conversation.
             </p>
             <div className="flex flex-col gap-2.5">
@@ -844,7 +844,7 @@ export default function Messages() {
               </button>
               <button
                 onClick={() => setDeletingMsgId(null)}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-xs cursor-pointer"
+                className="w-full py-2.5 bg-[var(--surface3)] hover:opacity-90 text-[var(--text)] rounded-lg font-bold text-xs cursor-pointer"
               >
                 Cancel
               </button>
@@ -855,31 +855,31 @@ export default function Messages() {
 
       {/* 4. New Chat / Group Creation Modal */}
       {showNewChatModal && (
-        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-40 px-4">
-          <div className="bg-[#1c1c1e] border border-zinc-800 rounded-2xl w-full max-w-[440px] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 px-4">
+          <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-2xl w-full max-w-[440px] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden text-[var(--text)]">
             {/* Modal Header */}
-            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
               <h3 className="font-bold text-[15px]">New message</h3>
               <button
                 onClick={() => {
                   setShowNewChatModal(false);
                   setSelectedParticipants([]);
                 }}
-                className="text-zinc-400 hover:text-white cursor-pointer"
+                className="text-[var(--text2)] hover:text-[var(--text)] cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Mode selection (DM vs Group) */}
-            <div className="flex border-b border-zinc-800 text-[13px] font-semibold text-center">
+            <div className="flex border-b border-[var(--border)] text-[13px] font-semibold text-center">
               <button
                 onClick={() => {
                   setModalMode("dm");
                   setSelectedParticipants([]);
                 }}
                 className={`flex-1 py-3 cursor-pointer ${
-                  modalMode === "dm" ? "text-white border-b-2 border-insta-blue bg-white/5" : "text-[#a8a8a8]"
+                  modalMode === "dm" ? "text-[var(--text)] border-b-2 border-insta-blue bg-[var(--surface3)]" : "text-[var(--text2)]"
                 }`}
               >
                 Direct Message
@@ -887,7 +887,7 @@ export default function Messages() {
               <button
                 onClick={() => setModalMode("group")}
                 className={`flex-1 py-3 cursor-pointer ${
-                  modalMode === "group" ? "text-white border-b-2 border-insta-blue bg-white/5" : "text-[#a8a8a8]"
+                  modalMode === "group" ? "text-[var(--text)] border-b-2 border-insta-blue bg-[var(--surface3)]" : "text-[var(--text2)]"
                 }`}
               >
                 Group Chat
@@ -896,11 +896,11 @@ export default function Messages() {
 
             {/* Group details form (if group mode) */}
             {modalMode === "group" && (
-              <form onSubmit={handleGroupCreateSubmit} className="p-4.5 border-b border-zinc-800 flex flex-col gap-3.5 bg-zinc-900/30">
+              <form onSubmit={handleGroupCreateSubmit} className="p-4.5 border-b border-[var(--border)] flex flex-col gap-3.5 bg-[var(--surface2)]/50">
                 <div className="flex items-center gap-3">
                   <div
                     onClick={() => groupPhotoInputRef.current?.click()}
-                    className="w-12.5 h-12.5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center cursor-pointer text-zinc-500 overflow-hidden shrink-0 hover:border-zinc-500 transition"
+                    className="w-12.5 h-12.5 rounded-full bg-[var(--surface3)] border border-[var(--border)] flex items-center justify-center cursor-pointer text-[var(--text3)] overflow-hidden shrink-0 hover:border-[var(--text2)] transition"
                   >
                     {groupFile ? (
                       <img src={URL.createObjectURL(groupFile)} className="w-full h-full object-cover" alt="Group Preview" />
@@ -921,7 +921,7 @@ export default function Messages() {
                     value={groupName}
                     required
                     onChange={(e) => setGroupName(e.target.value)}
-                    className="flex-1 bg-zinc-850 border border-zinc-800 rounded-lg px-3.5 py-2 text-[13px] text-white outline-none focus:border-zinc-700"
+                    className="flex-1 bg-[var(--surface3)] border border-[var(--border)] rounded-lg px-3.5 py-2 text-[13px] text-[var(--text)] outline-none focus:border-[var(--text3)]"
                   />
                 </div>
                 {selectedParticipants.length > 0 && (
@@ -936,21 +936,21 @@ export default function Messages() {
             )}
 
             {/* Followers Search input */}
-            <div className="p-3 bg-zinc-900/10 border-b border-zinc-800 flex items-center gap-2">
-              <span className="text-[12px] text-zinc-500 font-bold uppercase shrink-0">To:</span>
+            <div className="p-3 bg-[var(--surface2)]/10 border-b border-[var(--border)] flex items-center gap-2">
+              <span className="text-[12px] text-[var(--text3)] font-bold uppercase shrink-0">To:</span>
               <input
                 type="text"
                 placeholder="Search followers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent text-[13px] outline-none text-white"
+                className="flex-1 bg-transparent text-[13px] outline-none text-[var(--text)]"
               />
             </div>
 
             {/* Followers List */}
             <div className="flex-1 overflow-y-auto custom-scroll p-2 flex flex-col gap-1">
               {displayUsers.length === 0 ? (
-                <div className="py-8 text-center text-zinc-500 text-xs">
+                <div className="py-8 text-center text-[var(--text3)] text-xs">
                   No users found.
                 </div>
               ) : (
@@ -966,11 +966,11 @@ export default function Messages() {
                           toggleParticipant(user.id);
                         }
                       }}
-                      className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800/50 rounded-xl cursor-pointer transition"
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--surface3)]/50 rounded-xl cursor-pointer transition"
                     >
                       <img
                         src={user.avatarUrl || "https://i.pravatar.cc/80?img=1"}
-                        className="w-10 h-10 rounded-full object-cover border border-[#222]"
+                        className="w-10 h-10 rounded-full object-cover border border-[var(--border)]"
                         alt={user.username}
                       />
                       <div className="flex-1 min-w-0">
@@ -978,7 +978,7 @@ export default function Messages() {
                           {user.username}
                           {user.isVerified && <span className="verified-badge" />}
                         </div>
-                        <div className="text-[11px] text-[#888] truncate">{user.fullName}</div>
+                        <div className="text-[11px] text-[var(--text2)] truncate">{user.fullName}</div>
                       </div>
                       
                       {modalMode === "group" && (
@@ -986,7 +986,7 @@ export default function Messages() {
                           {isSelected ? (
                             <CheckCircle size={20} className="text-insta-blue" />
                           ) : (
-                            <PlusCircle size={20} className="text-zinc-600 hover:text-zinc-400" />
+                            <PlusCircle size={20} className="text-[var(--text3)] hover:text-[var(--text)]" />
                           )}
                         </div>
                       )}
@@ -1003,11 +1003,11 @@ export default function Messages() {
       {contextMenu && contextMenu.msg && (
         <div
           style={{ top: contextMenu.y, left: contextMenu.x }}
-          className="fixed bg-[#1c1c1e] border border-zinc-800 rounded-2xl p-2.5 shadow-2xl z-50 w-52 flex flex-col gap-1 text-[13px] text-white"
+          className="fixed bg-[var(--surface2)] border border-[var(--border)] rounded-2xl p-2.5 shadow-2xl z-50 w-52 flex flex-col gap-1 text-[13px] text-[var(--text)]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Reaction Emoji Row */}
-          <div className="flex justify-around border-b border-zinc-800 pb-2 mb-1.5">
+          <div className="flex justify-around border-b border-[var(--border)] pb-2 mb-1.5">
             {["❤️", "😂", "😮", "😢", "👍", "🔥"].map((emoji) => (
               <span
                 key={`context-emoji-${emoji}`}
@@ -1034,7 +1034,7 @@ export default function Messages() {
                 }
                 setContextMenu(null);
               }}
-              className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center gap-2"
             >
               📋 Copy
             </button>
@@ -1048,7 +1048,7 @@ export default function Messages() {
               }
               setContextMenu(null);
             }}
-            className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+            className="text-left px-3 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center gap-2"
           >
             💬 Reply
           </button>
@@ -1062,7 +1062,7 @@ export default function Messages() {
                 }
                 setContextMenu(null);
               }}
-              className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center gap-2"
             >
               ✏️ Edit
             </button>
@@ -1077,7 +1077,7 @@ export default function Messages() {
                 }
                 setContextMenu(null);
               }}
-              className="text-left px-3 py-1.5 rounded-lg hover:bg-white/5 transition flex items-center gap-2"
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center gap-2"
             >
               ⚡ Bump
             </button>
@@ -1096,7 +1096,7 @@ export default function Messages() {
               }
               setContextMenu(null);
             }}
-            className="text-left px-3 py-1.5 rounded-lg hover:bg-red-950/30 text-red-400 transition flex items-center gap-2"
+            className="text-left px-3 py-1.5 rounded-lg hover:bg-red-500/20 text-red-500 transition flex items-center gap-2"
           >
             🗑️ Delete {contextMenu.msg.mine ? "for everyone" : "for me"}
           </button>

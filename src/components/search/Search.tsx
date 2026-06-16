@@ -141,18 +141,18 @@ export default function Search() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">
+    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none">
       <div className="max-w-[900px] mx-auto px-4 py-8">
         
         {/* Search Input */}
         <div className="relative mb-5">
-          <SearchIcon size={18} className="absolute left-4.5 top-1/2 -translate-y-1/2 text-[#666]" />
+          <SearchIcon size={18} className="absolute left-4.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
           <input
             type="text"
             placeholder="Search username or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#111] border border-[#222] rounded-xl pl-12 pr-4.5 py-3.5 text-[14px] text-white outline-none focus:border-[#3897f0] transition-colors"
+            className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-12 pr-4.5 py-3.5 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
           />
         </div>
 
@@ -162,10 +162,10 @@ export default function Search() {
             <button
               key={cat.id}
               onClick={() => handleCategoryClick(cat.id)}
-              className={`px-4.5 py-1.5 rounded-full text-[13px] font-semibold transition cursor-pointer shrink-0 border border-[#222] ${
+              className={`px-4.5 py-1.5 rounded-full text-[13px] font-semibold transition cursor-pointer shrink-0 border border-[var(--border)] ${
                 activeCategory === cat.id
-                  ? "bg-white text-black"
-                  : "bg-[#111] text-[#a8a8a8] hover:bg-[#1a1a1a]"
+                  ? "bg-[var(--text)] text-[var(--bg)]"
+                  : "bg-[var(--surface2)] text-[var(--text2)] hover:bg-[var(--surface3)]"
               }`}
             >
               {cat.label}
@@ -180,16 +180,16 @@ export default function Search() {
               <div className="flex flex-col gap-3">
                 {[1, 2, 3].map((i) => (
                   <div key={`search-skeleton-${i}`} className="flex items-center gap-3.5 p-3 animate-pulse">
-                    <div className="w-11 h-11 rounded-full bg-zinc-800 shrink-0" />
+                    <div className="w-11 h-11 rounded-full bg-[var(--surface2)] shrink-0" />
                     <div className="flex-1 flex flex-col gap-2">
-                      <div className="h-4 w-24 bg-zinc-800 rounded-md" />
-                      <div className="h-3 w-36 bg-zinc-800 rounded-md" />
+                      <div className="h-4 w-24 bg-[var(--surface2)] rounded-md" />
+                      <div className="h-3 w-36 bg-[var(--surface2)] rounded-md" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : dbUsers.length === 0 ? (
-              <div className="text-center py-12 text-[#a8a8a8] text-[14px]">
+              <div className="text-center py-12 text-[var(--text2)] text-[14px]">
                 No accounts found for "{searchQuery}"
               </div>
             ) : (
@@ -197,19 +197,19 @@ export default function Search() {
                 <div
                   key={u.id}
                   onClick={() => handleUserClick(u.id)}
-                  className="flex items-center gap-3.5 p-3 rounded-xl hover:bg-[#111] cursor-pointer transition select-none animate-fade-in"
+                  className="flex items-center gap-3.5 p-3 rounded-xl hover:bg-[var(--surface2)] cursor-pointer transition select-none animate-fade-in"
                 >
                   <img
                     src={u.avatarUrl || "https://i.pravatar.cc/150?img=1"}
                     alt={u.username}
-                    className="w-11 h-11 rounded-full object-cover border border-[#222]"
+                    className="w-11 h-11 rounded-full object-cover border border-[var(--border)]"
                   />
                   <div>
                     <div className="text-[14px] font-semibold flex items-center gap-1.5">
                       {u.username}
                       {u.isVerified && <span className="verified-badge" title="Verified" />}
                     </div>
-                    <div className="text-[12px] text-[#a8a8a8]">
+                    <div className="text-[12px] text-[var(--text2)]">
                       {u.fullName}
                     </div>
                   </div>
@@ -227,7 +227,7 @@ export default function Search() {
                 className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in"
               >
                 {item.mediaType === "video" || item.isReel ? (
-                  <div className="w-full h-full relative bg-zinc-900">
+                  <div className="w-full h-full relative bg-[var(--surface2)]">
                     <VideoThumbnailCard videoUrl={item.img || item.imgs?.[0] || ""} thumbnailUrl={item.thumbnailUrls?.[0]} />
                   </div>
                 ) : (
@@ -245,7 +245,7 @@ export default function Search() {
                 {(item.mediaType === "video" || item.isReel) && (
                   <span className="absolute top-2 right-2 text-sm z-10">🎬</span>
                 )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-6 text-[14px] font-bold">
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-6 text-[14px] font-bold text-white">
                   <span className="flex items-center gap-1.5">
                     <Heart size={18} fill="currentColor" />
                     {item.likes}
