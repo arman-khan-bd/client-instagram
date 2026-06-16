@@ -43,7 +43,7 @@ export function validateUsernameAndFullName(username: string, fullName: string):
     const isHighlySensitive = [
       "fuck", "porn", "nsfw", "hentai", "allah", "jesus", "christ",
       "muhammad", "yahweh", "slut", "slug", "god"
-    ].includes(word) || word.length >= 4;
+    ].includes(word) || (word.length >= 4 && word !== "anal");
 
     // Check username
     if (isHighlySensitive) {
