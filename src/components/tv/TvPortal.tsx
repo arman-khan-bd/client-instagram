@@ -821,8 +821,9 @@ export default function TvPortal() {
         </div>
 
         {/* Bottom Collapsible Accordion for mobile channel list */}
-        <div className="lg:hidden w-full bg-[#121216]/80 backdrop-blur-md border-t border-white/[0.06] shrink-0 overflow-hidden">
+        <div className="lg:hidden w-full bg-[#121216]/80 backdrop-blur-md border-t border-white/[0.06] shrink-0 overflow-hidden relative z-30">
           <button 
+            type="button"
             onClick={() => setIsCarouselExpanded(!isCarouselExpanded)}
             className="w-full flex items-center justify-between p-3 border-b border-white/[0.04] text-left outline-none cursor-pointer"
           >
@@ -846,8 +847,12 @@ export default function TvPortal() {
                   {filteredChannels.map((channel) => (
                     <button
                       key={channel.id}
-                      onClick={() => setSelectedChannel(channel)}
-                      className={`snap-start flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition shrink-0 text-left cursor-pointer border ${
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedChannel(channel);
+                      }}
+                      className={`snap-start flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition shrink-0 text-left cursor-pointer border relative z-10 ${
                         selectedChannel?.id === channel.id
                           ? "bg-white/[0.08] border-[#FF2E93]/60"
                           : "bg-white/[0.02] border-transparent hover:bg-white/[0.04]"
