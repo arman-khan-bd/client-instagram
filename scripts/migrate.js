@@ -335,6 +335,16 @@ CREATE TABLE IF NOT EXISTS "FollowRequest" (
   "createdAt"    TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE("senderId", "receiverId")
 );
+
+-- ── TvChannel ──────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "TvChannel" (
+  "id"           SERIAL      PRIMARY KEY,
+  "name"         TEXT        NOT NULL,
+  "url"          TEXT        NOT NULL,
+  "category"     TEXT        DEFAULT 'General',
+  "logoUrl"      TEXT        DEFAULT '',
+  "createdAt"    TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,6 +375,7 @@ const rlsStatements = [
   `ALTER TABLE "VideoWatchLog"           ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "VideoUnmuteLog"          ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "FollowRequest"           ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "TvChannel"               ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
@@ -385,6 +396,7 @@ const rlsStatements = [
   `ALTER TABLE "VideoWatchLog"           FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "VideoUnmuteLog"          FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "FollowRequest"           FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "TvChannel"               FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -773,6 +785,12 @@ const rlsStatements = [
   `CREATE POLICY "FollowRequest: delete"
      ON "FollowRequest" FOR DELETE
      USING (auth.uid() = "senderId" OR auth.uid() = "receiverId")`,
+
+  // ── TvChannel Table RLS ──
+  `DROP POLICY IF EXISTS "TvChannel: public read" ON "TvChannel"`,
+  `DROP POLICY IF EXISTS "TvChannel: admin all" ON "TvChannel"`,
+  `CREATE POLICY "TvChannel: public read" ON "TvChannel" FOR SELECT USING (true)`,
+  `CREATE POLICY "TvChannel: admin all" ON "TvChannel" FOR ALL USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin')) WITH CHECK (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
 
   // Enable supabase realtime for Message table
   `do $$

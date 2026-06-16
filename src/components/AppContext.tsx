@@ -298,6 +298,7 @@ const PATHNAME_TO_TAB: Record<string, string> = {
   "/notifications": "notifications",
   "/profile": "profile",
   "/admin": "admin",
+  "/tv": "tv",
 };
 const TAB_TO_PATHNAME: Record<string, string> = {
   home: "/",
@@ -308,6 +309,7 @@ const TAB_TO_PATHNAME: Record<string, string> = {
   notifications: "/notifications",
   profile: "/profile",
   admin: "/admin",
+  tv: "/tv",
 };
 
 // Cache variables outside the React lifecycle to persist across route transitions
@@ -329,6 +331,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     if (pathname.startsWith("/messages/") || pathname.startsWith("/message/")) {
       return "messages";
+    }
+    if (pathname.startsWith("/tv")) {
+      return "tv";
     }
     return PATHNAME_TO_TAB[pathname] || "home";
   });
@@ -718,6 +723,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } else if (activeTab === "admin") {
       document.title = "Admin Panel • AuraGram Dashboard";
+    } else if (activeTab === "tv") {
+      document.title = "AuraTV • Live Channels";
     } else {
       document.title = "AuraGram";
     }

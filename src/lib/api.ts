@@ -1831,6 +1831,44 @@ class ApiClient {
       saved: saved || []
     };
   }
+
+  // ── TV Channels ──
+  async getTvChannels() {
+    const { data, error } = await supabase
+      .from('TvChannel')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async createTvChannel(data: { name: string; url: string; category?: string; logoUrl?: string }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const { data: channel, error } = await supabase
+      .from('TvChannel')
+      .insert({
+        name: data.name,
+        url: data.url,
+        category: data.category || 'General',
+        logoUrl: data.logoUrl || '',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return channel;
+  }
+
+  async deleteTvChannel(channelId: number) {
+    const { error } = await supabase
+      .from('TvChannel')
+      .delete()
+      .eq('id', channelId);
+    if (error) throw error;
+    return true;
+  }
 }
 
 export const api = new ApiClient();

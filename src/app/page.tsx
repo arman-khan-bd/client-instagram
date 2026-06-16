@@ -15,6 +15,7 @@ import Profile from "../components/profile/Profile";
 import Admin from "../components/admin/Admin";
 import Settings from "../components/settings/Settings";
 import PullToRefresh from "../components/ui/PullToRefresh";
+import TvPortal from "../components/tv/TvPortal";
 
 // Modals
 import StoryViewerModal from "../components/modals/StoryViewerModal";
@@ -26,7 +27,7 @@ import StoryCreateModal from "../components/modals/StoryCreateModal";
 import ShareModal from "../components/modals/ShareModal";
 import ReportModal from "../components/modals/ReportModal";
 
-import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User, Settings as SettingsIcon } from "lucide-react";
+import { CheckCircle2, UserPlus, MessageSquare, Send, Bookmark, Info, X, Menu, PlusSquare, Heart, Home as HomeIcon, Search as SearchIcon, Compass, Film, LogOut, User, Settings as SettingsIcon, Tv } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import SplashScreen from "../components/layout/SplashScreen";
 
@@ -98,6 +99,8 @@ export function AppContent() {
         return <Admin />;
       case "settings":
         return <Settings />;
+      case "tv":
+        return <TvPortal />;
       default:
         return <Feed />;
     }
@@ -133,6 +136,9 @@ export function AppContent() {
           AuraGram
         </span>
         <div className="flex items-center gap-3">
+          <button onClick={() => setActiveTab("tv")} className="p-1 hover:text-gray-300">
+            <Tv size={22} className={activeTab === "tv" ? "text-[#FF2E93]" : ""} />
+          </button>
           <button onClick={() => setShowCreatePostModal(true)} className="p-1 hover:text-gray-300">
             <PlusSquare size={22} />
           </button>
@@ -180,6 +186,7 @@ export function AppContent() {
                   { name: "Search", tab: "search", icon: <SearchIcon size={20} /> },
                   { name: "Explore", tab: "explore", icon: <Compass size={20} /> },
                   { name: "Reels", tab: "reels", icon: <Film size={20} /> },
+                  { name: "AuraTV", tab: "tv", icon: <Tv size={20} /> },
                   { name: "Messages", tab: "messages", icon: <MessageSquare size={20} /> },
                   { name: "Notifications", tab: "notifications", icon: <Heart size={20} /> },
                   { name: "Profile", tab: "profile", icon: <User size={20} /> },

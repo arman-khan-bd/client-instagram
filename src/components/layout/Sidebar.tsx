@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApp } from "../AppContext";
-import { Home, Search, Compass, Film, MessageCircle, Heart, PlusSquare, Menu, LogOut, ShieldAlert, Settings as SettingsIcon } from "lucide-react";
+import { Home, Search, Compass, Film, MessageCircle, Heart, PlusSquare, Menu, LogOut, ShieldAlert, Settings as SettingsIcon, Tv } from "lucide-react";
 
 export default function Sidebar() {
   const {
@@ -84,6 +84,16 @@ export default function Sidebar() {
         >
           <Film size={22} className="min-w-[22px]" />
           <span className="hidden lg:inline text-[15px]">Reels</span>
+        </button>
+
+        <button
+          onClick={() => handleNav("tv")}
+          className={`flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full ${
+            activeTab === "tv" ? "bg-[var(--surface3)] font-bold text-[var(--text)]" : "text-[var(--text2)] hover:text-[var(--text)]"
+          }`}
+        >
+          <Tv size={22} className="min-w-[22px]" />
+          <span className="hidden lg:inline text-[15px]">AuraTV</span>
         </button>
 
         <button
