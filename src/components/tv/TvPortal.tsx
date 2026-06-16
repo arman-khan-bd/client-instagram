@@ -54,6 +54,60 @@ export default function TvPortal() {
   const [videoError, setVideoError] = useState(false);
   const [isLive, setIsLive] = useState(true);
 
+  // Controls visibility management
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetControlsTimeout = () => {
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    setShowControls(true);
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  };
+
+  useEffect(() => {
+    resetControlsTimeout();
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const handleMouseMove = () => {
+      resetControlsTimeout();
+    };
+    const handleContainerClick = () => {
+      resetControlsTimeout();
+    };
+    const container = playerContainerRef.current;
+    if (container) {
+      container.addEventListener("mousemove", handleMouseMove);
+      container.addEventListener("click", handleContainerClick);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("mousemove", handleMouseMove);
+        container.removeEventListener("click", handleContainerClick);
+      }
+    };
+  }, [isPlaying]);
+
+  const handleVideoClick = (e: React.MouseEvent) => {
+    if (!showControls) {
+      e.stopPropagation();
+      resetControlsTimeout();
+    } else {
+      togglePlay();
+    }
+  };
+
   // Admin states
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [newChannel, setNewChannel] = useState({
@@ -388,7 +442,7 @@ export default function TvPortal() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-54px)] sm:h-screen w-full bg-[#0a0a0c] text-white overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full w-full bg-[#0a0a0c] text-white overflow-hidden">
       
       {/* Channels List Sidebar (Left / Top on Mobile) */}
       <div className="hidden lg:flex lg:w-[320px] shrink-0 bg-[#121216]/60 backdrop-blur-md border-r border-white/[0.06] flex-col h-full">
@@ -558,11 +612,11 @@ export default function TvPortal() {
         </AnimatePresence>
 
         {/* Video Player Section */}
-        <div className="flex-1 flex items-center justify-center p-4 md:p-8 bg-[#040406]">
+        <div className="flex-1 flex items-center justify-center p-0 sm:p-4 md:p-8 bg-[#040406] min-h-0">
           {selectedChannel ? (
             <div 
               ref={playerContainerRef}
-              className="w-full max-w-[960px] aspect-video bg-[#000] rounded-2xl overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/[0.08] group"
+              className="w-full max-w-[960px] max-h-full aspect-video bg-[#000] sm:rounded-2xl overflow-hidden relative shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/[0.08] group"
             >
               {/* Main Video Element */}
               <div className="relative w-full h-full bg-black flex items-center justify-center">
@@ -570,7 +624,7 @@ export default function TvPortal() {
                   ref={videoRef}
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedMetadata={handleLoadedMetadata}
-                  onClick={togglePlay}
+                  onClick={handleVideoClick}
                   className="w-full h-full object-contain cursor-pointer"
                   playsInline
                 />
@@ -621,9 +675,11 @@ export default function TvPortal() {
                 {!videoError && (
                   <div 
                     onClick={togglePlay}
-                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none"
+                    className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 z-10 pointer-events-none ${
+                      showControls ? "opacity-100" : "opacity-0"
+                    }`}
                   >
-                    <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-all pointer-events-auto cursor-pointer shadow-lg">
+                    <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white scale-90 hover:scale-100 transition-all pointer-events-auto cursor-pointer shadow-lg">
                       {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
                     </div>
                   </div>
@@ -631,12 +687,12 @@ export default function TvPortal() {
               </div>
 
               {/* Custom Player Controls Bar */}
-              <div className={`bg-gradient-to-t from-black/95 via-black/85 to-transparent p-3 md:p-4 pb-4 pt-10 flex flex-col gap-2 absolute bottom-0 left-0 right-0 z-20 select-none transition-all duration-300 ${
-                !isPlaying ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0"
+              <div className={`bg-gradient-to-t from-black/95 via-black/85 to-transparent p-2.5 sm:p-4 pb-4 pt-10 flex flex-col gap-2 absolute bottom-0 left-0 right-0 z-20 select-none transition-all duration-300 ${
+                showControls ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"
               }`}>
                 
                 {/* Progress bar / Seekbar */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <span className="text-[10px] font-semibold text-zinc-400 select-none">
                     {formatTime(currentTime)}
                   </span>
@@ -664,42 +720,42 @@ export default function TvPortal() {
                 </div>
 
                 {/* Controls */}
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-between mt-0.5">
                   
                   {/* Left Controls */}
-                  <div className="flex items-center gap-1.5 md:gap-3">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <button
                       onClick={togglePlay}
-                      className="p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
+                      className="p-1.5 sm:p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                       title={isPlaying ? "Pause" : "Play"}
                     >
-                      {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+                      {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                     </button>
 
                     <button
                       onClick={() => skip(-10)}
-                      className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
+                      className="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                       title="Rewind 10s"
                     >
-                      <RotateCcw size={18} />
+                      <RotateCcw size={16} />
                     </button>
 
                     <button
                       onClick={() => skip(10)}
-                      className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
+                      className="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                       title="Forward 10s"
                     >
-                      <RotateCw size={18} />
+                      <RotateCw size={16} />
                     </button>
 
                     {/* Volume */}
-                    <div className="flex items-center gap-1.5 ml-1.5 group/volume">
+                    <div className="flex items-center gap-1 group/volume">
                       <button
                         onClick={toggleMute}
-                        className="p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
+                        className="p-1.5 sm:p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                         title={isMuted ? "Unmute" : "Mute"}
                       >
-                        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                       </button>
                       <input
                         type="range"
@@ -708,22 +764,22 @@ export default function TvPortal() {
                         step="0.05"
                         value={isMuted ? 0 : volume}
                         onChange={handleVolumeChange}
-                        className="w-16 h-1 bg-white/[0.08] rounded-lg appearance-none cursor-pointer accent-white transition-all group-hover/volume:w-20"
+                        className="hidden sm:block w-16 h-1 bg-white/[0.08] rounded-lg appearance-none cursor-pointer accent-white transition-all group-hover/volume:w-20"
                       />
                     </div>
                   </div>
 
                   {/* Right Controls */}
                   <div className="flex items-center gap-1 md:gap-2">
-                    <span className="text-[10px] font-bold text-zinc-400 bg-white/[0.04] border border-white/[0.05] px-2.5 py-1 rounded-lg mr-2 max-w-[150px] md:max-w-[200px] truncate select-none">
+                    <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 bg-white/[0.04] border border-white/[0.05] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg mr-1 sm:mr-2 max-w-[90px] sm:max-w-[200px] truncate select-none">
                       {selectedChannel.name}
                     </span>
                     <button
                       onClick={toggleFullscreen}
-                      className="p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
+                      className="p-1.5 sm:p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                       title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                     >
-                      {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                      {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                     </button>
                   </div>
                 </div>
