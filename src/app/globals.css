@@ -32,9 +32,9 @@
   --surface2: rgba(225, 225, 225, 0.9);
   --surface3: rgba(200, 200, 200, 0.9);
   --border: rgba(0, 0, 0, 0.08);
-  --text: #111111;
-  --text2: #555555;
-  --text3: #888888;
+  --text: #000000;
+  --text2: #2d3748;
+  --text3: #4a5568;
   --accent: #FF2E93;
   --accent2: #9E00FF;
   --accent3: #FF8A00;

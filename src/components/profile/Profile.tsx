@@ -416,7 +416,7 @@ export default function Profile() {
   const hasStory = storyGroups.some(g => g.userId === profileUser.id);
 
   return (
-    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-white select-none">
+    <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none">
       <div className="max-w-[900px] mx-auto">
 
         {/* ── Cover Photo ── */}
@@ -444,19 +444,19 @@ export default function Profile() {
                 className={`w-[90px] h-[90px] md:w-[120px] md:h-[120px] rounded-full p-[3px] cursor-pointer overflow-hidden flex items-center justify-center ${
                   hasStory
                     ? "bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
-                    : "bg-zinc-800"
-                } ring-4 ring-black`}
+                    : "bg-[var(--surface2)]"
+                } ring-4 ring-[var(--bg)]`}
               >
                 <img
                   src={dbProfile?.avatarUrl || profileUser.img}
-                  className="w-full h-full rounded-full object-cover border-2 border-black"
+                  className="w-full h-full rounded-full object-cover border-2 border-[var(--bg)]"
                   alt="Profile"
                 />
               </div>
               {isSelf && (
                 <div
                   onClick={() => setShowStoryCreate(true)}
-                  className="absolute bottom-1 right-1 bg-insta-blue border border-black hover:bg-insta-blue/90 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer active:scale-95 transition"
+                  className="absolute bottom-1 right-1 bg-insta-blue border border-[var(--bg)] hover:bg-insta-blue/90 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer active:scale-95 transition"
                   title="Create Day / Story"
                 >
                   <Plus size={14} />
@@ -472,7 +472,7 @@ export default function Profile() {
                   <span className="verified-badge" title="Verified" />
                 )}
               </div>
-              <p className="text-[13px] text-[#888] truncate">{dbProfile?.fullName || profileUser.full}</p>
+              <p className="text-[13px] text-[var(--text2)] truncate">{dbProfile?.fullName || profileUser.full}</p>
             </div>
           </div>
 
@@ -482,13 +482,13 @@ export default function Profile() {
               <>
                 <button
                   onClick={() => setShowEditProfileModal(true)}
-                  className="px-4 py-2 border border-[#2a2a2a] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
+                  className="px-4 py-2 border border-[var(--border)] rounded-lg text-[13px] font-bold hover:bg-[var(--surface2)] transition cursor-pointer"
                 >
                   Edit profile
                 </button>
                 <button
                   onClick={() => setShowStoryCreate(true)}
-                  className="px-4 py-2 border border-[#2a2a2a] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
+                  className="px-4 py-2 border border-[var(--border)] rounded-lg text-[13px] font-bold hover:bg-[var(--surface2)] transition cursor-pointer"
                 >
                   Add Day
                 </button>
@@ -499,7 +499,7 @@ export default function Profile() {
                   onClick={handleFollowToggle}
                   className={`px-4.5 py-2 rounded-lg text-[13px] font-bold cursor-pointer transition ${
                     dbProfile?.isFollowing
-                      ? "border border-[#222] hover:bg-[#111] text-white"
+                      ? "border border-[var(--border)] hover:bg-[var(--surface2)] text-[var(--text)]"
                       : "bg-insta-blue hover:bg-insta-blue/90 text-white"
                   }`}
                 >
@@ -507,7 +507,7 @@ export default function Profile() {
                 </button>
                 <button
                   onClick={handleMessageUser}
-                  className="px-4.5 py-2 border border-[#222] rounded-lg text-[13px] font-bold hover:bg-[#1a1a1a] transition cursor-pointer"
+                  className="px-4.5 py-2 border border-[var(--border)] rounded-lg text-[13px] font-bold hover:bg-[var(--surface2)] transition cursor-pointer"
                 >
                   Message
                 </button>
@@ -519,22 +519,22 @@ export default function Profile() {
           <div className="flex gap-7 mb-5 text-[14px]">
             <div>
               <span className="font-bold mr-1">{dbProfile?._count?.posts ?? tabPosts.length}</span>
-              <span className="text-[#a8a8a8]">posts</span>
+              <span className="text-[var(--text2)]">posts</span>
             </div>
             <div onClick={() => handleOpenFollowers("followers")} className="cursor-pointer hover:opacity-80">
               <span className="font-bold mr-1">{dbProfile?._count?.followers ?? profileUser.followers}</span>
-              <span className="text-[#a8a8a8]">followers</span>
+              <span className="text-[var(--text2)]">followers</span>
             </div>
             <div onClick={() => handleOpenFollowers("following")} className="cursor-pointer hover:opacity-80">
               <span className="font-bold mr-1">{dbProfile?._count?.following ?? profileUser.following}</span>
-              <span className="text-[#a8a8a8]">following</span>
+              <span className="text-[var(--text2)]">following</span>
             </div>
           </div>
 
           {/* ── Bio ── */}
           {(dbProfile?.bio || profileUser.bio) && (
             <div className="text-[14px] leading-relaxed select-text mb-4">
-              <p className="whitespace-pre-line text-gray-200">{dbProfile?.bio || profileUser.bio}</p>
+              <p className="whitespace-pre-line text-[var(--text)]">{dbProfile?.bio || profileUser.bio}</p>
             </div>
           )}
 
@@ -562,27 +562,27 @@ export default function Profile() {
             profileUser.hobbies ||
             profileUser.interests
           ) && (
-            <div className="mb-6 bg-[#0f0f0f] border border-[#1e1e1e] rounded-2xl p-4 space-y-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-[#555] mb-3">About</p>
+            <div className="mb-6 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--text3)] mb-3">About</p>
 
               {profileUser.work && (
                 <div className="flex items-center gap-3 text-[13px]">
-                  <Briefcase size={15} className="text-[#555] shrink-0" />
-                  <span className="text-[#ccc]">{profileUser.work}</span>
+                  <Briefcase size={15} className="text-[var(--text3)] shrink-0" />
+                  <span className="text-[var(--text)]">{profileUser.work}</span>
                 </div>
               )}
 
               {profileUser.education && (
                 <div className="flex items-center gap-3 text-[13px]">
-                  <GraduationCap size={15} className="text-[#555] shrink-0" />
-                  <span className="text-[#ccc]">{profileUser.education}</span>
+                  <GraduationCap size={15} className="text-[var(--text3)] shrink-0" />
+                  <span className="text-[var(--text)]">{profileUser.education}</span>
                 </div>
               )}
 
               {(profileUser.city || profileUser.country) && (
                 <div className="flex items-center gap-3 text-[13px]">
-                  <MapPin size={15} className="text-[#555] shrink-0" />
-                  <span className="text-[#ccc]">
+                  <MapPin size={15} className="text-[var(--text3)] shrink-0" />
+                  <span className="text-[var(--text)]">
                     {[profileUser.city, profileUser.country].filter(Boolean).join(", ")}
                   </span>
                 </div>
@@ -590,14 +590,14 @@ export default function Profile() {
 
               {profileUser.hometown && (
                 <div className="flex items-center gap-3 text-[13px]">
-                  <Home size={15} className="text-[#555] shrink-0" />
-                  <span className="text-[#ccc]">From {profileUser.hometown}</span>
+                  <Home size={15} className="text-[var(--text3)] shrink-0" />
+                  <span className="text-[var(--text)]">From {profileUser.hometown}</span>
                 </div>
               )}
 
               {profileUser.web && (
                 <div className="flex items-center gap-3 text-[13px]">
-                  <Globe size={15} className="text-[#555] shrink-0" />
+                  <Globe size={15} className="text-[var(--text3)] shrink-0" />
                   <a
                     href={profileUser.web.startsWith("http") ? profileUser.web : `https://${profileUser.web}`}
                     target="_blank"
@@ -610,22 +610,22 @@ export default function Profile() {
               )}
 
               {(profileUser.hobbies || profileUser.interests) && (
-                <div className="pt-2 border-t border-[#1a1a1a] mt-2">
+                <div className="pt-2 border-t border-[var(--border)] mt-2">
                   {profileUser.hobbies && (
                     <div className="flex items-start gap-3 text-[13px] mt-2">
-                      <Star size={15} className="text-[#555] shrink-0 mt-0.5" />
+                      <Star size={15} className="text-[var(--text3)] shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-[#666] text-[11px] uppercase tracking-wider block mb-1">Hobbies</span>
-                        <span className="text-[#ccc]">{profileUser.hobbies}</span>
+                        <span className="text-[var(--text2)] text-[11px] uppercase tracking-wider block mb-1">Hobbies</span>
+                        <span className="text-[var(--text)]">{profileUser.hobbies}</span>
                       </div>
                     </div>
                   )}
                   {profileUser.interests && (
                     <div className="flex items-start gap-3 text-[13px] mt-2">
-                      <Heart size={15} className="text-[#555] shrink-0 mt-0.5" />
+                      <Heart size={15} className="text-[var(--text3)] shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-[#666] text-[11px] uppercase tracking-wider block mb-1">Interests</span>
-                        <span className="text-[#ccc]">{profileUser.interests}</span>
+                        <span className="text-[var(--text2)] text-[11px] uppercase tracking-wider block mb-1">Interests</span>
+                        <span className="text-[var(--text)]">{profileUser.interests}</span>
                       </div>
                     </div>
                   )}
@@ -636,7 +636,7 @@ export default function Profile() {
 
           {/* Highlights / Day List */}
           {activeStories.length > 0 && (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[#222]/80">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[var(--border)]">
             {activeStories.map((story, idx) => (
               <div
                 key={`profile-story-${story.id}`}
@@ -648,14 +648,14 @@ export default function Profile() {
                 }}
                 className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer"
               >
-                <div className="w-[64px] h-[64px] rounded-full border-2 border-insta-blue overflow-hidden p-[2px] hover:border-white transition bg-zinc-800">
+                <div className="w-[64px] h-[64px] rounded-full border-2 border-insta-blue overflow-hidden p-[2px] hover:border-[var(--text)] transition bg-[var(--surface2)]">
                   {story.mediaType === "video" ? (
                     <video src={story.mediaUrl} className="w-full h-full rounded-full object-cover" muted />
                   ) : (
                     <img src={story.mediaUrl} alt="Day" className="w-full h-full rounded-full object-cover" />
                   )}
                 </div>
-                <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+                <span className="text-[11px] text-[var(--text2)] text-center max-w-[64px] truncate">
                   {story.caption || `Day ${idx + 1}`}
                 </span>
               </div>
@@ -665,10 +665,10 @@ export default function Profile() {
                 onClick={() => setShowStoryCreate(true)}
                 className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
               >
-                <div className="w-[64px] h-[64px] rounded-full border-2 border-dashed border-[#222] flex items-center justify-center text-[28px] hover:border-gray-500 text-gray-400 hover:text-white transition">
+                <div className="w-[64px] h-[64px] rounded-full border-2 border-dashed border-[var(--border)] flex items-center justify-center text-[28px] hover:border-[var(--text2)] text-[var(--text3)] hover:text-[var(--text)] transition bg-[var(--surface2)]">
                   ➕
                 </div>
-                <span className="text-[11px] text-[#a8a8a8] text-center max-w-[64px] truncate">
+                <span className="text-[11px] text-[var(--text2)] text-center max-w-[64px] truncate">
                   Add Day
                 </span>
               </div>
@@ -677,11 +677,11 @@ export default function Profile() {
           )}
 
           {/* Profile Tabs */}
-          <div className="flex border-t border-[#222] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
+          <div className="flex border-t border-[var(--border)] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
           <button
             onClick={() => setActiveTabName("posts")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
-              activeTabName === "posts" ? "border-white text-white" : "border-transparent text-[#666] hover:text-white"
+              activeTabName === "posts" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
             }`}
           >
             <Grid size={14} /> Posts
@@ -690,7 +690,7 @@ export default function Profile() {
           <button
             onClick={() => setActiveTabName("reels")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
-              activeTabName === "reels" ? "border-white text-white" : "border-transparent text-[#666] hover:text-white"
+              activeTabName === "reels" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
             }`}
           >
             <Film size={14} /> Reels
@@ -700,7 +700,7 @@ export default function Profile() {
             <button
               onClick={() => setActiveTabName("saved")}
               className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
-                activeTabName === "saved" ? "border-white text-white" : "border-transparent text-[#666] hover:text-white"
+                activeTabName === "saved" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
               }`}
             >
               <Bookmark size={14} /> Saved
@@ -710,7 +710,7 @@ export default function Profile() {
           <button
             onClick={() => setActiveTabName("tagged")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
-              activeTabName === "tagged" ? "border-white text-white" : "border-transparent text-[#666] hover:text-white"
+              activeTabName === "tagged" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
             }`}
           >
             <UserSquare size={14} /> Tagged
@@ -719,7 +719,7 @@ export default function Profile() {
 
           {/* Profile Grid */}
           {profilePostsList.length === 0 ? (
-            <div className="text-center py-12 text-[#a8a8a8] text-[14px]">
+            <div className="text-center py-12 text-[var(--text2)] text-[14px]">
               {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
             </div>
           ) : (
@@ -728,7 +728,7 @@ export default function Profile() {
               <div
                 key={`grid-post-${post.id}-${i}`}
                 onClick={() => setActivePostId(post.id)}
-                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg bg-zinc-900"
+                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg bg-[var(--surface2)]"
               >
                 {post.isTextOnly || post.bgGradient ? (
                   <div
