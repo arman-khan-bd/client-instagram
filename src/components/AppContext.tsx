@@ -447,7 +447,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [posts, setPosts] = useState<MockPost[]>([]);
   const [isFeedLoaded, setIsFeedLoaded] = useState<boolean>(false);
   const [chats, setChats] = useState<MockChatSession[]>([]);
-  const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>({});
+  const [chatMessages, setChatMessages] = useState<Record<number, MockMessage[]>>(() => {
+    return INITIAL_DM_MESSAGES;
+  });
   const [notifications, setNotifications] = useState<MockNotification[]>([]);
   const [followRequests, setFollowRequests] = useState<any[]>([]);
 
@@ -798,10 +800,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         };
       });
 
-      setChatMessages((prev) => ({
-        ...prev,
-        [conversationId]: mapped
-      }));
+      setChatMessages((prev) => {
+        const fallback = INITIAL_DM_MESSAGES[conversationId] || [];
+        return {
+          ...prev,
+          [conversationId]: mapped.length > 0 ? mapped : fallback
+        };
+      });
     } catch (err) {
       console.error("Failed to load messages for conversation:", conversationId, err);
     }

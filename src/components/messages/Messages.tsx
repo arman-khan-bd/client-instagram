@@ -590,19 +590,19 @@ export default function Messages() {
                         {/* Interactive Swipe-to-Reply Bubble wrapper */}
                         <div className="relative flex items-center">
                           {/* Floating back-icon indicator when swiping */}
-                          <div 
-                            className={`absolute y-1/2 -translate-y-1/2 flex items-center justify-center text-insta-blue transition-opacity duration-150 pointer-events-none ${
-                              msg.mine ? "right-[-32px]" : "left-[-32px]"
-                            }`}
-                          >
-                            <Reply size={16} className="animate-pulse" />
-                          </div>
+                          {!msg.mine && (
+                            <div 
+                              className="absolute y-1/2 -translate-y-1/2 flex items-center justify-center text-insta-blue transition-opacity duration-150 pointer-events-none left-[-32px]"
+                            >
+                              <Reply size={16} className="animate-pulse" />
+                            </div>
+                          )}
 
                           <motion.div
-                            drag="x"
+                            drag={!msg.mine ? "x" : false}
                             dragConstraints={
                               msg.mine 
-                                ? { left: -75, right: 0 } 
+                                ? { left: 0, right: 0 } 
                                 : { left: 0, right: 75 }
                             }
                             dragElastic={0.45}
@@ -611,13 +611,6 @@ export default function Messages() {
                               const offset = info.offset.x;
                               // Received message swiped left-to-right
                               if (!msg.mine && offset > 48) {
-                                setReplyingToMsg(msg);
-                                if (typeof window !== "undefined" && window.navigator.vibrate) {
-                                  window.navigator.vibrate(15);
-                                }
-                              }
-                              // Sent message swiped right-to-left
-                              if (msg.mine && offset < -48) {
                                 setReplyingToMsg(msg);
                                 if (typeof window !== "undefined" && window.navigator.vibrate) {
                                   window.navigator.vibrate(15);
@@ -1041,17 +1034,19 @@ export default function Messages() {
           )}
 
           {/* Reply Option */}
-          <button
-            onClick={() => {
-              if (contextMenu.msg) {
-                setReplyingToMsg(contextMenu.msg);
-              }
-              setContextMenu(null);
-            }}
-            className="text-left px-3 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center gap-2"
-          >
-            💬 Reply
-          </button>
+          {!contextMenu.msg.mine && (
+            <button
+              onClick={() => {
+                if (contextMenu.msg) {
+                  setReplyingToMsg(contextMenu.msg);
+                }
+                setContextMenu(null);
+              }}
+              className="text-left px-3 py-1.5 rounded-lg hover:bg-[var(--surface3)] transition flex items-center gap-2"
+            >
+              💬 Reply
+            </button>
+          )}
 
           {/* Edit Option (Own only) */}
           {contextMenu.msg.mine && contextMenu.msg.text && (

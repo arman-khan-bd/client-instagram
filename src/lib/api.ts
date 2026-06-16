@@ -399,6 +399,32 @@ class ApiClient {
 
   async getComments(postId: string | number) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    // Check post author's privacy
+    const { data: post } = await supabase
+      .from('Post')
+      .select('userId, user:User!Post_userId_fkey(private_profile)')
+      .eq('id', Number(postId))
+      .maybeSingle();
+
+    const userObj = Array.isArray(post?.user) ? post.user[0] : (post?.user as any);
+    if (post && userObj?.private_profile === true) {
+      const isSelf = authUser?.id === post.userId;
+      let isFollowing = false;
+      if (authUser && !isSelf) {
+        const { data: followRecord } = await supabase
+          .from('Follow')
+          .select('id')
+          .eq('followerId', authUser.id)
+          .eq('followingId', post.userId)
+          .maybeSingle();
+        isFollowing = !!followRecord;
+      }
+      if (!isSelf && !isFollowing) {
+        return [];
+      }
+    }
+
     const { data: comments, error } = await supabase
       .from('Comment')
       .select(`
@@ -1405,15 +1431,33 @@ class ApiClient {
   async getPost(postId: number | string) {
     const { data: post, error } = await supabase
       .from('Post')
-      .select('*, user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified)')
+      .select('*, user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified, private_profile)')
       .eq('id', Number(postId))
       .single();
 
     if (error || !post) throw new Error(error?.message || 'Post not found');
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    const isPrivate = post.user?.private_profile === true;
+    const isSelf = authUser?.id === post.userId;
+    let isFollowing = false;
+    if (authUser && !isSelf) {
+      const { data: followRecord } = await supabase
+        .from('Follow')
+        .select('id')
+        .eq('followerId', authUser.id)
+        .eq('followingId', post.userId)
+        .maybeSingle();
+      isFollowing = !!followRecord;
+    }
+
+    if (isPrivate && !isSelf && !isFollowing) {
+      throw new Error("This Account is Private");
+    }
+
     const { count: likesCount } = await supabase.from('Like').select('id', { count: 'exact', head: true }).eq('postId', post.id);
 
-    const { data: { user: authUser } } = await supabase.auth.getUser();
     let isLiked = false;
     if (authUser) {
       const { data: likeRecord } = await supabase
