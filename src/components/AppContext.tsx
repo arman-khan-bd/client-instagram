@@ -1107,8 +1107,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const { posts: dbPosts } = await api.getFeed(1, 20);
       const mapped: MockPost[] = dbPosts.map((p: any) => {
+        // Determine the target post for extracting media properties.
+        // If this is a shared post, we resolve its media content from the originalPost.
+        const targetPost = p.originalPost || p;
+
         // Build media URL list and per-media thumbnail URL list
-        const rawMediaUrls: any[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0 ? p.mediaUrls : [];
+        const rawMediaUrls: any[] = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0 ? targetPost.mediaUrls : [];
         const mediaList: string[] = rawMediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean);
         const thumbnailUrls: string[] = rawMediaUrls.map((m: any) =>
           typeof m === "string" ? "" : (m?.thumbnailUrl || "")
@@ -1117,8 +1121,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         // A text-only post: thumbnailUrl stores the CSS gradient string
         // Use gradient detection as the canonical signal — no real image/video has a gradient thumbnailUrl
         const isGradient =
-          typeof p.thumbnailUrl === "string" &&
-          (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+          typeof targetPost.thumbnailUrl === "string" &&
+          (targetPost.thumbnailUrl.startsWith("linear-gradient") || targetPost.thumbnailUrl.startsWith("radial-gradient"));
         const isTextOnly = isGradient;
 
         const isVideo = !isTextOnly && mediaList.some(
@@ -1137,7 +1141,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const isVideoUrl = (url: string) =>
           url.endsWith(".mp4") || url.endsWith(".mov") || url.endsWith(".webm") || url.includes("/video/upload/");
 
-        const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
+        const bgGradient  = isTextOnly ? targetPost.thumbnailUrl : undefined;
         let img = "";
         if (isTextOnly) {
           img = "";
@@ -1145,9 +1149,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // For videos, always use the raw video URL so VideoThumbnailCard can generate a thumbnail
           img = mediaList.find(isVideoUrl) || mediaList[0] || "";
         } else {
-          img = p.thumbnailUrl || mediaList[0] || "";
+          img = targetPost.thumbnailUrl || mediaList[0] || "";
         }
-        const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
+        const filterVal   = targetPost.masterUrl && targetPost.masterUrl !== "none" ? targetPost.masterUrl : undefined;
 
         return {
           id: p.id,
@@ -1178,6 +1182,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
           isAdult: p.isAdult || false,
           isAdultUnmarked: p.isAdultUnmarked || false,
+          originalPostId: p.originalPostId,
+          originalPost: p.originalPost ? (() => {
+            const origIsTextOnly = typeof p.originalPost.thumbnailUrl === "string" && (p.originalPost.thumbnailUrl.startsWith("linear-gradient") || p.originalPost.thumbnailUrl.startsWith("radial-gradient"));
+            const origIsVideo = p.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+            return {
+              id: p.originalPost.id,
+              user: {
+                id: p.originalPost.user?.id || 0,
+                name: p.originalPost.user?.username || "user",
+                full: p.originalPost.user?.fullName || "User",
+                img: p.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+                followers: 0,
+                following: 0,
+                bio: "",
+                verified: p.originalPost.user?.isVerified || false,
+              },
+              img: p.originalPost.thumbnailUrl || (p.originalPost.mediaUrls?.[0]?.url || p.originalPost.mediaUrls?.[0] || ""),
+              imgs: p.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+              caption: p.originalPost.caption || "",
+              likes: 0,
+              comments: [],
+              time: "",
+              hasStory: false,
+              location: p.originalPost.location || "",
+              isTextOnly: origIsTextOnly,
+              mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
+            };
+          })() : undefined,
         };
       });
 

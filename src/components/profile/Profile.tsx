@@ -295,9 +295,11 @@ export default function Profile() {
   const profilePostsList = useMemo(() => {
     if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged")) {
       const allMapped = dbProfile.posts.map((p: any) => {
+        const targetPost = p.originalPost || p;
+        const mediaUrls = targetPost.mediaUrls;
         const mediaList: Array<{ url: string; type: string; thumbnailUrl?: string }> =
-          Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-            ? p.mediaUrls.map((m: any) =>
+          Array.isArray(mediaUrls) && mediaUrls.length > 0
+            ? mediaUrls.map((m: any) =>
                 typeof m === "string"
                   ? { url: m, type: (!!(m.match(/\.(mp4|mov|webm)/i)) || m.includes("/video/")) ? "video" : "image" }
                   : { url: m?.url || "", type: m?.type || "image", thumbnailUrl: m?.thumbnailUrl }
@@ -306,8 +308,8 @@ export default function Profile() {
 
         // Detect color/text posts by thumbnailUrl being a CSS gradient — this is the canonical signal
         const isGradient =
-          typeof p.thumbnailUrl === "string" &&
-          (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
+          typeof targetPost.thumbnailUrl === "string" &&
+          (targetPost.thumbnailUrl.startsWith("linear-gradient") || targetPost.thumbnailUrl.startsWith("radial-gradient"));
         const isTextOnly = isGradient;
 
         const isVideo = !isTextOnly && mediaList.some(
@@ -343,7 +345,7 @@ export default function Profile() {
           ? ""
           : isVideo
           ? videoUrl  // pass video URL; VideoThumbnailCard will auto-generate thumbnail
-          : p.thumbnailUrl || mediaList[0]?.url || "https://picsum.photos/400/400";
+          : targetPost.thumbnailUrl || mediaList[0]?.url || "https://picsum.photos/400/400";
 
         return {
           id: p.id,
@@ -351,11 +353,13 @@ export default function Profile() {
           videoUrl: isVideo ? videoUrl : undefined,
           videoThumbnailUrl: isVideo ? videoThumbnailUrl : undefined,
           isTextOnly,
-          bgGradient: isTextOnly ? p.thumbnailUrl : undefined,
-          caption: p.caption || "",
+          bgGradient: isTextOnly ? targetPost.thumbnailUrl : undefined,
+          caption: p.caption || targetPost.caption || "",
           likes: p._count?.likes ?? 0,
           comments: { length: p._count?.comments ?? 0 },
           isReel: isVideo,
+          originalPostId: p.originalPostId,
+          originalPost: p.originalPost,
         };
       });
 

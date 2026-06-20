@@ -212,17 +212,18 @@ export default function PostModal() {
       setLoadingPost(true);
       api.getPost(activePostId)
         .then((dbPost) => {
-          const mediaList: string[] = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
-            ? dbPost.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
+          const targetPostForMedia = dbPost.originalPost || dbPost;
+          const mediaList: string[] = Array.isArray(targetPostForMedia.mediaUrls) && targetPostForMedia.mediaUrls.length > 0
+            ? targetPostForMedia.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
             : [];
-          const thumbnailUrls: string[] = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
-            ? dbPost.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
+          const thumbnailUrls: string[] = Array.isArray(targetPostForMedia.mediaUrls) && targetPostForMedia.mediaUrls.length > 0
+            ? targetPostForMedia.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
             : [];
-          const isTextOnly =
-            mediaList.length === 0 &&
-            typeof dbPost.thumbnailUrl === "string" &&
-            (dbPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.thumbnailUrl.startsWith("radial-gradient"));
-          const isVideo = mediaList.some(
+          const isGradient =
+            typeof targetPostForMedia.thumbnailUrl === "string" &&
+            (targetPostForMedia.thumbnailUrl.startsWith("linear-gradient") || targetPostForMedia.thumbnailUrl.startsWith("radial-gradient"));
+          const isTextOnly = isGradient;
+          const isVideo = !isTextOnly && mediaList.some(
             (m) =>
               typeof m === "string" &&
               (m.endsWith(".mp4") ||
@@ -230,9 +231,38 @@ export default function PostModal() {
                 m.endsWith(".webm") ||
                 m.includes("/video/upload/"))
           );
-          const bgGradient = isTextOnly ? dbPost.thumbnailUrl : undefined;
-          const img = isTextOnly ? "" : (dbPost.thumbnailUrl || mediaList[0] || "");
-          const filterVal = dbPost.masterUrl && dbPost.masterUrl !== "none" ? dbPost.masterUrl : undefined;
+          const bgGradient = isTextOnly ? targetPostForMedia.thumbnailUrl : undefined;
+          const img = isTextOnly ? "" : (targetPostForMedia.thumbnailUrl || mediaList[0] || "");
+          const filterVal = targetPostForMedia.masterUrl && targetPostForMedia.masterUrl !== "none" ? targetPostForMedia.masterUrl : undefined;
+
+          // Map originalPost relation
+          const originalPostMapped = dbPost.originalPost ? (() => {
+            const origIsTextOnly = typeof dbPost.originalPost.thumbnailUrl === "string" && (dbPost.originalPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.originalPost.thumbnailUrl.startsWith("radial-gradient"));
+            const origIsVideo = dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+            return {
+              id: dbPost.originalPost.id,
+              user: {
+                id: dbPost.originalPost.user?.id || 0,
+                name: dbPost.originalPost.user?.username || "user",
+                full: dbPost.originalPost.user?.fullName || "User",
+                img: dbPost.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+                followers: 0,
+                following: 0,
+                bio: "",
+                verified: dbPost.originalPost.user?.isVerified || false,
+              },
+              img: dbPost.originalPost.thumbnailUrl || (dbPost.originalPost.mediaUrls?.[0]?.url || dbPost.originalPost.mediaUrls?.[0] || ""),
+              imgs: dbPost.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+              caption: dbPost.originalPost.caption || "",
+              likes: 0,
+              comments: [],
+              time: "",
+              hasStory: false,
+              location: dbPost.originalPost.location || "",
+              isTextOnly: origIsTextOnly,
+              mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
+            };
+          })() : undefined;
 
           setFetchedPost({
             id: dbPost.id,
@@ -260,6 +290,8 @@ export default function PostModal() {
             isTextOnly,
             isReel: isVideo,
             mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
+            originalPostId: dbPost.originalPostId,
+            originalPost: originalPostMapped,
           });
         })
         .catch((err) => {
@@ -542,6 +574,34 @@ export default function PostModal() {
                   <div className="text-[13px] leading-relaxed break-words text-[var(--text)]">
                     <span className="font-bold mr-1.5 text-[var(--text)]">{activePost.user?.name}</span>
                     {activePost.caption}
+                  </div>
+                </div>
+              )}
+
+              {/* Original Post reference card for shared posts */}
+              {activePost.originalPost && (
+                <div className="px-5 py-3 border-b border-[var(--border)] bg-black/[0.03] dark:bg-white/[0.03] flex flex-col gap-2 shrink-0 select-none">
+                  <div className="text-[11px] font-bold text-[var(--text3)] uppercase tracking-wider flex items-center gap-1">
+                    🔄 Shared a post
+                  </div>
+                  <div 
+                    onClick={() => setActivePostId(activePost.originalPost!.id)}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface2)] cursor-pointer transition duration-200"
+                  >
+                    <img
+                      src={activePost.originalPost.user.img}
+                      className="w-7 h-7 rounded-full object-cover border border-[var(--border)]"
+                      alt=""
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-bold text-[var(--text)] truncate flex items-center gap-1">
+                        {activePost.originalPost.user.name}
+                        {activePost.originalPost.user.verified && <span className="verified-badge w-3 h-3" />}
+                      </div>
+                      <div className="text-[11px] text-[var(--text2)] truncate">
+                        {activePost.originalPost.caption || "View original post"}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

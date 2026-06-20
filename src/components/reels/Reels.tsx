@@ -165,7 +165,7 @@ export default function Reels() {
           dbReels.push({
             ...p,
             id: p.id * 1000 + vIdx, // Unique key for Reels
-            originalPostId: p.id,
+            originalPostId: p.originalPostId || p.id,
             img: videoUrl, // Overwrite media source
             isReel: true,
             mediaType: "video" as const,
@@ -174,7 +174,7 @@ export default function Reels() {
       } else if (p.isReel || p.mediaType === "video") {
         dbReels.push({
           ...p,
-          originalPostId: p.id
+          originalPostId: p.originalPostId || p.id
         });
       }
     });
@@ -185,7 +185,7 @@ export default function Reels() {
     return posts.slice(0, 4).map((p, idx) => ({
       ...p,
       id: p.id * 1000 + 99,
-      originalPostId: p.id,
+      originalPostId: p.originalPostId || p.id,
       isReel: true,
       mediaType: "video" as const,
       img: MOCK_REEL_VIDEOS[idx % MOCK_REEL_VIDEOS.length],

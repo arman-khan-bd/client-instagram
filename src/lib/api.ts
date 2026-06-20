@@ -677,7 +677,12 @@ class ApiClient {
           mediaUrls, 
           caption,
           likesCount:Like(count),
-          commentsCount:Comment(count)
+          commentsCount:Comment(count),
+          originalPostId,
+          originalPost:Post!originalPostId(
+            *,
+            user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
+          )
         `)
         .eq('userId', user.id)
         .order('createdAt', { ascending: false })
@@ -730,6 +735,8 @@ class ApiClient {
         mobileUrl: p.mobileUrl,
         mediaUrls: p.mediaUrls,
         caption: p.caption,
+        originalPostId: p.originalPostId,
+        originalPost: p.originalPost,
         _count: {
           likes: likesCount,
           comments: commentsCount,
