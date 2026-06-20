@@ -1109,7 +1109,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const mapped: MockPost[] = dbPosts.map((p: any) => {
         // Determine the target post for extracting media properties.
         // If this is a shared post, we resolve its media content from the originalPost.
-        const targetPost = p.originalPost || p;
+        const isShared = !!(p.originalPostId && p.originalPost && p.originalPost.id);
+        const targetPost = isShared ? p.originalPost : p;
 
         // Build media URL list and per-media thumbnail URL list
         const rawMediaUrls: any[] = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0 ? targetPost.mediaUrls : [];
@@ -1183,7 +1184,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           isAdult: p.isAdult || false,
           isAdultUnmarked: p.isAdultUnmarked || false,
           originalPostId: p.originalPostId,
-          originalPost: p.originalPost ? (() => {
+          originalPost: isShared ? (() => {
             const origIsTextOnly = typeof p.originalPost.thumbnailUrl === "string" && (p.originalPost.thumbnailUrl.startsWith("linear-gradient") || p.originalPost.thumbnailUrl.startsWith("radial-gradient"));
             const origIsVideo = p.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
             return {
@@ -1763,12 +1764,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         originalPostId: options?.originalPostId,
       });
 
-      const mediaUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
-        ? dbPost.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
-        : (dbPost.thumbnailUrl ? [dbPost.thumbnailUrl] : []);
+      const isShared = !!(dbPost.originalPostId && dbPost.originalPost && dbPost.originalPost.id);
+      const targetPost = isShared ? dbPost.originalPost : dbPost;
 
-      const thumbnailUrls = Array.isArray(dbPost.mediaUrls) && dbPost.mediaUrls.length > 0
-        ? dbPost.mediaUrls.map((m: any) => (typeof m === 'string' ? '' : m.thumbnailUrl || ''))
+      const mediaUrls = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0
+        ? targetPost.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
+        : (targetPost.thumbnailUrl ? [targetPost.thumbnailUrl] : []);
+
+      const thumbnailUrls = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0
+        ? targetPost.mediaUrls.map((m: any) => (typeof m === 'string' ? '' : m.thumbnailUrl || ''))
         : [];
 
       const isNewPostVideo = mediaUrls.some(
@@ -1778,6 +1782,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           m.endsWith(".webm") ||
           m.includes("/video/upload/")
       );
+
+      const isGradient =
+        typeof targetPost.thumbnailUrl === "string" &&
+        (targetPost.thumbnailUrl.startsWith("linear-gradient") || targetPost.thumbnailUrl.startsWith("radial-gradient"));
+      const isTextOnly = isGradient;
+
+      const bgGradient = isTextOnly ? targetPost.thumbnailUrl : undefined;
+      let img = "";
+      if (isTextOnly) {
+        img = "";
+      } else if (isNewPostVideo) {
+        // For videos, always use the raw video URL so VideoThumbnailCard can generate a thumbnail
+        img = mediaUrls.find((m: string) => m.endsWith(".mp4") || m.endsWith(".mov") || m.endsWith(".webm") || m.includes("/video/upload/")) || mediaUrls[0] || "";
+      } else {
+        img = targetPost.thumbnailUrl || mediaUrls[0] || "";
+      }
+      const filterVal = targetPost.masterUrl && targetPost.masterUrl !== "none" ? targetPost.masterUrl : undefined;
 
       const newPost: MockPost = {
         id: dbPost.id,
@@ -1791,45 +1812,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           bio: currentUser?.bio || "",
           verified: dbPost.user?.isVerified || false,
         },
-        // For video posts, use the raw video URL so VideoThumbnailCard can auto-generate preview
-        img: isNewPostVideo
-          ? (mediaUrls.find((m: string) => m.endsWith(".mp4") || m.endsWith(".mov") || m.endsWith(".webm") || m.includes("/video/upload/")) || mediaUrls[0] || "")
-          : (dbPost.thumbnailUrl || mediaUrls[0] || ""),
-        imgs: mediaUrls,
-        thumbnailUrls,
+        img,
+        imgs: isTextOnly ? [] : mediaUrls,
+        thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
         caption: finalCaption || "New post! 📸",
         likes: 0,
         comments: [],
         time: "just now",
         hasStory: false,
         location: options?.location || "",
-        filter: options?.filter,
-        bgGradient: options?.bgGradient,
-        isTextOnly: options?.isTextOnly || false,
+        filter: filterVal,
+        bgGradient,
+        isTextOnly,
         originalPostId: dbPost.originalPostId,
-        originalPost: dbPost.originalPost ? {
-          id: dbPost.originalPost.id,
-          user: {
-            id: dbPost.originalPost.user?.id || 0,
-            name: dbPost.originalPost.user?.username || "user",
-            full: dbPost.originalPost.user?.fullName || "User",
-            img: dbPost.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
-            followers: 0,
-            following: 0,
-            bio: "",
-            verified: dbPost.originalPost.user?.isVerified || false,
-          },
-          img: dbPost.originalPost.thumbnailUrl || (dbPost.originalPost.mediaUrls?.[0]?.url || dbPost.originalPost.mediaUrls?.[0] || ""),
-          imgs: dbPost.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
-          caption: dbPost.originalPost.caption || "",
-          likes: 0,
-          comments: [],
-          time: "",
-          hasStory: false,
-          location: dbPost.originalPost.location || "",
-          isTextOnly: dbPost.originalPost.isTextOnly || false,
-          mediaType: dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) ? "video" : (dbPost.originalPost.isTextOnly ? "text" : "image")
-        } : undefined,
+        originalPost: isShared ? (() => {
+          const origIsTextOnly = typeof dbPost.originalPost.thumbnailUrl === "string" && (dbPost.originalPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.originalPost.thumbnailUrl.startsWith("radial-gradient"));
+          const origIsVideo = dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+          return {
+            id: dbPost.originalPost.id,
+            user: {
+              id: dbPost.originalPost.user?.id || 0,
+              name: dbPost.originalPost.user?.username || "user",
+              full: dbPost.originalPost.user?.fullName || "User",
+              img: dbPost.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+              followers: 0,
+              following: 0,
+              bio: "",
+              verified: dbPost.originalPost.user?.isVerified || false,
+            },
+            img: dbPost.originalPost.thumbnailUrl || (dbPost.originalPost.mediaUrls?.[0]?.url || dbPost.originalPost.mediaUrls?.[0] || ""),
+            imgs: dbPost.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+            caption: dbPost.originalPost.caption || "",
+            likes: 0,
+            comments: [],
+            time: "",
+            hasStory: false,
+            location: dbPost.originalPost.location || "",
+            isTextOnly: origIsTextOnly,
+            mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
+          };
+        })() : undefined,
         isReel: mediaUrls.some(
           (m: string) =>
             m.endsWith(".mp4") ||

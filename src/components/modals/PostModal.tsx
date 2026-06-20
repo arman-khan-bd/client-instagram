@@ -212,7 +212,8 @@ export default function PostModal() {
       setLoadingPost(true);
       api.getPost(activePostId)
         .then((dbPost) => {
-          const targetPostForMedia = dbPost.originalPost || dbPost;
+          const isShared = !!(dbPost.originalPostId && dbPost.originalPost && dbPost.originalPost.id);
+          const targetPostForMedia = isShared ? dbPost.originalPost : dbPost;
           const mediaList: string[] = Array.isArray(targetPostForMedia.mediaUrls) && targetPostForMedia.mediaUrls.length > 0
             ? targetPostForMedia.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
             : [];
@@ -236,7 +237,7 @@ export default function PostModal() {
           const filterVal = targetPostForMedia.masterUrl && targetPostForMedia.masterUrl !== "none" ? targetPostForMedia.masterUrl : undefined;
 
           // Map originalPost relation
-          const originalPostMapped = dbPost.originalPost ? (() => {
+          const originalPostMapped = isShared ? (() => {
             const origIsTextOnly = typeof dbPost.originalPost.thumbnailUrl === "string" && (dbPost.originalPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.originalPost.thumbnailUrl.startsWith("radial-gradient"));
             const origIsVideo = dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
             return {
@@ -579,7 +580,7 @@ export default function PostModal() {
               )}
 
               {/* Original Post reference card for shared posts */}
-              {activePost.originalPost && (
+              {activePost.originalPost && activePost.originalPost.id && (
                 <div className="px-5 py-3 border-b border-[var(--border)] bg-black/[0.03] dark:bg-white/[0.03] flex flex-col gap-2 shrink-0 select-none">
                   <div className="text-[11px] font-bold text-[var(--text3)] uppercase tracking-wider flex items-center gap-1">
                     🔄 Shared a post

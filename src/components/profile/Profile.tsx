@@ -295,7 +295,8 @@ export default function Profile() {
   const profilePostsList = useMemo(() => {
     if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged")) {
       const allMapped = dbProfile.posts.map((p: any) => {
-        const targetPost = p.originalPost || p;
+        const isShared = !!(p.originalPostId && p.originalPost && p.originalPost.id);
+        const targetPost = isShared ? p.originalPost : p;
         const mediaUrls = targetPost.mediaUrls;
         const mediaList: Array<{ url: string; type: string; thumbnailUrl?: string }> =
           Array.isArray(mediaUrls) && mediaUrls.length > 0
@@ -359,7 +360,7 @@ export default function Profile() {
           comments: { length: p._count?.comments ?? 0 },
           isReel: isVideo,
           originalPostId: p.originalPostId,
-          originalPost: p.originalPost,
+          originalPost: isShared ? p.originalPost : undefined,
         };
       });
 

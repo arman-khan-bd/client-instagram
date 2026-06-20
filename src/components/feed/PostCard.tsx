@@ -838,7 +838,7 @@ export default function PostCard({ post }: PostCardProps) {
 
       {/* ── Post Media ─────────────────────────────────────────────────────── */}
       {/* ── Post Media ─────────────────────────────────────────────────────── */}
-      {post.originalPost ? (
+      {post.originalPost && post.originalPost.id ? (
         <div className="px-4 pb-3 flex flex-col gap-3">
           {post.caption && (
             <div className="text-[13px] text-[var(--text)] leading-relaxed px-1">
@@ -1168,13 +1168,13 @@ export default function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Caption */}
-      {!post.originalPost && !post.isTextOnly && (
+      {!(post.originalPost && post.originalPost.id) && !post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] leading-relaxed">
           <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
           {formatCaption(post.caption)}
         </div>
       )}
-      {!post.originalPost && post.isTextOnly && (
+      {!(post.originalPost && post.originalPost.id) && post.isTextOnly && (
         <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
           <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
           Text post
