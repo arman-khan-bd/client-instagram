@@ -431,9 +431,21 @@ export default function TvPortal() {
     return matchesSearch && matchesCategory;
   });
 
-  // Auto-scroll carousel to selected channel item
+  // Track previous selectedChannel id to only scroll on explicit user channel changes
+  const prevSelectedChannelIdRef = useRef<number | null>(null);
+
+  // Auto-scroll carousel to selected channel — only when user changes channel, not on initial load
   useEffect(() => {
     if (!carouselApi || !selectedChannel) return;
+    // Skip the very first time (initial channel auto-selection on load)
+    if (prevSelectedChannelIdRef.current === null) {
+      prevSelectedChannelIdRef.current = selectedChannel.id;
+      return;
+    }
+    // Only scroll if the user actually switched to a different channel
+    if (prevSelectedChannelIdRef.current === selectedChannel.id) return;
+    prevSelectedChannelIdRef.current = selectedChannel.id;
+
     const index = filteredChannels.findIndex((c) => c.id === selectedChannel.id);
     if (index !== -1) {
       carouselApi.scrollTo(index, false);
