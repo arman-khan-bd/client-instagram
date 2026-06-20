@@ -1093,86 +1093,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [activeTab, currentUser]);
 
-  // Reload feed whenever the user logs in or out, so the personalized
-  // authenticated feed is shown instead of the anonymous pre-login snapshot.
-  const prevUserIdRef = React.useRef<string | null>(null);
-  useEffect(() => {
-    const newId = currentUser?.id ?? null;
-    if (newId !== prevUserIdRef.current) {
-      prevUserIdRef.current = newId;
-      // Force a fresh fetch so the auth token (or lack thereof) is applied
-      loadFeed(true);
-    }
-  }, [currentUser, loadFeed]);
-
-  // Load and subscribe to real-time chat & message updates
-  useEffect(() => {
-    if (!currentUser) {
-      setChats([]);
-      setChatMessages({});
-      return;
-    }
-
-    loadChats();
-
-    // Subscribe to Message changes (new/edited/deleted messages)
-    const messageChannel = supabase
-      .channel('public:Message-live')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'Message'
-        },
-        (payload) => {
-          console.log("Realtime message change received:", payload);
-          loadChats();
-
-          const newMsg = payload.new as any;
-          const oldMsg = payload.old as any;
-          const convId = newMsg?.conversationId || oldMsg?.conversationId;
-          
-          if (convId) {
-            loadMessages(convId);
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to Conversation & Participant changes (new group created, etc)
-    const chatSyncChannel = supabase
-      .channel('public:chat-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Conversation' },
-        () => loadChats()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ConversationParticipant' },
-        () => loadChats()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(messageChannel);
-      supabase.removeChannel(chatSyncChannel);
-    };
-  }, [currentUser]);
-
-  const createStory = async (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => {
-    try {
-      showToast("Uploading story... ⚡", "info");
-      await api.createStory(file, opts);
-      showToast("Story shared! ✨", "success");
-      await loadStories();
-    } catch (err: any) {
-      console.error("Failed to create story:", err);
-      showToast(err.message || "Failed to create story", "info");
-    }
-  };
-
   // Fetch posts from Supabase
   const loadFeed = useCallback(async (force = false) => {
     const now = Date.now();
@@ -1270,6 +1190,86 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setIsFeedLoaded(true);
     }
   }, []);
+
+  // Reload feed whenever the user logs in or out, so the personalized
+  // authenticated feed is shown instead of the anonymous pre-login snapshot.
+  const prevUserIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    const newId = currentUser?.id ?? null;
+    if (newId !== prevUserIdRef.current) {
+      prevUserIdRef.current = newId;
+      // Force a fresh fetch so the auth token (or lack thereof) is applied
+      loadFeed(true);
+    }
+  }, [currentUser, loadFeed]);
+
+  // Load and subscribe to real-time chat & message updates
+  useEffect(() => {
+    if (!currentUser) {
+      setChats([]);
+      setChatMessages({});
+      return;
+    }
+
+    loadChats();
+
+    // Subscribe to Message changes (new/edited/deleted messages)
+    const messageChannel = supabase
+      .channel('public:Message-live')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Message'
+        },
+        (payload) => {
+          console.log("Realtime message change received:", payload);
+          loadChats();
+
+          const newMsg = payload.new as any;
+          const oldMsg = payload.old as any;
+          const convId = newMsg?.conversationId || oldMsg?.conversationId;
+          
+          if (convId) {
+            loadMessages(convId);
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to Conversation & Participant changes (new group created, etc)
+    const chatSyncChannel = supabase
+      .channel('public:chat-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'Conversation' },
+        () => loadChats()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ConversationParticipant' },
+        () => loadChats()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(chatSyncChannel);
+    };
+  }, [currentUser]);
+
+  const createStory = async (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => {
+    try {
+      showToast("Uploading story... ⚡", "info");
+      await api.createStory(file, opts);
+      showToast("Story shared! ✨", "success");
+      await loadStories();
+    } catch (err: any) {
+      console.error("Failed to create story:", err);
+      showToast(err.message || "Failed to create story", "info");
+    }
+  };
 
   const refreshData = useCallback(async () => {
     try {
