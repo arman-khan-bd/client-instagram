@@ -1093,6 +1093,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [activeTab, currentUser]);
 
+  // Reload feed whenever the user logs in or out, so the personalized
+  // authenticated feed is shown instead of the anonymous pre-login snapshot.
+  const prevUserIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    const newId = currentUser?.id ?? null;
+    if (newId !== prevUserIdRef.current) {
+      prevUserIdRef.current = newId;
+      // Force a fresh fetch so the auth token (or lack thereof) is applied
+      loadFeed(true);
+    }
+  }, [currentUser, loadFeed]);
+
   // Load and subscribe to real-time chat & message updates
   useEffect(() => {
     if (!currentUser) {
@@ -1175,14 +1187,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const { posts: dbPosts } = await api.getFeed(1, 20);
       const mapped: MockPost[] = dbPosts.map((p: any) => {
-        // Build media URL list
-        const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-          ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
-          : [];
-
-        const thumbnailUrls: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-          ? p.mediaUrls.map((m: any) => (typeof m === "string" ? "" : m?.thumbnailUrl || "")).filter(Boolean)
-          : [];
+        // Build media URL list and per-media thumbnail URL list
+        const rawMediaUrls: any[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0 ? p.mediaUrls : [];
+        const mediaList: string[] = rawMediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean);
+        const thumbnailUrls: string[] = rawMediaUrls.map((m: any) =>
+          typeof m === "string" ? "" : (m?.thumbnailUrl || "")
+        ).filter(Boolean);
 
         // A text-only post: thumbnailUrl stores the CSS gradient string
         // Use gradient detection as the canonical signal — no real image/video has a gradient thumbnailUrl
@@ -1200,8 +1210,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               m.includes("/video/upload/"))
         );
 
+        // Determine the primary display image/URL:
+        // - For video posts: use the first video URL (mediaList[0]) so VideoThumbnailCard can auto-generate thumbnail
+        // - For image posts: use the stored thumbnailUrl (may be a Cloudinary optimized URL) or mediaList[0]
+        // - For text posts: empty string
+        const isVideoUrl = (url: string) =>
+          url.endsWith(".mp4") || url.endsWith(".mov") || url.endsWith(".webm") || url.includes("/video/upload/");
+
         const bgGradient  = isTextOnly ? p.thumbnailUrl : undefined;
-        const img         = isTextOnly ? "" : (p.thumbnailUrl || mediaList[0] || "");
+        let img = "";
+        if (isTextOnly) {
+          img = "";
+        } else if (isVideo) {
+          // For videos, always use the raw video URL so VideoThumbnailCard can generate a thumbnail
+          img = mediaList.find(isVideoUrl) || mediaList[0] || "";
+        } else {
+          img = p.thumbnailUrl || mediaList[0] || "";
+        }
         const filterVal   = p.masterUrl && p.masterUrl !== "none" ? p.masterUrl : undefined;
 
         return {
@@ -1714,6 +1739,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ? dbPost.mediaUrls.map((m: any) => (typeof m === 'string' ? '' : m.thumbnailUrl || ''))
         : [];
 
+      const isNewPostVideo = mediaUrls.some(
+        (m: string) =>
+          m.endsWith(".mp4") ||
+          m.endsWith(".mov") ||
+          m.endsWith(".webm") ||
+          m.includes("/video/upload/")
+      );
+
       const newPost: MockPost = {
         id: dbPost.id,
         user: {
@@ -1726,7 +1759,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           bio: currentUser?.bio || "",
           verified: dbPost.user?.isVerified || false,
         },
-        img: dbPost.thumbnailUrl || mediaUrls[0] || "",
+        // For video posts, use the raw video URL so VideoThumbnailCard can auto-generate preview
+        img: isNewPostVideo
+          ? (mediaUrls.find((m: string) => m.endsWith(".mp4") || m.endsWith(".mov") || m.endsWith(".webm") || m.includes("/video/upload/")) || mediaUrls[0] || "")
+          : (dbPost.thumbnailUrl || mediaUrls[0] || ""),
         imgs: mediaUrls,
         thumbnailUrls,
         caption: finalCaption || "New post! 📸",

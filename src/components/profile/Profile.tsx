@@ -295,12 +295,16 @@ export default function Profile() {
   const profilePostsList = useMemo(() => {
     if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged")) {
       const allMapped = dbProfile.posts.map((p: any) => {
-        const mediaList: string[] = Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
-          ? p.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
-          : [];
+        const mediaList: Array<{ url: string; type: string; thumbnailUrl?: string }> =
+          Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0
+            ? p.mediaUrls.map((m: any) =>
+                typeof m === "string"
+                  ? { url: m, type: (!!(m.match(/\.(mp4|mov|webm)/i)) || m.includes("/video/")) ? "video" : "image" }
+                  : { url: m?.url || "", type: m?.type || "image", thumbnailUrl: m?.thumbnailUrl }
+              ).filter((m: any) => m.url)
+            : [];
 
         // Detect color/text posts by thumbnailUrl being a CSS gradient — this is the canonical signal
-        // regardless of mediaUrls, since no real image/video has a gradient thumbnailUrl
         const isGradient =
           typeof p.thumbnailUrl === "string" &&
           (p.thumbnailUrl.startsWith("linear-gradient") || p.thumbnailUrl.startsWith("radial-gradient"));
@@ -308,16 +312,44 @@ export default function Profile() {
 
         const isVideo = !isTextOnly && mediaList.some(
           (m) =>
-            typeof m === "string" &&
-            (m.endsWith(".mp4") ||
-              m.endsWith(".mov") ||
-              m.endsWith(".webm") ||
-              m.includes("/video/upload/"))
+            m.type === "video" ||
+            m.url.endsWith(".mp4") ||
+            m.url.endsWith(".mov") ||
+            m.url.endsWith(".webm") ||
+            m.url.includes("/video/upload/")
         );
+
+        // For videos: get the actual video URL (first video in mediaList) and any separate thumbnail
+        const firstVideoMedia = isVideo
+          ? mediaList.find(
+              (m) =>
+                m.type === "video" ||
+                m.url.endsWith(".mp4") ||
+                m.url.endsWith(".mov") ||
+                m.url.endsWith(".webm") ||
+                m.url.includes("/video/upload/")
+            )
+          : null;
+
+        // For the thumbnail image shown in the grid:
+        // - Text posts: empty (use gradient)
+        // - Videos: use the separately stored thumbnailUrl from the media item if available,
+        //   otherwise use the post-level thumbnailUrl (which for old videos = the video URL itself)
+        // - Images: use post-level thumbnailUrl or first media URL
+        const videoUrl = firstVideoMedia?.url || "";
+        const videoThumbnailUrl = firstVideoMedia?.thumbnailUrl || undefined;
+
+        const img = isTextOnly
+          ? ""
+          : isVideo
+          ? videoUrl  // pass video URL; VideoThumbnailCard will auto-generate thumbnail
+          : p.thumbnailUrl || mediaList[0]?.url || "https://picsum.photos/400/400";
 
         return {
           id: p.id,
-          img: isTextOnly ? "" : (p.thumbnailUrl || p.mobileUrl || "https://picsum.photos/400/400"),
+          img,
+          videoUrl: isVideo ? videoUrl : undefined,
+          videoThumbnailUrl: isVideo ? videoThumbnailUrl : undefined,
           isTextOnly,
           bgGradient: isTextOnly ? p.thumbnailUrl : undefined,
           caption: p.caption || "",
@@ -767,8 +799,11 @@ export default function Profile() {
                   >
                     <span className="line-clamp-4">{post.caption}</span>
                   </div>
-                ) : (post.isReel || post.mediaType === "video" || (post.mediaUrls?.[0]?.type === "video")) ? (
-                  <VideoThumbnailCard videoUrl={post.img || post.mediaUrls?.[0]?.url || ""} thumbnailUrl={post.thumbnailUrl || post.mediaUrls?.[0]?.thumbnailUrl} />
+                ) : (post.isReel || post.mediaType === "video" || (post.mediaUrls?.[0]?.type === "video") || post.videoUrl) ? (
+                  <VideoThumbnailCard
+                    videoUrl={post.videoUrl || post.img || post.mediaUrls?.[0]?.url || ""}
+                    thumbnailUrl={post.videoThumbnailUrl || undefined}
+                  />
                 ) : (
                   <img
                     src={post.img}

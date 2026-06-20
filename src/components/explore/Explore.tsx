@@ -70,7 +70,10 @@ export default function Explore() {
                   </div>
                 ) : isVideo ? (
                   <div className="w-full h-full relative bg-[var(--surface2)]">
-                    <VideoThumbnailCard videoUrl={item.img || item.imgs?.[0] || ""} thumbnailUrl={item.thumbnailUrls?.[0]} />
+                    <VideoThumbnailCard
+                      videoUrl={item.imgs?.[0] || item.img || ""}
+                      thumbnailUrl={item.thumbnailUrls?.[0] || undefined}
+                    />
                     {/* Play symbol/Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>

@@ -5,27 +5,57 @@ import { useApp } from "../AppContext";
 import { Search as SearchIcon, Heart, MessageCircle } from "lucide-react";
 import { api } from "../../lib/api";
 
+// Helper: derive a thumbnail URL from any Cloudinary video URL
+function getCloudinaryVideoThumbnail(videoUrl: string): string {
+  // Pattern 1: /video/upload/ → insert transformation before public_id
+  if (videoUrl.includes("/video/upload/")) {
+    return videoUrl.replace("/video/upload/", "/video/upload/c_fill,w_400,h_400,so_1.0/") + ".jpg";
+  }
+  // Pattern 2: other cloudinary URLs that include /upload/ (e.g. raw)
+  if (videoUrl.includes("cloudinary.com") && videoUrl.includes("/upload/")) {
+    // Replace resource type segment (image/video/raw) with video if possible
+    return videoUrl.replace(/\/upload\//, "/video/upload/c_fill,w_400,h_400,so_1.0/") + ".jpg";
+  }
+  return "";
+}
+
 // Canvas capture fallback for video files without static thumbnails
 export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: string; thumbnailUrl?: string }) {
   const [imgSrc, setImgSrc] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // If a static thumbnail already exists (precompiled), use it
-    if (thumbnailUrl) {
+    if (!videoUrl && !thumbnailUrl) {
+      return;
+    }
+
+    // If a static thumbnail image already exists (precompiled), use it directly
+    if (thumbnailUrl && !thumbnailUrl.includes("/video/") && !thumbnailUrl.endsWith(".mp4") && !thumbnailUrl.endsWith(".webm") && !thumbnailUrl.endsWith(".mov")) {
       setImgSrc(thumbnailUrl);
       return;
     }
 
-    // Cloudinary video thumbnail transformations helper
-    if (videoUrl.includes("cloudinary.com")) {
-      const randomOffset = (Math.random() * 5 + 0.5).toFixed(1);
-      const transformed = videoUrl.replace("/video/upload/", `/video/upload/c_fill,w_400,h_400,so_${randomOffset}/`) + ".jpg";
-      setImgSrc(transformed);
-      return;
+    // Auto-generate Cloudinary thumbnail from the video URL if it's a Cloudinary video
+    if (videoUrl && videoUrl.includes("cloudinary.com")) {
+      const thumbUrl = getCloudinaryVideoThumbnail(videoUrl);
+      if (thumbUrl) {
+        setImgSrc(thumbUrl);
+        return;
+      }
     }
 
-    // Fallback: HTML5 Video Canvas frame capture logic for local/direct video paths
+    // If thumbnailUrl itself is also a Cloudinary video, derive thumbnail from it
+    if (thumbnailUrl && thumbnailUrl.includes("cloudinary.com")) {
+      const thumbUrl = getCloudinaryVideoThumbnail(thumbnailUrl);
+      if (thumbUrl) {
+        setImgSrc(thumbUrl);
+        return;
+      }
+    }
+
+    // Fallback: HTML5 Video Canvas frame capture for local/direct video paths
+    if (!videoUrl) return;
+
     const video = document.createElement("video");
     video.src = videoUrl;
     video.crossOrigin = "anonymous";
@@ -36,12 +66,12 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
     const onSeeked = () => {
       try {
         const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth || 320;
-        canvas.height = video.videoHeight || 320;
+        canvas.width = video.videoWidth || 400;
+        canvas.height = video.videoHeight || 400;
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/jpeg");
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
           setImgSrc(dataUrl);
         }
       } catch (err) {
@@ -58,25 +88,40 @@ export function VideoThumbnailCard({ videoUrl, thumbnailUrl }: { videoUrl: strin
       video.currentTime = targetTime;
     };
 
+    const onError = () => {
+      // Silently fail — the img onError will show the placeholder
+    };
+
     video.addEventListener("seeked", onSeeked);
     video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("error", onError);
     video.load();
 
     return () => {
       video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("error", onError);
     };
   }, [videoUrl, thumbnailUrl]);
 
   return (
     <img
-      src={imgSrc || "/placeholder-video.jpg"}
+      src={imgSrc || ""}
       alt="Video thumbnail"
       className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
       loading="lazy"
+      style={imgSrc ? {} : { background: "linear-gradient(135deg,#1a1a2e,#16213e)" }}
       onError={(e) => {
-        // Fallback placeholder if extraction fails completely
-        e.currentTarget.src = "https://picsum.photos/seed/videothumb/400/400";
+        // If Cloudinary thumbnail URL 404s, try canvas fallback or show gradient
+        const src = e.currentTarget.src;
+        if (src && src.includes("cloudinary.com") && src.includes(".jpg") && videoUrl) {
+          // Cloudinary thumbnail failed — clear src and let background show
+          e.currentTarget.removeAttribute("src");
+          e.currentTarget.style.background = "linear-gradient(135deg,#1a1a2e,#16213e)";
+        } else {
+          e.currentTarget.style.background = "linear-gradient(135deg,#1a1a2e,#16213e)";
+          e.currentTarget.removeAttribute("src");
+        }
       }}
     />
   );
@@ -228,7 +273,10 @@ export default function Search() {
               >
                 {item.mediaType === "video" || item.isReel ? (
                   <div className="w-full h-full relative bg-[var(--surface2)]">
-                    <VideoThumbnailCard videoUrl={item.img || item.imgs?.[0] || ""} thumbnailUrl={item.thumbnailUrls?.[0]} />
+                    <VideoThumbnailCard
+                      videoUrl={item.imgs?.[0] || item.img || ""}
+                      thumbnailUrl={item.thumbnailUrls?.[0] || undefined}
+                    />
                   </div>
                 ) : (
                   <img
