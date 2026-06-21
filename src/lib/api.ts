@@ -679,6 +679,7 @@ class ApiClient {
           likesCount:Like(count),
           commentsCount:Comment(count),
           originalPostId,
+          user:User!Post_userId_fkey(id, username, avatarUrl, isVerified),
           originalPost:Post!originalPostId(
             *,
             user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
@@ -1641,6 +1642,17 @@ class ApiClient {
       .from('Notification')
       .update({ unread: false })
       .eq('id', id);
+    if (error) throw error;
+  }
+
+  async markAllNotificationsRead() {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+    const { error } = await supabase
+      .from('Notification')
+      .update({ unread: false })
+      .eq('receiverId', authUser.id)
+      .eq('unread', true);
     if (error) throw error;
   }
 

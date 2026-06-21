@@ -6,7 +6,7 @@ import { X, Loader2 } from "lucide-react";
 import { api } from "../../lib/api";
 
 export default function FollowersModal() {
-  const { followersModal, setFollowersModal, users, followStates, toggleFollow, setViewingUserId, setActiveTab } = useApp();
+  const { followersModal, setFollowersModal, users, followStates, toggleFollow, setViewingUserId, setActiveTab, currentUser } = useApp();
   const [modalUsers, setModalUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -123,16 +123,18 @@ export default function FollowersModal() {
                       <div className="text-[11px] text-[var(--text3)] truncate">{u.full}</div>
                     </div>
 
-                    <button
-                      onClick={() => toggleFollow(u.id)}
-                      className={`text-[12px] font-bold px-3.5 py-1.5 rounded-lg border transition cursor-pointer ${
-                        isFollowing
-                          ? "border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface3)]"
-                          : "bg-insta-blue hover:bg-insta-blue/95 border-transparent text-white"
-                      }`}
-                    >
-                      {isFollowing ? "Following" : "Follow"}
-                    </button>
+                    {currentUser && String(currentUser.id) !== String(u.id) && u.name !== currentUser.name && (
+                      <button
+                        onClick={() => toggleFollow(u.id)}
+                        className={`text-[12px] font-bold px-3.5 py-1.5 rounded-lg border transition cursor-pointer ${
+                          isFollowing
+                            ? "border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface3)]"
+                            : "bg-insta-blue hover:bg-insta-blue/95 border-transparent text-white"
+                        }`}
+                      >
+                        {isFollowing ? "Following" : "Follow"}
+                      </button>
+                    )}
                   </div>
                 );
               })}

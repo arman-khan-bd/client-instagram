@@ -17,6 +17,8 @@ export default function Notifications() {
     setStoryViewerIndex,
     followRequests,
     respondToFollowRequest,
+    currentUser,
+    markAllNotificationsRead,
   } = useApp();
 
   const handleNotificationClick = async (item: MockNotification) => {
@@ -79,7 +81,7 @@ export default function Notifications() {
           {item.text} <span className="text-[var(--text3)] text-[11px] ml-1">{item.time}</span>
         </div>
 
-        {item.type === "follow" && (
+        {item.type === "follow" && currentUser && String(currentUser.id) !== String(item.user.id) && item.user.name !== currentUser.name && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -163,7 +165,17 @@ export default function Notifications() {
   return (
     <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
       <div className="max-w-[600px] mx-auto py-8">
-        <h2 className="text-[18px] font-bold px-4.5 mb-6">Notifications</h2>
+        <div className="flex items-center justify-between px-4.5 mb-6">
+          <h2 className="text-[18px] font-bold">Notifications</h2>
+          {notifications.some((n) => n.unread) && (
+            <button
+              onClick={markAllNotificationsRead}
+              className="text-[12px] font-bold text-insta-blue hover:text-[var(--text)] transition cursor-pointer"
+            >
+              Mark all as read
+            </button>
+          )}
+        </div>
 
         {/* Follow Requests */}
         {followRequests.length > 0 && (

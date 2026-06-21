@@ -812,7 +812,7 @@ export default function PostCard({ post }: PostCardProps) {
               {post.user.name}
               {post.user.verified && <span className="verified-badge" title="Verified" />}
             </span>
-            {currentUser && String(currentUser.id) !== String(post.user.id) && (
+            {currentUser && String(currentUser.id) !== String(post.user.id) && post.user.name !== currentUser.name && (
               <>
                 <span className="text-zinc-500 text-[12px]">•</span>
                 <button
@@ -845,7 +845,9 @@ export default function PostCard({ post }: PostCardProps) {
                 >
                   <div onClick={() => { setReportPostId(post.id); setShowMenu(false); }} className="p-3 text-red-500 hover:bg-[var(--surface3)] cursor-pointer">🚩 Report</div>
                   <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🚫 Not interested</div>
-                  <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">➕ Follow</div>
+                  {currentUser && String(currentUser.id) !== String(post.user.id) && post.user.name !== currentUser.name && (
+                    <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">➕ Follow</div>
+                  )}
                   <div onClick={() => { setSharePostId(post.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🔗 Share</div>
                 </motion.div>
               </>

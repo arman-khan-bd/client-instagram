@@ -171,7 +171,7 @@ export function AppContent() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "tween", duration: 0.25 }}
-              className="fixed top-0 bottom-0 left-0 w-[260px] bg-[var(--surface)]/95 backdrop-blur-md border-r border-[var(--border)] z-[150] p-5 flex flex-col gap-6 text-[var(--text)] sm:hidden select-none"
+              className="fixed top-0 bottom-0 left-0 w-[260px] bg-[var(--surface)]/95 backdrop-blur-md border-r border-[var(--border)] z-[150] p-5 flex flex-col gap-6 text-[var(--text)] sm:hidden select-none overflow-y-auto custom-scroll"
             >
               <div className="flex items-center justify-between">
                 <span className="text-gradient-instagram font-bold text-xl">AuraGram</span>

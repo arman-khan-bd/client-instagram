@@ -108,14 +108,16 @@ export default function RightSidebar() {
                   {u.fullName || u.username}
                 </div>
               </div>
-              <button
-                onClick={() => toggleFollow(u.id)}
-                className={`text-[12px] font-bold cursor-pointer transition ${
-                  isFollowing ? "text-[var(--text2)] hover:text-[var(--text)]" : "text-[#3897f0] hover:text-[var(--text)]"
-                }`}
-              >
-                {isFollowing ? "Following" : "Follow"}
-              </button>
+              {currentUser && String(currentUser.id) !== String(u.id) && u.username !== currentUser.name && (
+                <button
+                  onClick={() => toggleFollow(u.id)}
+                  className={`text-[12px] font-bold cursor-pointer transition ${
+                    isFollowing ? "text-[var(--text2)] hover:text-[var(--text)]" : "text-[#3897f0] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </button>
+              )}
             </div>
           );
         })}

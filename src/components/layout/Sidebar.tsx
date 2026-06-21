@@ -32,7 +32,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden sm:flex flex-col bg-[var(--surface)] backdrop-blur-xl border-r border-[var(--border)] h-screen sticky top-0 py-6 px-3 lg:w-[240px] md:w-[76px] w-[70px] transition-all z-50 text-[var(--text)]">
+    <aside className="hidden sm:flex flex-col bg-[var(--surface)] backdrop-blur-xl border-r border-[var(--border)] h-screen sticky top-0 py-6 px-3 lg:w-[240px] md:w-[76px] w-[70px] transition-all z-50 text-[var(--text)] overflow-y-auto custom-scroll">
       {/* Logo */}
       <div
         onClick={() => handleNav("home")}

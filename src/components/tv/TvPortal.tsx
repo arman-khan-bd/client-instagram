@@ -47,7 +47,7 @@ export default function TvPortal() {
 
   // Custom player states
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -224,9 +224,18 @@ export default function TvPortal() {
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.muted = isMuted;
         video.play()
           .then(() => setIsPlaying(true))
-          .catch((err) => console.log("Auto-play blocked:", err));
+          .catch((err) => {
+            console.log("Auto-play blocked:", err);
+            // Fallback: programmatically mute and try again
+            video.muted = true;
+            setIsMuted(true);
+            video.play()
+              .then(() => setIsPlaying(true))
+              .catch((e) => console.error("Muted autoplay also blocked:", e));
+          });
       });
 
       let networkRetryCount = 0;
@@ -269,10 +278,18 @@ export default function TvPortal() {
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // Native Apple HLS support
       video.src = streamUrl;
+      video.muted = isMuted;
       video.addEventListener("loadedmetadata", () => {
         video.play()
           .then(() => setIsPlaying(true))
-          .catch((err) => console.log("Auto-play blocked:", err));
+          .catch((err) => {
+            console.log("Auto-play blocked:", err);
+            video.muted = true;
+            setIsMuted(true);
+            video.play()
+              .then(() => setIsPlaying(true))
+              .catch((e) => console.error("Muted autoplay also blocked:", e));
+          });
       });
       video.addEventListener("error", () => {
         setVideoError(true);
@@ -651,6 +668,7 @@ export default function TvPortal() {
                   onClick={handleVideoClick}
                   className="w-full h-full object-contain cursor-pointer"
                   playsInline
+                  muted={isMuted}
                 />
 
                 {/* Video Error Overlay */}

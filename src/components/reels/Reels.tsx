@@ -939,19 +939,21 @@ export default function Reels() {
                   </span>
                   {post.user.verified && <span className="verified-badge" title="Verified" />}
                   
-                  <button
-                    onClick={() => {
-                      toggleFollow(post.user.id);
-                      resetHideTimer();
-                    }}
-                    className={`px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition select-none ${
-                      isFollowing
-                        ? "border border-white/30 bg-transparent hover:bg-white/10"
-                        : "bg-white text-black hover:bg-zinc-200"
-                    }`}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </button>
+                  {currentUser && String(currentUser.id) !== String(post.user.id) && post.user.name !== currentUser.name && (
+                    <button
+                      onClick={() => {
+                        toggleFollow(post.user.id);
+                        resetHideTimer();
+                      }}
+                      className={`px-3.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition select-none ${
+                        isFollowing
+                          ? "border border-white/30 bg-transparent hover:bg-white/10"
+                          : "bg-white text-black hover:bg-zinc-200"
+                      }`}
+                    >
+                      {isFollowing ? "Following" : "Follow"}
+                    </button>
+                  )}
                 </div>
 
                 {/* Caption Details */}

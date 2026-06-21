@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
-import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List } from "lucide-react";
+import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List, X } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import { VideoThumbnailCard } from "../search/Search";
 import PostCard from "../feed/PostCard";
@@ -162,6 +163,20 @@ export default function Profile() {
       viewingUserId === currentUser.name || 
       viewingUserId.toString().toLowerCase() === currentUser.name.toLowerCase()
     ));
+
+  const [showPhotosDialog, setShowPhotosDialog] = useState(false);
+  const [photosDialogPage, setPhotosDialogPage] = useState(1);
+  const PHOTOS_PER_PAGE = 12;
+
+  const uploadedPhotos = useMemo(() => {
+    return profilePostsList.filter((p: any) => !p.isTextOnly && p.img);
+  }, [profilePostsList]);
+
+  const totalPages = Math.ceil(uploadedPhotos.length / PHOTOS_PER_PAGE);
+  const currentPhotos = useMemo(() => {
+    const start = (photosDialogPage - 1) * PHOTOS_PER_PAGE;
+    return uploadedPhotos.slice(start, start + PHOTOS_PER_PAGE);
+  }, [uploadedPhotos, photosDialogPage]);
 
   // Determine which user profile reference to resolve first
   const profileUser = useMemo(() => {
@@ -982,34 +997,28 @@ export default function Profile() {
                 </div>
 
                 {/* Photos Preview Card */}
-                {profilePostsList.length > 0 && (
+                {uploadedPhotos.length > 0 && (
                   <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-sm space-y-3">
                     <div className="flex justify-between items-center">
                       <h3 className="text-base font-bold text-[var(--text)]">Photos</h3>
                       <button
-                        onClick={() => setActiveTabName("posts")}
+                        onClick={() => {
+                          setPhotosDialogPage(1);
+                          setShowPhotosDialog(true);
+                        }}
                         className="text-[12px] text-insta-blue hover:underline font-semibold cursor-pointer"
                       >
                         See All
                       </button>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5 rounded-xl overflow-hidden">
-                      {profilePostsList.slice(0, 9).map((post: any, i: number) => (
+                      {uploadedPhotos.slice(0, 9).map((post: any, i: number) => (
                         <div
                           key={`sidebar-photo-${post.id}-${i}`}
                           onClick={() => setActivePostId(post.id)}
                           className="aspect-square bg-[var(--surface2)] cursor-pointer hover:opacity-90 transition relative overflow-hidden"
                         >
-                          {post.isTextOnly || post.bgGradient ? (
-                            <div
-                              style={{ background: post.bgGradient || "linear-gradient(135deg,#667eea,#764ba2)" }}
-                              className="w-full h-full flex items-center justify-center p-1 text-[8px] font-bold text-center text-white line-clamp-3 select-none"
-                            >
-                              {post.caption}
-                            </div>
-                          ) : (
-                            <img src={post.img} alt="Preview" className="w-full h-full object-cover" />
-                          )}
+                          <img src={post.img} alt="Preview" className="w-full h-full object-cover" />
                         </div>
                       ))}
                     </div>
@@ -1133,6 +1142,79 @@ export default function Profile() {
         )}
         </div>
       </div>
+      {/* Photos Grid Dialog */}
+      <AnimatePresence>
+        {showPhotosDialog && (
+          <div
+            onClick={() => setShowPhotosDialog(false)}
+            className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 select-none animate-fade-in"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[var(--surface2)] border border-[var(--border)] rounded-2xl w-full max-w-[500px] shadow-2xl overflow-hidden flex flex-col relative text-[var(--text)]"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-[var(--border)] shrink-0">
+                <div className="w-5" />
+                <h3 className="font-bold text-[15px] tracking-wider uppercase text-[var(--text2)]">All Photos</h3>
+                <button
+                  onClick={() => setShowPhotosDialog(false)}
+                  className="p-1 hover:bg-[var(--surface3)] rounded-full transition text-[var(--text2)] hover:text-[var(--text)] cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Photos Grid */}
+              <div className="p-4 flex-1 overflow-y-auto min-h-[300px] max-h-[60vh] custom-scroll">
+                {uploadedPhotos.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-[var(--text3)] text-xs">
+                    No photos found
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {currentPhotos.map((post: any, idx: number) => (
+                      <div
+                        key={`dialog-photo-${post.id}-${idx}`}
+                        onClick={() => {
+                          setActivePostId(post.id);
+                          setShowPhotosDialog(false);
+                        }}
+                        className="aspect-square bg-[var(--surface3)] rounded-lg overflow-hidden border border-[var(--border)] cursor-pointer hover:opacity-85 hover:scale-[1.02] transition duration-200"
+                      >
+                        <img src={post.img} alt="User media" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="p-4 border-t border-[var(--border)] flex items-center justify-between text-xs text-[var(--text2)] shrink-0">
+                  <button
+                    disabled={photosDialogPage === 1}
+                    onClick={() => setPhotosDialogPage((p) => Math.max(1, p - 1))}
+                    className="px-3.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface3)] hover:text-[var(--text)] transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer font-bold"
+                  >
+                    Previous
+                  </button>
+                  <span className="font-semibold select-none">
+                    Page {photosDialogPage} of {totalPages}
+                  </span>
+                  <button
+                    disabled={photosDialogPage === totalPages}
+                    onClick={() => setPhotosDialogPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-3.5 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface3)] hover:text-[var(--text)] transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer font-bold"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

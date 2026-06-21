@@ -229,6 +229,7 @@ interface AppContextType {
   loadStories: () => Promise<void>;
   createStory: (file: File, opts?: { caption?: string; bgColor?: string; audioUrl?: string; musicName?: string; metadata?: any; audioFile?: File }) => Promise<void>;
   loadNotifications: () => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   refreshData: () => Promise<void>;
   followRequests: any[];
   loadFollowRequests: () => Promise<void>;
@@ -579,16 +580,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === "undefined") return;
 
     const handlePopState = (event: PopStateEvent) => {
+      const params = new URLSearchParams(window.location.search);
       const state = event.state || {};
       
-      setActivePostIdState(state.modal === "post" ? state.id : null);
-      setStoryViewerIndexState(state.modal === "story" ? state.id : null);
-      setShowEditProfileModalState(state.modal === "edit-profile");
-      setShowCreatePostModalState(state.modal === "create-post");
-      setShowStoryCreateState(state.modal === "story-create");
-      setFollowersModalState(state.modal === "followers" ? { open: true, type: state.type, userId: state.userId } : null);
-      setSharePostIdState(state.modal === "share" ? state.id : null);
-      setReportPostIdState(state.modal === "report" ? state.id : null);
+      const postParam = params.get("post");
+      setActivePostIdState(postParam ? parseInt(postParam, 10) : null);
+      
+      const storyParam = params.get("story");
+      setStoryViewerIndexState(storyParam ? parseInt(storyParam, 10) : null);
+      
+      setShowEditProfileModalState(params.has("edit-profile"));
+      setShowCreatePostModalState(params.has("create-post"));
+      setShowStoryCreateState(params.has("story-create"));
+      
+      if (params.has("followers") || params.has("following")) {
+        const type = params.has("followers") ? "followers" : "following";
+        setFollowersModalState({
+          open: true,
+          type,
+          userId: state.userId || ""
+        });
+      } else {
+        setFollowersModalState(null);
+      }
+      
+      const shareParam = params.get("share");
+      setSharePostIdState(shareParam ? parseInt(shareParam, 10) : null);
+      
+      const reportParam = params.get("report");
+      setReportPostIdState(reportParam ? parseInt(reportParam, 10) : null);
 
       // Sync active tab, profile, and chat state from path
       const path = window.location.pathname;
@@ -954,6 +974,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setNotifications(mapped);
     } catch (err) {
       console.error("Failed to load notifications:", err);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    try {
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, unread: false }))
+      );
+      await api.markAllNotificationsRead();
+    } catch (err) {
+      console.error("Failed to mark all notifications read:", err);
     }
   };
 
@@ -2066,6 +2097,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         loadStories,
         createStory,
         loadNotifications,
+        markAllNotificationsRead,
         toasts,
         showToast,
         removeToast,
