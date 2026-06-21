@@ -212,8 +212,9 @@ export default function PostModal() {
       setLoadingPost(true);
       api.getPost(activePostId)
         .then((dbPost) => {
-          const isShared = !!(dbPost.originalPostId && dbPost.originalPost && dbPost.originalPost.id);
-          const targetPostForMedia = isShared ? dbPost.originalPost : dbPost;
+          const rawOriginalPost = Array.isArray(dbPost.originalPost) ? dbPost.originalPost[0] : dbPost.originalPost;
+          const isShared = !!(dbPost.originalPostId && rawOriginalPost && rawOriginalPost.id);
+          const targetPostForMedia = isShared ? rawOriginalPost : dbPost;
           const mediaList: string[] = Array.isArray(targetPostForMedia.mediaUrls) && targetPostForMedia.mediaUrls.length > 0
             ? targetPostForMedia.mediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean)
             : [];
@@ -238,28 +239,28 @@ export default function PostModal() {
 
           // Map originalPost relation
           const originalPostMapped = isShared ? (() => {
-            const origIsTextOnly = typeof dbPost.originalPost.thumbnailUrl === "string" && (dbPost.originalPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.originalPost.thumbnailUrl.startsWith("radial-gradient"));
-            const origIsVideo = dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+            const origIsTextOnly = typeof rawOriginalPost.thumbnailUrl === "string" && (rawOriginalPost.thumbnailUrl.startsWith("linear-gradient") || rawOriginalPost.thumbnailUrl.startsWith("radial-gradient"));
+            const origIsVideo = rawOriginalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
             return {
-              id: dbPost.originalPost.id,
+              id: rawOriginalPost.id,
               user: {
-                id: dbPost.originalPost.user?.id || 0,
-                name: dbPost.originalPost.user?.username || "user",
-                full: dbPost.originalPost.user?.fullName || "User",
-                img: dbPost.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+                id: rawOriginalPost.user?.id || 0,
+                name: rawOriginalPost.user?.username || "user",
+                full: rawOriginalPost.user?.fullName || "User",
+                img: rawOriginalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
                 followers: 0,
                 following: 0,
                 bio: "",
-                verified: dbPost.originalPost.user?.isVerified || false,
+                verified: rawOriginalPost.user?.isVerified || false,
               },
-              img: dbPost.originalPost.thumbnailUrl || (dbPost.originalPost.mediaUrls?.[0]?.url || dbPost.originalPost.mediaUrls?.[0] || ""),
-              imgs: dbPost.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
-              caption: dbPost.originalPost.caption || "",
+              img: rawOriginalPost.thumbnailUrl || (rawOriginalPost.mediaUrls?.[0]?.url || rawOriginalPost.mediaUrls?.[0] || ""),
+              imgs: rawOriginalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+              caption: rawOriginalPost.caption || "",
               likes: 0,
               comments: [],
               time: "",
               hasStory: false,
-              location: dbPost.originalPost.location || "",
+              location: rawOriginalPost.location || "",
               isTextOnly: origIsTextOnly,
               mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
             };

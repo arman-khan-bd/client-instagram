@@ -1109,8 +1109,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const mapped: MockPost[] = dbPosts.map((p: any) => {
         // Determine the target post for extracting media properties.
         // If this is a shared post, we resolve its media content from the originalPost.
-        const isShared = !!(p.originalPostId && p.originalPost && p.originalPost.id);
-        const targetPost = isShared ? p.originalPost : p;
+        const rawOriginalPost = Array.isArray(p.originalPost) ? p.originalPost[0] : p.originalPost;
+        const isShared = !!(p.originalPostId && rawOriginalPost && rawOriginalPost.id);
+        const targetPost = isShared ? rawOriginalPost : p;
 
         // Build media URL list and per-media thumbnail URL list
         const rawMediaUrls: any[] = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0 ? targetPost.mediaUrls : [];
@@ -1185,28 +1186,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           isAdultUnmarked: p.isAdultUnmarked || false,
           originalPostId: p.originalPostId,
           originalPost: isShared ? (() => {
-            const origIsTextOnly = typeof p.originalPost.thumbnailUrl === "string" && (p.originalPost.thumbnailUrl.startsWith("linear-gradient") || p.originalPost.thumbnailUrl.startsWith("radial-gradient"));
-            const origIsVideo = p.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+            const origIsTextOnly = typeof rawOriginalPost.thumbnailUrl === "string" && (rawOriginalPost.thumbnailUrl.startsWith("linear-gradient") || rawOriginalPost.thumbnailUrl.startsWith("radial-gradient"));
+            const origIsVideo = rawOriginalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
             return {
-              id: p.originalPost.id,
+              id: rawOriginalPost.id,
               user: {
-                id: p.originalPost.user?.id || 0,
-                name: p.originalPost.user?.username || "user",
-                full: p.originalPost.user?.fullName || "User",
-                img: p.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+                id: rawOriginalPost.user?.id || 0,
+                name: rawOriginalPost.user?.username || "user",
+                full: rawOriginalPost.user?.fullName || "User",
+                img: rawOriginalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
                 followers: 0,
                 following: 0,
                 bio: "",
-                verified: p.originalPost.user?.isVerified || false,
+                verified: rawOriginalPost.user?.isVerified || false,
               },
-              img: p.originalPost.thumbnailUrl || (p.originalPost.mediaUrls?.[0]?.url || p.originalPost.mediaUrls?.[0] || ""),
-              imgs: p.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
-              caption: p.originalPost.caption || "",
+              img: rawOriginalPost.thumbnailUrl || (rawOriginalPost.mediaUrls?.[0]?.url || rawOriginalPost.mediaUrls?.[0] || ""),
+              imgs: rawOriginalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+              caption: rawOriginalPost.caption || "",
               likes: 0,
               comments: [],
               time: "",
               hasStory: false,
-              location: p.originalPost.location || "",
+              location: rawOriginalPost.location || "",
               isTextOnly: origIsTextOnly,
               mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
             };
@@ -1764,8 +1765,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         originalPostId: options?.originalPostId,
       });
 
-      const isShared = !!(dbPost.originalPostId && dbPost.originalPost && dbPost.originalPost.id);
-      const targetPost = isShared ? dbPost.originalPost : dbPost;
+      const rawOriginalPost = Array.isArray(dbPost.originalPost) ? dbPost.originalPost[0] : dbPost.originalPost;
+      const isShared = !!(dbPost.originalPostId && rawOriginalPost && rawOriginalPost.id);
+      const targetPost = isShared ? rawOriginalPost : dbPost;
 
       const mediaUrls = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0
         ? targetPost.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url))
@@ -1826,32 +1828,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         isTextOnly,
         originalPostId: dbPost.originalPostId,
         originalPost: isShared ? (() => {
-          const origIsTextOnly = typeof dbPost.originalPost.thumbnailUrl === "string" && (dbPost.originalPost.thumbnailUrl.startsWith("linear-gradient") || dbPost.originalPost.thumbnailUrl.startsWith("radial-gradient"));
-          const origIsVideo = dbPost.originalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
-          return {
-            id: dbPost.originalPost.id,
-            user: {
-              id: dbPost.originalPost.user?.id || 0,
-              name: dbPost.originalPost.user?.username || "user",
-              full: dbPost.originalPost.user?.fullName || "User",
-              img: dbPost.originalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
-              followers: 0,
-              following: 0,
-              bio: "",
-              verified: dbPost.originalPost.user?.isVerified || false,
-            },
-            img: dbPost.originalPost.thumbnailUrl || (dbPost.originalPost.mediaUrls?.[0]?.url || dbPost.originalPost.mediaUrls?.[0] || ""),
-            imgs: dbPost.originalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
-            caption: dbPost.originalPost.caption || "",
-            likes: 0,
-            comments: [],
-            time: "",
-            hasStory: false,
-            location: dbPost.originalPost.location || "",
-            isTextOnly: origIsTextOnly,
-            mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
-          };
-        })() : undefined,
+            const origIsTextOnly = typeof rawOriginalPost.thumbnailUrl === "string" && (rawOriginalPost.thumbnailUrl.startsWith("linear-gradient") || rawOriginalPost.thumbnailUrl.startsWith("radial-gradient"));
+            const origIsVideo = rawOriginalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+            return {
+              id: rawOriginalPost.id,
+              user: {
+                id: rawOriginalPost.user?.id || 0,
+                name: rawOriginalPost.user?.username || "user",
+                full: rawOriginalPost.user?.fullName || "User",
+                img: rawOriginalPost.user?.avatarUrl || "https://i.pravatar.cc/150?img=1",
+                followers: 0,
+                following: 0,
+                bio: "",
+                verified: rawOriginalPost.user?.isVerified || false,
+              },
+              img: rawOriginalPost.thumbnailUrl || (rawOriginalPost.mediaUrls?.[0]?.url || rawOriginalPost.mediaUrls?.[0] || ""),
+              imgs: rawOriginalPost.mediaUrls?.map((m: any) => typeof m === 'string' ? m : m.url) || [],
+              caption: rawOriginalPost.caption || "",
+              likes: 0,
+              comments: [],
+              time: "",
+              hasStory: false,
+              location: rawOriginalPost.location || "",
+              isTextOnly: origIsTextOnly,
+              mediaType: origIsVideo ? "video" : (origIsTextOnly ? "text" : "image")
+            };
+          })() : undefined,
         isReel: mediaUrls.some(
           (m: string) =>
             m.endsWith(".mp4") ||

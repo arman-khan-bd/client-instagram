@@ -2,12 +2,114 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
-import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star } from "lucide-react";
+import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List } from "lucide-react";
 import { api } from "../../lib/api";
 import { VideoThumbnailCard } from "../search/Search";
+import PostCard from "../feed/PostCard";
 
 const profileCache: Record<string, { data: any; timestamp: number }> = {};
 const PROFILE_CACHE_TTL = 30 * 1000; // 30 seconds cache
+
+const mapDbPostToMockPost = (p: any): MockPost => {
+  const rawOriginalPost = Array.isArray(p.originalPost) ? p.originalPost[0] : p.originalPost;
+  const isShared = !!(p.originalPostId && rawOriginalPost && rawOriginalPost.id);
+  const targetPost = isShared ? rawOriginalPost : p;
+
+  const rawMediaUrls: any[] = Array.isArray(targetPost.mediaUrls) && targetPost.mediaUrls.length > 0 ? targetPost.mediaUrls : [];
+  const mediaList: string[] = rawMediaUrls.map((m: any) => (typeof m === "string" ? m : m?.url)).filter(Boolean);
+  const thumbnailUrls: string[] = rawMediaUrls.map((m: any) =>
+    typeof m === "string" ? "" : (m?.thumbnailUrl || "")
+  ).filter(Boolean);
+
+  const isGradient =
+    typeof targetPost.thumbnailUrl === "string" &&
+    (targetPost.thumbnailUrl.startsWith("linear-gradient") || targetPost.thumbnailUrl.startsWith("radial-gradient"));
+  const isTextOnly = isGradient;
+
+  const isVideo = !isTextOnly && mediaList.some(
+    (m) =>
+      typeof m === "string" &&
+      (m.endsWith(".mp4") ||
+        m.endsWith(".mov") ||
+        m.endsWith(".webm") ||
+        m.includes("/video/upload/"))
+  );
+
+  const isVideoUrl = (url: string) =>
+    url.endsWith(".mp4") || url.endsWith(".mov") || url.endsWith(".webm") || url.includes("/video/upload/");
+
+  const bgGradient = isTextOnly ? targetPost.thumbnailUrl : undefined;
+  let img = "";
+  if (isTextOnly) {
+    img = "";
+  } else if (isVideo) {
+    img = mediaList.find(isVideoUrl) || mediaList[0] || "";
+  } else {
+    img = targetPost.thumbnailUrl || mediaList[0] || "";
+  }
+
+  return {
+    id: p.id,
+    user: {
+      id: p.user?.id || 0,
+      name: p.user?.username || "unknown",
+      full: p.user?.fullName || p.user?.username || "User",
+      img: p.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+      followers: 0,
+      following: 0,
+      bio: "",
+      verified: p.user?.isVerified || false,
+    },
+    img,
+    videoUrl: isVideo ? img : undefined,
+    videoThumbnailUrl: isVideo ? (thumbnailUrls[0] || undefined) : undefined,
+    imgs: isTextOnly ? [] : mediaList,
+    thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
+    caption: p.caption || "",
+    likes: p._count?.likes ?? 0,
+    comments: [],
+    commentsCount: p._count?.comments ?? 0,
+    time: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "recently",
+    hasStory: false,
+    location: p.location || "",
+    bgGradient,
+    isTextOnly,
+    isReel: isVideo,
+    mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
+    isAdult: p.isAdult || false,
+    isAdultUnmarked: p.isAdultUnmarked || false,
+    originalPostId: p.originalPostId,
+    originalPost: isShared ? (() => {
+      const origIsTextOnly = typeof rawOriginalPost.thumbnailUrl === "string" && (rawOriginalPost.thumbnailUrl.startsWith("linear-gradient") || rawOriginalPost.thumbnailUrl.startsWith("radial-gradient"));
+      const origIsVideo = rawOriginalPost.mediaUrls?.some((m: any) => (typeof m === 'string' ? m : m.url)?.match(/\.(mp4|mov|webm)/i)) || false;
+      return {
+        id: rawOriginalPost.id,
+        user: {
+          id: rawOriginalPost.user?.id || 0,
+          name: rawOriginalPost.user?.username || "user",
+          full: rawOriginalPost.user?.fullName || "User",
+          img: rawOriginalPost.user?.avatarUrl || "https://i.pravatar.cc/80?img=1",
+          followers: 0,
+          following: 0,
+          bio: "",
+          verified: rawOriginalPost.user?.isVerified || false,
+        },
+        img: rawOriginalPost.thumbnailUrl || rawOriginalPost.mediaUrls?.[0]?.url || "",
+        imgs: rawOriginalPost.mediaUrls?.map((m: any) => typeof m === "string" ? m : m.url) || [],
+        caption: rawOriginalPost.caption || "",
+        likes: rawOriginalPost._count?.likes ?? 0,
+        comments: [],
+        time: rawOriginalPost.createdAt ? new Date(rawOriginalPost.createdAt).toLocaleDateString() : "recently",
+        hasStory: false,
+        location: rawOriginalPost.location || "",
+        isTextOnly: origIsTextOnly,
+        bgGradient: origIsTextOnly ? rawOriginalPost.thumbnailUrl : undefined,
+        isReel: origIsVideo,
+        mediaType: origIsTextOnly ? "text" : (origIsVideo ? "video" : "image"),
+      };
+    })() : undefined,
+  };
+};
 
 export default function Profile() {
   const {
@@ -36,6 +138,20 @@ export default function Profile() {
   const [dbProfile, setDbProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "feed" >(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("profile_view_mode");
+      if (saved === "grid" || saved === "feed") return saved;
+    }
+    return "grid";
+  });
+
+  const handleSetViewMode = (mode: "grid" | "feed") => {
+    setViewMode(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("profile_view_mode", mode);
+    }
+  };
 
   const isSelf = viewingUserId === null || 
     (currentUser && (
@@ -294,75 +410,7 @@ export default function Profile() {
   // Map dbProfile posts or tabPosts fallback
   const profilePostsList = useMemo(() => {
     if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged")) {
-      const allMapped = dbProfile.posts.map((p: any) => {
-        const isShared = !!(p.originalPostId && p.originalPost && p.originalPost.id);
-        const targetPost = isShared ? p.originalPost : p;
-        const mediaUrls = targetPost.mediaUrls;
-        const mediaList: Array<{ url: string; type: string; thumbnailUrl?: string }> =
-          Array.isArray(mediaUrls) && mediaUrls.length > 0
-            ? mediaUrls.map((m: any) =>
-                typeof m === "string"
-                  ? { url: m, type: (!!(m.match(/\.(mp4|mov|webm)/i)) || m.includes("/video/")) ? "video" : "image" }
-                  : { url: m?.url || "", type: m?.type || "image", thumbnailUrl: m?.thumbnailUrl }
-              ).filter((m: any) => m.url)
-            : [];
-
-        // Detect color/text posts by thumbnailUrl being a CSS gradient — this is the canonical signal
-        const isGradient =
-          typeof targetPost.thumbnailUrl === "string" &&
-          (targetPost.thumbnailUrl.startsWith("linear-gradient") || targetPost.thumbnailUrl.startsWith("radial-gradient"));
-        const isTextOnly = isGradient;
-
-        const isVideo = !isTextOnly && mediaList.some(
-          (m) =>
-            m.type === "video" ||
-            m.url.endsWith(".mp4") ||
-            m.url.endsWith(".mov") ||
-            m.url.endsWith(".webm") ||
-            m.url.includes("/video/upload/")
-        );
-
-        // For videos: get the actual video URL (first video in mediaList) and any separate thumbnail
-        const firstVideoMedia = isVideo
-          ? mediaList.find(
-              (m) =>
-                m.type === "video" ||
-                m.url.endsWith(".mp4") ||
-                m.url.endsWith(".mov") ||
-                m.url.endsWith(".webm") ||
-                m.url.includes("/video/upload/")
-            )
-          : null;
-
-        // For the thumbnail image shown in the grid:
-        // - Text posts: empty (use gradient)
-        // - Videos: use the separately stored thumbnailUrl from the media item if available,
-        //   otherwise use the post-level thumbnailUrl (which for old videos = the video URL itself)
-        // - Images: use post-level thumbnailUrl or first media URL
-        const videoUrl = firstVideoMedia?.url || "";
-        const videoThumbnailUrl = firstVideoMedia?.thumbnailUrl || undefined;
-
-        const img = isTextOnly
-          ? ""
-          : isVideo
-          ? videoUrl  // pass video URL; VideoThumbnailCard will auto-generate thumbnail
-          : targetPost.thumbnailUrl || mediaList[0]?.url || "https://picsum.photos/400/400";
-
-        return {
-          id: p.id,
-          img,
-          videoUrl: isVideo ? videoUrl : undefined,
-          videoThumbnailUrl: isVideo ? videoThumbnailUrl : undefined,
-          isTextOnly,
-          bgGradient: isTextOnly ? targetPost.thumbnailUrl : undefined,
-          caption: p.caption || targetPost.caption || "",
-          likes: p._count?.likes ?? 0,
-          comments: { length: p._count?.comments ?? 0 },
-          isReel: isVideo,
-          originalPostId: p.originalPostId,
-          originalPost: isShared ? p.originalPost : undefined,
-        };
-      });
+      const allMapped = dbProfile.posts.map(mapDbPostToMockPost);
 
       if (activeTabName === "reels") {
         return allMapped.filter((p: any) => p.isReel);
@@ -784,66 +832,280 @@ export default function Profile() {
           </button>
           </div>
 
-          {/* Profile Grid */}
-          {profilePostsList.length === 0 ? (
-            <div className="text-center py-12 text-[var(--text2)] text-[14px]">
-              {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-1 md:gap-2 mt-4">
-            {profilePostsList.map((post: any, i: number) => (
-              <div
-                key={`grid-post-${post.id}-${i}`}
-                onClick={() => setActivePostId(post.id)}
-                className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg bg-[var(--surface2)]"
+          {/* View Mode Switcher */}
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mt-4 px-1 select-none">
+            <span className="text-[13px] font-bold text-[var(--text2)] uppercase tracking-wider">
+              {activeTabName === "posts" ? "Posts" : activeTabName}
+            </span>
+            <div className="flex items-center gap-1 bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)]">
+              <button
+                onClick={() => handleSetViewMode("grid")}
+                className={`p-1.5 rounded-lg transition duration-200 cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-[var(--surface2)] text-[var(--text)] shadow-sm"
+                    : "text-[var(--text3)] hover:text-[var(--text)]"
+                }`}
+                title="Grid View"
               >
-                {post.isTextOnly || post.bgGradient ? (
-                  <div
-                    style={{ background: post.bgGradient || "linear-gradient(135deg,#667eea,#764ba2)" }}
-                    className="w-full h-full flex items-center justify-center p-4 text-center font-semibold text-xs md:text-sm break-words select-none text-white"
-                  >
-                    <span className="line-clamp-4">{post.caption}</span>
+                <Grid size={16} />
+              </button>
+              <button
+                onClick={() => handleSetViewMode("feed")}
+                className={`p-1.5 rounded-lg transition duration-200 cursor-pointer ${
+                  viewMode === "feed"
+                    ? "bg-[var(--surface2)] text-[var(--text)] shadow-sm"
+                    : "text-[var(--text3)] hover:text-[var(--text)]"
+                }`}
+                title="Feed View (Facebook Style)"
+              >
+                <List size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Profile Content (Grid vs Feed) */}
+          {viewMode === "feed" ? (
+            <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 mt-4 items-start">
+              {/* Left Column: Intro (Facebook-style About Sidebar) */}
+              <div className="space-y-4 md:sticky md:top-4">
+                {/* Intro Card */}
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-sm space-y-3">
+                  <h3 className="text-base font-bold text-[var(--text)]">Intro</h3>
+                  
+                  {/* Bio */}
+                  {(dbProfile?.bio || profileUser.bio) && (
+                    <p className="text-[13px] text-[var(--text2)] whitespace-pre-line text-center bg-[var(--surface2)]/40 p-3 rounded-xl border border-[var(--border)]/50">
+                      {dbProfile?.bio || profileUser.bio}
+                    </p>
+                  )}
+                  
+                  <div className="space-y-2.5 pt-2">
+                    {profileUser.work ? (
+                      <div className="flex items-center gap-3 text-[13px]">
+                        <Briefcase size={16} className="text-[var(--text3)] shrink-0" />
+                        <span className="text-[var(--text)]">
+                          Works at <span className="font-semibold">{profileUser.work}</span>
+                        </span>
+                      </div>
+                    ) : (
+                      isSelf && (
+                        <button onClick={() => setShowEditProfileModal(true)} className="w-full text-center py-1.5 text-xs font-semibold text-insta-blue hover:bg-[var(--surface2)] rounded-lg transition border border-dashed border-[var(--border)] cursor-pointer">
+                          + Add Work
+                        </button>
+                      )
+                    )}
+
+                    {profileUser.education ? (
+                      <div className="flex items-center gap-3 text-[13px]">
+                        <GraduationCap size={16} className="text-[var(--text3)] shrink-0" />
+                        <span className="text-[var(--text)]">
+                          Studied at <span className="font-semibold">{profileUser.education}</span>
+                        </span>
+                      </div>
+                    ) : (
+                      isSelf && (
+                        <button onClick={() => setShowEditProfileModal(true)} className="w-full text-center py-1.5 text-xs font-semibold text-insta-blue hover:bg-[var(--surface2)] rounded-lg transition border border-dashed border-[var(--border)] cursor-pointer">
+                          + Add Education
+                        </button>
+                      )
+                    )}
+
+                    {profileUser.city || profileUser.country ? (
+                      <div className="flex items-center gap-3 text-[13px]">
+                        <MapPin size={16} className="text-[var(--text3)] shrink-0" />
+                        <span className="text-[var(--text)]">
+                          Lives in <span className="font-semibold">{[profileUser.city, profileUser.country].filter(Boolean).join(", ")}</span>
+                        </span>
+                      </div>
+                    ) : (
+                      isSelf && (
+                        <button onClick={() => setShowEditProfileModal(true)} className="w-full text-center py-1.5 text-xs font-semibold text-insta-blue hover:bg-[var(--surface2)] rounded-lg transition border border-dashed border-[var(--border)] cursor-pointer">
+                          + Add Location
+                        </button>
+                      )
+                    )}
+
+                    {profileUser.hometown && (
+                      <div className="flex items-center gap-3 text-[13px]">
+                        <Home size={16} className="text-[var(--text3)] shrink-0" />
+                        <span className="text-[var(--text)]">
+                          From <span className="font-semibold">{profileUser.hometown}</span>
+                        </span>
+                      </div>
+                    )}
+
+                    {profileUser.web && (
+                      <div className="flex items-center gap-3 text-[13px]">
+                        <Globe size={16} className="text-[var(--text3)] shrink-0" />
+                        <a
+                          href={profileUser.web.startsWith("http") ? profileUser.web : `https://${profileUser.web}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-insta-blue hover:underline font-semibold truncate max-w-[200px]"
+                        >
+                          {profileUser.web.replace(/^https?:\/\//, "")}
+                        </a>
+                      </div>
+                    )}
                   </div>
-                ) : (post.isReel || post.mediaType === "video" || (post.mediaUrls?.[0]?.type === "video") || post.videoUrl) ? (
-                  <VideoThumbnailCard
-                    videoUrl={post.videoUrl || post.img || post.mediaUrls?.[0]?.url || ""}
-                    thumbnailUrl={post.videoThumbnailUrl || undefined}
-                  />
-                ) : (
-                  <img
-                    src={post.img}
-                    alt="Profile content"
-                    className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
-                    loading="lazy"
-                    onError={(e) => {
-                      const t = e.currentTarget;
-                      t.style.display = "none";
-                      const parent = t.parentElement;
-                      if (parent) {
-                        parent.style.background = "linear-gradient(135deg,#1a1a2e,#16213e)";
-                      }
-                    }}
-                  />
+
+                  {isSelf && (
+                    <button
+                      onClick={() => setShowEditProfileModal(true)}
+                      className="w-full mt-3 py-2 bg-[var(--surface2)] hover:bg-[var(--surface2)]/80 text-[13px] font-bold rounded-xl transition cursor-pointer text-center text-[var(--text)] border border-[var(--border)]"
+                    >
+                      Edit Details
+                    </button>
+                  )}
+                </div>
+
+                {/* Photos Preview Card */}
+                {profilePostsList.length > 0 && (
+                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-base font-bold text-[var(--text)]">Photos</h3>
+                      <button
+                        onClick={() => setActiveTabName("posts")}
+                        className="text-[12px] text-insta-blue hover:underline font-semibold cursor-pointer"
+                      >
+                        See All
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 rounded-xl overflow-hidden">
+                      {profilePostsList.slice(0, 9).map((post: any, i: number) => (
+                        <div
+                          key={`sidebar-photo-${post.id}-${i}`}
+                          onClick={() => setActivePostId(post.id)}
+                          className="aspect-square bg-[var(--surface2)] cursor-pointer hover:opacity-90 transition relative overflow-hidden"
+                        >
+                          {post.isTextOnly || post.bgGradient ? (
+                            <div
+                              style={{ background: post.bgGradient || "linear-gradient(135deg,#667eea,#764ba2)" }}
+                              className="w-full h-full flex items-center justify-center p-1 text-[8px] font-bold text-center text-white line-clamp-3 select-none"
+                            >
+                              {post.caption}
+                            </div>
+                          ) : (
+                            <img src={post.img} alt="Preview" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                
-                {(activeTabName === "reels" || post.isReel) && (
-                  <span className="absolute top-2 right-2 text-lg drop-shadow-md">🎬</span>
+              </div>
+
+              {/* Right Column: Create Post Box & The Feed */}
+              <div className="space-y-4">
+                {/* Create Post Card (Facebook-style) */}
+                {isSelf && (
+                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 shadow-sm space-y-3">
+                    <div className="flex gap-3 items-center pb-3 border-b border-[var(--border)]">
+                      <img
+                        src={dbProfile?.avatarUrl || profileUser.img}
+                        className="w-10 h-10 rounded-full object-cover shrink-0"
+                        alt="My avatar"
+                      />
+                      <button
+                        onClick={() => setShowCreatePostModal(true)}
+                        className="flex-1 bg-[var(--surface2)] hover:bg-[var(--surface2)]/85 text-[14px] text-[var(--text2)] text-left px-4 py-2.5 rounded-full transition duration-150 cursor-pointer"
+                      >
+                        What's on your mind, {profileUser.full.split(" ")[0]}?
+                      </button>
+                    </div>
+                    <div className="flex justify-around text-[13px] font-semibold text-[var(--text2)] pt-1">
+                      <button
+                        onClick={() => setShowCreatePostModal(true)}
+                        className="flex items-center gap-2 hover:bg-[var(--surface2)] px-4 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        <span className="text-emerald-500 text-lg">📷</span> Photo/Video
+                      </button>
+                      <button
+                        onClick={() => setShowCreatePostModal(true)}
+                        className="flex items-center gap-2 hover:bg-[var(--surface2)] px-4 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        <span className="text-yellow-500 text-lg">😊</span> Feeling/activity
+                      </button>
+                    </div>
+                  </div>
                 )}
 
-                {/* Overlays */}
-                <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition duration-250 flex items-center justify-center gap-6 text-[14px] font-bold">
-                  <span className="flex items-center gap-1.5">
-                    <Heart size={18} fill="currentColor" />
-                    {post.likes}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <MessageCircle size={18} fill="currentColor" />
-                    {post.comments.length}
-                  </span>
-                </div>
+                {/* Feed list of posts */}
+                {profilePostsList.length === 0 ? (
+                  <div className="text-center py-12 text-[var(--text2)] text-[14px] bg-[var(--surface)] border border-[var(--border)] rounded-2xl">
+                    {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
+                  </div>
+                ) : (
+                  profilePostsList.map((post: any) => {
+                    return (
+                      <PostCard key={`feed-post-${post.id}`} post={post} />
+                    );
+                  })
+                )}
               </div>
-            ))}
             </div>
+          ) : (
+            /* Grid View (Standard Instagram style) */
+            profilePostsList.length === 0 ? (
+              <div className="text-center py-12 text-[var(--text2)] text-[14px]">
+                {activeTabName === "saved" ? "Save posts to see them here" : "No content yet"}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1 md:gap-2 mt-4">
+                {profilePostsList.map((post: any, i: number) => (
+                  <div
+                    key={`grid-post-${post.id}-${i}`}
+                    onClick={() => setActivePostId(post.id)}
+                    className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg bg-[var(--surface2)]"
+                  >
+                    {post.isTextOnly || post.bgGradient ? (
+                      <div
+                        style={{ background: post.bgGradient || "linear-gradient(135deg,#667eea,#764ba2)" }}
+                        className="w-full h-full flex items-center justify-center p-4 text-center font-semibold text-xs md:text-sm break-words select-none text-white"
+                      >
+                        <span className="line-clamp-4">{post.caption}</span>
+                      </div>
+                    ) : (post.isReel || post.mediaType === "video" || (post.mediaUrls?.[0]?.type === "video") || post.videoUrl) ? (
+                      <VideoThumbnailCard
+                        videoUrl={post.videoUrl || post.img || post.mediaUrls?.[0]?.url || ""}
+                        thumbnailUrl={post.videoThumbnailUrl || undefined}
+                      />
+                    ) : (
+                      <img
+                        src={post.img}
+                        alt="Profile content"
+                        className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                        loading="lazy"
+                        onError={(e) => {
+                          const t = e.currentTarget;
+                          t.style.display = "none";
+                          const parent = t.parentElement;
+                          if (parent) {
+                            parent.style.background = "linear-gradient(135deg,#1a1a2e,#16213e)";
+                          }
+                        }}
+                      />
+                    )}
+                    
+                    {(activeTabName === "reels" || post.isReel) && (
+                      <span className="absolute top-2 right-2 text-lg drop-shadow-md">🎬</span>
+                    )}
+
+                    {/* Overlays */}
+                    <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition duration-250 flex items-center justify-center gap-6 text-[14px] font-bold">
+                      <span className="flex items-center gap-1.5">
+                        <Heart size={18} fill="currentColor" />
+                        {post.likes}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <MessageCircle size={18} fill="currentColor" />
+                        {post.comments.length}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
           </>
         )}
