@@ -451,12 +451,48 @@ export default function PostCard({ post }: PostCardProps) {
     addComment, setViewingUserId, setActiveTab,
     setActivePostId, showToast, setSharePostId,
     setPosts, followStates, setReportPostId,
+    currentUser, deletePost, updatePost,
   } = useApp();
 
   const [commentText, setCommentText] = useState("");
   const [showHeartPop, setShowHeartPop] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCaption, setEditCaption] = useState(post.caption || "");
+  const [editLocation, setEditLocation] = useState(post.location || "");
+  const [editPrivacy, setEditPrivacy] = useState(post.isPrivate || false);
+
+  const isOwnPost = currentUser && (String(currentUser.id) === String(post.user.id) || post.user.name === currentUser.name);
+
+  const handleTogglePrivacy = async () => {
+    setShowMenu(false);
+    try {
+      await updatePost(post.id, { isPrivate: !post.isPrivate });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    setShowMenu(false);
+    if (confirm("Are you sure you want to delete this post?")) {
+      try {
+        await deletePost(post.id);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await updatePost(post.id, { caption: editCaption, location: editLocation, isPrivate: editPrivacy });
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // ── Reaction state ─────────────────────────────────────────────────────────
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
@@ -508,10 +544,12 @@ export default function PostCard({ post }: PostCardProps) {
   const touchStartDist = useRef<number | null>(null);
   const touchStartCenter = useRef<{ x: number; y: number } | null>(null);
   const isZooming = useRef(false);
+  const [isPinching, setIsPinching] = useState(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       isZooming.current = true;
+      setIsPinching(true);
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -527,6 +565,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (isZooming.current && e.touches.length === 2 && touchStartDist.current && touchStartCenter.current) {
+      if (e.cancelable) e.preventDefault();
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -550,6 +589,7 @@ export default function PostCard({ post }: PostCardProps) {
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (isZooming.current) {
       isZooming.current = false;
+      setIsPinching(false);
       touchStartDist.current = null;
       touchStartCenter.current = null;
       setZoomStyle({
@@ -794,7 +834,7 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <div className="bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-[24px] mb-6 overflow-hidden w-full text-[var(--text)] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+    <div className={`bg-[var(--surface)] backdrop-blur-md border border-[var(--border)] rounded-[24px] mb-6 overflow-hidden w-full text-[var(--text)] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] transition-all ${isPinching ? 'z-40 relative' : ''}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 p-3.5 select-none">
@@ -841,12 +881,25 @@ export default function PostCard({ post }: PostCardProps) {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.1 }}
-                  className="absolute right-0 mt-2 bg-[var(--surface2)] border border-[var(--border)] rounded-xl w-40 shadow-xl overflow-hidden z-50 text-[13px]"
+                  className="absolute right-0 mt-2 bg-[var(--surface2)] border border-[var(--border)] rounded-xl w-44 shadow-xl overflow-hidden z-50 text-[13px]"
                 >
-                  <div onClick={() => { setReportPostId(post.id); setShowMenu(false); }} className="p-3 text-red-500 hover:bg-[var(--surface3)] cursor-pointer">🚩 Report</div>
-                  <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🚫 Not interested</div>
-                  {currentUser && String(currentUser.id) !== String(post.user.id) && post.user.name !== currentUser.name && (
-                    <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">➕ Follow</div>
+                  {isOwnPost ? (
+                    <>
+                      <div onClick={() => { setIsEditing(true); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer">✏️ Edit Post</div>
+                      <button onClick={handleTogglePrivacy} className="w-full text-left p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)] flex items-center justify-between bg-transparent outline-none">
+                        <span>🔒 Privacy</span>
+                        <span className="text-[11px] text-insta-blue font-bold">{post.isPrivate ? "Private" : "Public"}</span>
+                      </button>
+                      <div onClick={handleDeletePost} className="p-3 text-red-500 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)] font-bold">🗑️ Delete</div>
+                    </>
+                  ) : (
+                    <>
+                      <div onClick={() => { setReportPostId(post.id); setShowMenu(false); }} className="p-3 text-red-500 hover:bg-[var(--surface3)] cursor-pointer">🚩 Report</div>
+                      <div onClick={() => setShowMenu(false)} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🚫 Not interested</div>
+                      {currentUser && String(currentUser.id) !== String(post.user.id) && post.user.name !== currentUser.name && (
+                        <div onClick={() => { toggleFollow(post.user.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">➕ Follow</div>
+                      )}
+                    </>
                   )}
                   <div onClick={() => { setSharePostId(post.id); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)]">🔗 Share</div>
                 </motion.div>
@@ -940,7 +993,7 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       ) : (
         <div
-          className="relative aspect-square overflow-hidden select-none"
+          className={`relative aspect-square select-none ${isPinching ? 'z-50 overflow-visible' : 'overflow-hidden'}`}
           onContextMenu={(e) => e.preventDefault()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -948,7 +1001,7 @@ export default function PostCard({ post }: PostCardProps) {
         >
           {post.isTextOnly ? (
             <div
-              className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words cursor-pointer select-none relative"
+               className="w-full h-full flex items-center justify-center p-10 text-center font-bold text-white leading-relaxed break-words cursor-pointer select-none relative"
               style={{ background: post.bgGradient || "linear-gradient(135deg,#FF8A00,#FF2E93,#9E00FF)", fontSize: "clamp(18px, 5vw, 30px)", textShadow: "0 2px 12px rgba(0,0,0,0.35)" }}
               onPointerDown={onImagePointerDown}
               onPointerUp={onImagePointerUp}
@@ -958,7 +1011,7 @@ export default function PostCard({ post }: PostCardProps) {
               {post.caption}
             </div>
           ) : (
-            <div className="relative w-full h-full overflow-hidden">
+            <div className={`relative w-full h-full ${isPinching ? 'overflow-visible' : 'overflow-hidden'}`}>
               <AnimatePresence initial={false}>
                 <motion.div
                   key={activeImgIndex}
@@ -966,7 +1019,7 @@ export default function PostCard({ post }: PostCardProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -50 }}
                   transition={{ duration: 0.25, ease: "easeInOut" }}
-                  className="w-full h-full absolute inset-0"
+                  className={`w-full h-full absolute inset-0 ${isPinching ? 'z-50 overflow-visible' : ''}`}
                 >
                   {(() => {
                     const mediaList = post.imgs && post.imgs.length > 0 ? post.imgs : [post.img];
@@ -1187,49 +1240,104 @@ export default function PostCard({ post }: PostCardProps) {
         <span className="font-normal text-[var(--text2)]">{localLikes === 1 ? 'reaction' : 'reactions'}</span>
       </div>
 
-      {/* Caption */}
-      {!(post.originalPost && post.originalPost.id) && !post.isTextOnly && (
-        <div className="px-3.5 py-1 text-[13px] leading-relaxed">
-          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
-          {formatCaption(post.caption)}
+      {isEditing ? (
+        <div className="p-3.5 border-t border-[var(--border)] bg-black/10 flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Caption</label>
+            <textarea
+              value={editCaption}
+              onChange={(e) => setEditCaption(e.target.value)}
+              placeholder="Edit caption..."
+              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-2 text-[13px] text-[var(--text)] outline-none resize-y min-h-[60px]"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Location</label>
+            <input
+              type="text"
+              value={editLocation}
+              onChange={(e) => setEditLocation(e.target.value)}
+              placeholder="Edit location..."
+              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-2 text-[13px] text-[var(--text)] outline-none"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Privacy:</label>
+              <select
+                value={editPrivacy ? "private" : "public"}
+                onChange={(e) => setEditPrivacy(e.target.value === "private")}
+                className="bg-[var(--surface2)] border border-[var(--border)] text-[12px] text-[var(--text)] rounded-lg px-2 py-1 outline-none cursor-pointer"
+              >
+                <option value="public">🌍 Public</option>
+                <option value="private">🔒 Private</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--surface3)] rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95 text-[var(--text)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                className="px-3 py-1.5 bg-insta-blue hover:bg-insta-blue/80 text-white rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
+      ) : (
+        <>
+          {/* Caption */}
+          {!(post.originalPost && post.originalPost.id) && !post.isTextOnly && (
+            <div className="px-3.5 py-1 text-[13px] leading-relaxed">
+              <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
+              {formatCaption(post.caption)}
+            </div>
+          )}
+          {!(post.originalPost && post.originalPost.id) && post.isTextOnly && (
+            <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
+              <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
+              Text post
+            </div>
+          )}
+
+          {/* Comments link */}
+          <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
+            {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
+          </div>
+
+          {/* Time */}
+          <div className="px-3.5 pt-0.5 pb-3.5 text-[11px] text-[var(--text3)] uppercase tracking-wider">
+            {post.time} · AURAGRAM
+          </div>
+
+          {/* Comment input */}
+          <form 
+            onClick={(e) => {
+              e.preventDefault();
+              setActivePostId(post.id);
+            }}
+            className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15 cursor-pointer"
+          >
+            <span className="text-[20px] cursor-pointer">😊</span>
+            <input
+              type="text"
+              placeholder="Add a comment…"
+              readOnly
+              className="flex-1 bg-transparent border-none text-[13px] text-[var(--text)] outline-none placeholder-[var(--text3)] cursor-pointer"
+            />
+            <button type="button" className="text-[#3897f0] font-bold text-[13px]">
+              Post
+            </button>
+          </form>
+        </>
       )}
-      {!(post.originalPost && post.originalPost.id) && post.isTextOnly && (
-        <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
-          <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
-          Text post
-        </div>
-      )}
-
-      {/* Comments link */}
-      <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
-        {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
-      </div>
-
-      {/* Time */}
-      <div className="px-3.5 pt-0.5 pb-3.5 text-[11px] text-[var(--text3)] uppercase tracking-wider">
-        {post.time} · AURAGRAM
-      </div>
-
-      {/* Comment input */}
-      <form 
-        onClick={(e) => {
-          e.preventDefault();
-          setActivePostId(post.id);
-        }}
-        className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15 cursor-pointer"
-      >
-        <span className="text-[20px] cursor-pointer">😊</span>
-        <input
-          type="text"
-          placeholder="Add a comment…"
-          readOnly
-          className="flex-1 bg-transparent border-none text-[13px] text-[var(--text)] outline-none placeholder-[var(--text3)] cursor-pointer"
-        />
-        <button type="button" className="text-[#3897f0] font-bold text-[13px]">
-          Post
-        </button>
-      </form>
 
       <ReactionsModal isOpen={showReactionsModal} onClose={() => setShowReactionsModal(false)} postId={post.id} />
     </div>

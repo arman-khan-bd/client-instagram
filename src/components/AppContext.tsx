@@ -47,6 +47,7 @@ export interface MockPost {
   originalPost?: MockPost;
   isAdult?: boolean;
   isAdultUnmarked?: boolean;
+  isPrivate?: boolean;
   commentsCount?: number;
   videoUrl?: string;
   videoThumbnailUrl?: string;
@@ -199,6 +200,8 @@ interface AppContextType {
   reactToMessage: (messageId: number, emoji: string) => Promise<void>;
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number }) => Promise<void>;
+  deletePost: (postId: number) => Promise<void>;
+  updatePost: (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }) => Promise<AppContextType["currentUser"]>;
   refetchCurrentUser: () => Promise<void>;
 
@@ -1932,6 +1935,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const deletePost = useCallback(async (postId: number) => {
+    try {
+      showToast("Deleting post...", "info");
+      await api.deletePost(postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      showToast("Post deleted successfully", "success");
+    } catch (err: any) {
+      console.error("Failed to delete post:", err);
+      showToast(err.message || "Failed to delete post", "info");
+    }
+  }, []);
+
+  const updatePost = useCallback(async (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean }) => {
+    try {
+      showToast("Updating post...", "info");
+      await api.updatePost(postId, data);
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, caption: data.caption ?? p.caption, location: data.location ?? p.location, isPrivate: data.isPrivate ?? p.isPrivate }
+            : p
+        )
+      );
+      showToast("Post updated successfully", "success");
+    } catch (err: any) {
+      console.error("Failed to update post:", err);
+      showToast(err.message || "Failed to update post", "info");
+    }
+  }, []);
+
   const saveProfileChanges = async (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }): Promise<AppContextType["currentUser"]> => {
     if (!currentUser) return null;
     try {
@@ -2075,6 +2108,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         reactToMessage,
         createConversation,
         createPost,
+        deletePost,
+        updatePost,
         saveProfileChanges,
         refetchCurrentUser,
         sharePostId: sharePostIdState,

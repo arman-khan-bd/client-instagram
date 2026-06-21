@@ -1699,6 +1699,20 @@ class ApiClient {
     if (error) throw error;
   }
 
+  async updatePost(postId: number, data: { caption?: string; location?: string; isPrivate?: boolean }) {
+    const { error } = await supabase
+      .from('Post')
+      .update({
+        caption: data.caption,
+        location: data.location,
+        isPrivate: data.isPrivate
+      })
+      .eq('id', postId);
+    if (error) throw error;
+    // Invalidate Redis feed cache
+    await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
+  }
+
   async getAllComments() {
     const { data, error } = await supabase
       .from('Comment')

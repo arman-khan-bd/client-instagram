@@ -235,6 +235,7 @@ CREATE TRIGGER on_auth_user_created
 -- ── Post Custom Updates ───────────────────────────────────────────────────────
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdult" BOOLEAN DEFAULT FALSE;
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdultUnmarked" BOOLEAN DEFAULT FALSE;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isPrivate" BOOLEAN DEFAULT FALSE;
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "originalPostId" INTEGER CONSTRAINT "Post_originalPostId_fkey" REFERENCES "Post"("id") ON DELETE SET NULL;
 
 -- ── Post Category update ──────────────────────────────────────────────────────
@@ -458,7 +459,7 @@ const rlsStatements = [
 
   `CREATE POLICY "Post: public read"
      ON "Post" FOR SELECT
-     USING (true)`,
+     USING ("isPrivate" = FALSE OR auth.uid() = "userId")`,
 
   `CREATE POLICY "Post: owner insert"
      ON "Post" FOR INSERT
