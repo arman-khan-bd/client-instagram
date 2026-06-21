@@ -648,7 +648,7 @@ export default function Profile() {
                 >
                   Add Day
                 </button>
-                {!(dbProfile?.isVerified || currentUser?.isVerified) && (
+                {!(dbProfile?.isVerified || currentUser?.verified) && (
                   <button
                     onClick={handleRequestVerification}
                     disabled={verificationLoading || (verificationRequest && verificationRequest.status === "pending")}
