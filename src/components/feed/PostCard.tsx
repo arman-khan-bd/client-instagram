@@ -753,12 +753,30 @@ export default function PostCard({ post }: PostCardProps) {
     setActiveTab("profile", username);
   };
 
-  const formatCaption = (text: string) =>
-    text.split(/(\s+)/).map((part, i) =>
-      part.startsWith("#")
-        ? <span key={i} className="text-[#3897f0] cursor-pointer hover:underline">{part}</span>
-        : part
-    );
+  const formatCaption = (text: string) => {
+    if (!text) return "";
+    return text.split(/(\s+)/).map((part, i) => {
+      if (part.startsWith("#")) {
+        return <span key={i} className="text-[#3897f0] cursor-pointer hover:underline">{part}</span>;
+      }
+      if (part.startsWith("@") && part.length > 1) {
+        const cleanName = part.substring(1).replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+        return (
+          <span
+            key={i}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUserClick(cleanName);
+            }}
+            className="text-insta-blue font-semibold cursor-pointer hover:underline"
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
 
   const formatLikes = (n: number) =>
     n >= 1_000_000 ? (n / 1_000_000).toFixed(1) + "M"

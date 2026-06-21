@@ -370,14 +370,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const setActiveChatId = useCallback((id: number | null) => {
     setActiveChatIdState(id);
     const target = id !== null ? `/messages/${id}` : "/messages";
-    if (typeof window !== "undefined") {
-      if (window.location.pathname !== target) {
-        window.history.pushState({ tab: "messages", chatId: id }, "", target);
-      }
-    } else {
+    if (pathname !== target) {
       router.push(target);
     }
-  }, [router]);
+  }, [router, pathname]);
 
   // Clear all video watch durations on reload / mount
   useEffect(() => {
@@ -449,14 +445,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         target = `/profile/${username}`;
       }
     }
-    if (typeof window !== "undefined") {
-      if (window.location.pathname !== target) {
-        window.history.pushState({ tab, vId }, "", target);
-      }
-    } else {
-      if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
-        router.push(target);
-      }
+    if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {
+      router.push(target);
     }
   }, [router, pathname, viewingUserId, currentUser]);
 

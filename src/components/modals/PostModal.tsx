@@ -171,6 +171,31 @@ export default function PostModal() {
     setActivePostId(null);
   };
 
+  const formatCaption = (text: string) => {
+    if (!text) return "";
+    return text.split(/(\s+)/).map((part, i) => {
+      if (part.startsWith("#")) {
+        return <span key={i} className="text-[#3897f0] cursor-pointer hover:underline">{part}</span>;
+      }
+      if (part.startsWith("@") && part.length > 1) {
+        const cleanName = part.substring(1).replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+        return (
+          <span
+            key={i}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUserClick(cleanName);
+            }}
+            className="text-insta-blue font-semibold cursor-pointer hover:underline"
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   const [fetchedPost, setFetchedPost] = useState<any | null>(null);
   const [loadingPost, setLoadingPost] = useState(false);
 
@@ -575,7 +600,7 @@ export default function PostModal() {
                   />
                   <div className="text-[13px] leading-relaxed break-words text-[var(--text)]">
                     <span className="font-bold mr-1.5 text-[var(--text)]">{activePost.user?.name}</span>
-                    {activePost.caption}
+                    {formatCaption(activePost.caption)}
                   </div>
                 </div>
               )}

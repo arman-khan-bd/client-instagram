@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useApp } from "../AppContext";
 import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image, Film } from "lucide-react";
 import { scanFileForAdultContent } from "../../lib/nsfwDetector";
@@ -128,7 +128,7 @@ const VIDEO_MAX_DURATION = 5 * 60; // 5 minutes in seconds
 const VIDEO_MAX_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 
 export default function CreatePostModal() {
-  const { showCreatePostModal, setShowCreatePostModal, createPost, showToast } = useApp();
+  const { showCreatePostModal, setShowCreatePostModal, createPost, showToast, users } = useApp();
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [fileTypes, setFileTypes] = useState<("image" | "video")[]>([]);
@@ -138,6 +138,12 @@ export default function CreatePostModal() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanningUrls, setScanningUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Suggestions states for @ tagging
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionSearch, setSuggestionSearch] = useState("");
+  const [suggestionStartIndex, setSuggestionStartIndex] = useState(-1);
 
   // Warm up NSFW model when modal becomes visible
   useEffect(() => {
@@ -190,6 +196,9 @@ export default function CreatePostModal() {
     setVideoThumbnails({});
     setIsScanning(false);
     setScanningUrls([]);
+    setShowSuggestions(false);
+    setSuggestionStartIndex(-1);
+    setSuggestionSearch("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -297,6 +306,59 @@ export default function CreatePostModal() {
 
   const appendEmoji = (emoji: string) => {
     setCaption((prev) => prev + emoji);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setCaption(val);
+
+    const caretPos = e.target.selectionStart;
+    const textBeforeCaret = val.slice(0, caretPos);
+    const lastWordMatch = textBeforeCaret.match(/@(\w*)$/);
+
+    if (lastWordMatch) {
+      const searchWord = lastWordMatch[1];
+      const startIndex = lastWordMatch.index!;
+      setSuggestionSearch(searchWord);
+      setSuggestionStartIndex(startIndex);
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const filteredSuggestions = useMemo(() => {
+    if (!suggestionSearch) return users;
+    return users.filter(
+      (u) =>
+        u.name.toLowerCase().includes(suggestionSearch.toLowerCase()) ||
+        u.full.toLowerCase().includes(suggestionSearch.toLowerCase())
+    );
+  }, [users, suggestionSearch]);
+
+  const selectSuggestion = (username: string) => {
+    if (suggestionStartIndex === -1) return;
+    const val = caption;
+    const textBeforeMention = val.slice(0, suggestionStartIndex);
+    const caretPos = textareaRef.current?.selectionStart || val.length;
+    const textAfterMention = val.slice(caretPos);
+
+    const newCaption = `${textBeforeMention}@${username} ${textAfterMention}`;
+    setCaption(newCaption);
+    setShowSuggestions(false);
+    setSuggestionStartIndex(-1);
+    setSuggestionSearch("");
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newCursorPos = textBeforeMention.length + username.length + 2; // +2 for @ and space
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 50);
   };
 
   const handleRemovePreview = (idxToRemove: number) => {
@@ -580,14 +642,43 @@ export default function CreatePostModal() {
                 </div>
 
                 {/* Caption textbox */}
-                <div>
+                <div className="relative">
                   <textarea
+                    ref={textareaRef}
                     placeholder={isTextOnlyPost ? "Write something on your gradient post..." : "Write a caption..."}
                     value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
+                    onChange={handleCaptionChange}
                     maxLength={2200}
                     className="w-full bg-transparent border-none text-[13.5px] text-white outline-none placeholder-[#555] h-20 resize-none"
                   />
+
+                  {/* Suggestions list overlay */}
+                  {showSuggestions && filteredSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 bottom-full mb-2 bg-[#18181b]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl max-h-[160px] overflow-y-auto shadow-2xl z-[100] custom-scroll p-1 flex flex-col gap-0.5">
+                      {filteredSuggestions.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => selectSuggestion(u.name)}
+                          className="flex items-center gap-3 w-full p-2 hover:bg-white/[0.06] rounded-lg transition text-left cursor-pointer shrink-0"
+                        >
+                          <img
+                            src={u.img}
+                            alt={u.name}
+                            className="w-7 h-7 rounded-full object-cover border border-white/[0.05]"
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[12px] font-bold text-white truncate flex items-center gap-1">
+                              {u.name}
+                              {u.verified && <span className="verified-badge w-3 h-3" />}
+                            </span>
+                            <span className="text-[10px] text-gray-400 truncate">{u.full}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between mt-1">
                     {/* Emoji list shortcuts */}
                     <div className="flex items-center gap-1.5 flex-wrap">
