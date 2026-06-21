@@ -129,6 +129,7 @@ export default function Profile() {
     setFollowersModal,
     setShowEditProfileModal,
     setShowStoryCreate,
+    setShowCreatePostModal,
     storyGroups,
     setChats,
     showToast,
