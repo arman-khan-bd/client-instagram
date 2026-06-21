@@ -95,6 +95,8 @@ const mapDbPostToMockPost = (p: any): MockPost => {
           verified: rawOriginalPost.user?.isVerified || false,
         },
         img: rawOriginalPost.thumbnailUrl || rawOriginalPost.mediaUrls?.[0]?.url || "",
+        videoUrl: origIsVideo ? (rawOriginalPost.thumbnailUrl || rawOriginalPost.mediaUrls?.[0]?.url || "") : undefined,
+        videoThumbnailUrl: origIsVideo ? (rawOriginalPost.mediaUrls?.[0]?.thumbnailUrl || undefined) : undefined,
         imgs: rawOriginalPost.mediaUrls?.map((m: any) => typeof m === "string" ? m : m.url) || [],
         caption: rawOriginalPost.caption || "",
         likes: rawOriginalPost._count?.likes ?? 0,

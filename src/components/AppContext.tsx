@@ -48,6 +48,8 @@ export interface MockPost {
   isAdult?: boolean;
   isAdultUnmarked?: boolean;
   commentsCount?: number;
+  videoUrl?: string;
+  videoThumbnailUrl?: string;
 }
 
 export interface MockMessage {
