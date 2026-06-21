@@ -154,6 +154,7 @@ interface AppContextType {
     private_reels?: boolean;
     private_days?: boolean;
     theme?: string;
+    verified?: boolean;
   } | null;
   updateSettings: (settings: { private_profile?: boolean; private_stories?: boolean; private_reels?: boolean; private_days?: boolean; theme?: string }) => Promise<void>;
   doLogin: (email: string, pass: string) => Promise<void>;
@@ -906,6 +907,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         private_reels: fresh.private_reels,
         private_days: fresh.private_days,
         theme: fresh.theme || 'dark',
+        verified: fresh.isVerified || false,
       };
       setCurrentUser(updated);
 
@@ -1487,6 +1489,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   private_reels: dbUser.private_reels || false,
                   private_days: dbUser.private_days || false,
                   theme: dbUser.theme || 'dark',
+                  verified: dbUser.isVerified || false,
                 };
                 setCurrentUser(user);
 
