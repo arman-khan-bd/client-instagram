@@ -466,7 +466,7 @@ export default function TvPortal() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full bg-[#0a0a0c] text-white overflow-hidden">
+    <div className="flex flex-col lg:flex-row lg:h-full w-full bg-[#0a0a0c] text-white overflow-hidden flex-1">
       
       {/* Channels List Sidebar (Left / Top on Mobile) */}
       <div className="hidden lg:flex lg:w-[320px] shrink-0 bg-[#121216]/60 backdrop-blur-md border-r border-white/[0.06] flex-col h-full">
@@ -561,7 +561,7 @@ export default function TvPortal() {
       </div>
 
       {/* Main Viewing Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative h-full">
+      <div className="flex-1 flex flex-col min-w-0 relative lg:h-full min-h-0">
         <AnimatePresence>
           {showAdminPanel && isAdmin && (
             <motion.div

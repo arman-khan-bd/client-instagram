@@ -137,7 +137,7 @@ export default function Profile() {
     createConversation,
   } = useApp();
 
-  const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged">("posts");
+  const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged" | "feed">("feed");
   const [dbProfile, setDbProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -400,6 +400,14 @@ export default function Profile() {
             p.user.name === profileUser.name)
       );
     }
+    if (activeTabName === "feed") {
+      return posts.filter(
+        (p) =>
+          p.user.id === profileUser.id ||
+          p.user.id.toString() === profileUser.id.toString() ||
+          p.user.name === profileUser.name
+      );
+    }
 
     // Default posts
     return posts.filter(
@@ -412,7 +420,7 @@ export default function Profile() {
 
   // Map dbProfile posts or tabPosts fallback
   const profilePostsList = useMemo(() => {
-    if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged")) {
+    if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged" || activeTabName === "feed")) {
       const allMapped = dbProfile.posts.map(mapDbPostToMockPost);
 
       if (activeTabName === "reels") {
@@ -797,6 +805,15 @@ export default function Profile() {
             <>
               <div className="flex border-t border-[var(--border)] select-none text-[12px] uppercase font-bold tracking-widest mt-4">
           <button
+            onClick={() => setActiveTabName("feed")}
+            className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
+              activeTabName === "feed" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
+            }`}
+          >
+            <List size={14} /> Feed
+          </button>
+
+          <button
             onClick={() => setActiveTabName("posts")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
               activeTabName === "posts" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
@@ -836,38 +853,40 @@ export default function Profile() {
           </div>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mt-4 px-1 select-none">
-            <span className="text-[13px] font-bold text-[var(--text2)] uppercase tracking-wider">
-              {activeTabName === "posts" ? "Posts" : activeTabName}
-            </span>
-            <div className="flex items-center gap-1 bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)]">
-              <button
-                onClick={() => handleSetViewMode("grid")}
-                className={`p-1.5 rounded-lg transition duration-200 cursor-pointer ${
-                  viewMode === "grid"
-                    ? "bg-[var(--surface2)] text-[var(--text)] shadow-sm"
-                    : "text-[var(--text3)] hover:text-[var(--text)]"
-                }`}
-                title="Grid View"
-              >
-                <Grid size={16} />
-              </button>
-              <button
-                onClick={() => handleSetViewMode("feed")}
-                className={`p-1.5 rounded-lg transition duration-200 cursor-pointer ${
-                  viewMode === "feed"
-                    ? "bg-[var(--surface2)] text-[var(--text)] shadow-sm"
-                    : "text-[var(--text3)] hover:text-[var(--text)]"
-                }`}
-                title="Feed View (Facebook Style)"
-              >
-                <List size={16} />
-              </button>
+          {activeTabName !== "feed" && (
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mt-4 px-1 select-none">
+              <span className="text-[13px] font-bold text-[var(--text2)] uppercase tracking-wider">
+                {activeTabName === "posts" ? "Posts" : activeTabName}
+              </span>
+              <div className="flex items-center gap-1 bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)]">
+                <button
+                  onClick={() => handleSetViewMode("grid")}
+                  className={`p-1.5 rounded-lg transition duration-200 cursor-pointer ${
+                    viewMode === "grid"
+                      ? "bg-[var(--surface2)] text-[var(--text)] shadow-sm"
+                      : "text-[var(--text3)] hover:text-[var(--text)]"
+                  }`}
+                  title="Grid View"
+                >
+                  <Grid size={16} />
+                </button>
+                <button
+                  onClick={() => handleSetViewMode("feed")}
+                  className={`p-1.5 rounded-lg transition duration-200 cursor-pointer ${
+                    viewMode === "feed"
+                      ? "bg-[var(--surface2)] text-[var(--text)] shadow-sm"
+                      : "text-[var(--text3)] hover:text-[var(--text)]"
+                  }`}
+                  title="Feed View (Facebook Style)"
+                >
+                  <List size={16} />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Profile Content (Grid vs Feed) */}
-          {viewMode === "feed" ? (
+          {viewMode === "feed" || activeTabName === "feed" ? (
             <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 mt-4 items-start">
               {/* Left Column: Intro (Facebook-style About Sidebar) */}
               <div className="space-y-4 md:sticky md:top-4">
