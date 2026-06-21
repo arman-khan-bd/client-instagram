@@ -180,6 +180,7 @@ export default function Profile() {
   }, [isSelf, currentUser?.id]);
 
   const handleRequestVerification = async () => {
+    if (!currentUser?.id) return;
     const reason = prompt("Why should this profile be verified? (e.g. public figure, creator, business)");
     if (!reason || !reason.trim()) return;
 
