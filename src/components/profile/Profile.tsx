@@ -168,17 +168,6 @@ export default function Profile() {
   const [photosDialogPage, setPhotosDialogPage] = useState(1);
   const PHOTOS_PER_PAGE = 12;
 
-  const uploadedPhotos = useMemo(() => {
-    return profilePostsList.filter((p: any) => !p.isTextOnly && p.img);
-  }, [profilePostsList]);
-
-  const totalPages = Math.ceil(uploadedPhotos.length / PHOTOS_PER_PAGE);
-  const currentPhotos = useMemo(() => {
-    const start = (photosDialogPage - 1) * PHOTOS_PER_PAGE;
-    return uploadedPhotos.slice(start, start + PHOTOS_PER_PAGE);
-  }, [uploadedPhotos, photosDialogPage]);
-
-
   const [verificationRequest, setVerificationRequest] = useState<any>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
 
@@ -480,6 +469,16 @@ export default function Profile() {
     }
     return tabPosts;
   }, [dbProfile, tabPosts, activeTabName, profileUser]);
+
+  const uploadedPhotos = useMemo(() => {
+    return profilePostsList.filter((p: any) => !p.isTextOnly && p.img);
+  }, [profilePostsList]);
+
+  const totalPages = Math.ceil(uploadedPhotos.length / PHOTOS_PER_PAGE);
+  const currentPhotos = useMemo(() => {
+    const start = (photosDialogPage - 1) * PHOTOS_PER_PAGE;
+    return uploadedPhotos.slice(start, start + PHOTOS_PER_PAGE);
+  }, [uploadedPhotos, photosDialogPage]);
 
   if (loading || !dbProfile) {
     return (
