@@ -378,6 +378,44 @@ export default function Profile() {
     return () => window.removeEventListener("profile-updated", handleProfileUpdated);
   }, [profileUser?.name]);
 
+  // Listen for post changes to update dbProfile immediately
+  useEffect(() => {
+    const handlePostUpdated = (e: Event) => {
+      const evt = e as CustomEvent<{ postId: number; data: any }>;
+      const { postId, data } = evt.detail;
+      setDbProfile((prev: any) => {
+        if (!prev || !prev.posts) return prev;
+        return {
+          ...prev,
+          posts: prev.posts.map((p: any) => 
+            p.id === postId 
+              ? { ...p, caption: data.caption ?? p.caption, location: data.location ?? p.location, isPrivate: data.isPrivate ?? p.isPrivate }
+              : p
+          )
+        };
+      });
+    };
+
+    const handlePostDeleted = (e: Event) => {
+      const evt = e as CustomEvent<{ postId: number }>;
+      const { postId } = evt.detail;
+      setDbProfile((prev: any) => {
+        if (!prev || !prev.posts) return prev;
+        return {
+          ...prev,
+          posts: prev.posts.filter((p: any) => p.id !== postId)
+        };
+      });
+    };
+
+    window.addEventListener("post-updated", handlePostUpdated);
+    window.addEventListener("post-deleted", handlePostDeleted);
+    return () => {
+      window.removeEventListener("post-updated", handlePostUpdated);
+      window.removeEventListener("post-deleted", handlePostDeleted);
+    };
+  }, []);
+
   // Handle follow / follow back
   const handleFollowToggle = async () => {
     if (!profileUser) return;

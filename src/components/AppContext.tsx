@@ -1943,6 +1943,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       showToast("Deleting post...", "info");
       await api.deletePost(postId);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("post-deleted", { detail: { postId } }));
+      }
       showToast("Post deleted successfully", "success");
     } catch (err: any) {
       console.error("Failed to delete post:", err);
@@ -1961,6 +1964,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             : p
         )
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("post-updated", { detail: { postId, data } }));
+      }
       showToast("Post updated successfully", "success");
     } catch (err: any) {
       console.error("Failed to update post:", err);
