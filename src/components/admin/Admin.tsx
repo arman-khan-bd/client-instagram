@@ -27,7 +27,7 @@ import {
   Radio
 } from "lucide-react";
 
-type AdminTab = "overview" | "users" | "posts" | "comments" | "reports" | "seo" | "settings" | "messages" | "tv";
+type AdminTab = "overview" | "users" | "posts" | "comments" | "reports" | "seo" | "settings" | "messages" | "tv" | "verifications";
 
 export default function Admin() {
   const { showToast, currentUser } = useApp();
@@ -40,6 +40,7 @@ export default function Admin() {
   const [postsList, setPostsList] = useState<any[]>([]);
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [reportsList, setReportsList] = useState<any[]>([]);
+  const [verificationsList, setVerificationsList] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   
   // TV analytics states
@@ -61,6 +62,7 @@ export default function Admin() {
   const [postsPage, setPostsPage] = useState(1);
   const [commentsPage, setCommentsPage] = useState(1);
   const [reportsPage, setReportsPage] = useState(1);
+  const [verificationsPage, setVerificationsPage] = useState(1);
   const [tvPage, setTvPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -69,6 +71,7 @@ export default function Admin() {
     setPostsPage(1);
     setCommentsPage(1);
     setReportsPage(1);
+    setVerificationsPage(1);
     setTvPage(1);
   }, [searchTerm, activeTab]);
   
@@ -112,20 +115,35 @@ export default function Admin() {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const [u, p, c, r] = await Promise.all([
+      const [u, p, c, r, v] = await Promise.all([
         api.getAllUsers(),
         api.getAllPosts(),
         api.getAllComments(),
-        api.getReports()
+        api.getReports(),
+        api.getVerificationRequests()
       ]);
       setUsersList(u);
       setPostsList(p);
       setCommentsList(c);
       setReportsList(r);
+      setVerificationsList(v);
     } catch (err: any) {
       showToast(err.message || "Failed to load dashboard statistics", "info");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResolveVerification = async (requestId: number, userId: string, status: "approved" | "rejected") => {
+    try {
+      await api.updateVerificationRequest(requestId, userId, status);
+      showToast(`Verification request ${status}!`, "success");
+      setVerificationsList(prev => prev.map(req => req.id === requestId ? { ...req, status } : req));
+      if (status === "approved") {
+        setUsersList(prev => prev.map(usr => usr.id === userId ? { ...usr, isVerified: true } : usr));
+      }
+    } catch (err: any) {
+      showToast(err.message || "Action failed", "info");
     }
   };
 
@@ -321,6 +339,13 @@ export default function Admin() {
     );
   }, [reportsList, searchTerm]);
 
+  const filteredVerifications = useMemo(() => {
+    return verificationsList.filter(v => 
+      (v.reason || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.user?.username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [verificationsList, searchTerm]);
+
   // Paginated Lists
   const paginatedUsers = useMemo(() => {
     const start = (usersPage - 1) * PAGE_SIZE;
@@ -341,6 +366,11 @@ export default function Admin() {
     const start = (reportsPage - 1) * PAGE_SIZE;
     return filteredReports.slice(start, start + PAGE_SIZE);
   }, [filteredReports, reportsPage]);
+
+  const paginatedVerifications = useMemo(() => {
+    const start = (verificationsPage - 1) * PAGE_SIZE;
+    return filteredVerifications.slice(start, start + PAGE_SIZE);
+  }, [filteredVerifications, verificationsPage]);
 
   const paginatedTvChannels = useMemo(() => {
     const start = (tvPage - 1) * PAGE_SIZE;
@@ -481,6 +511,7 @@ export default function Admin() {
             { id: "posts", label: `Posts (${postsList.length})`, icon: <FileText size={16} /> },
             { id: "comments", label: `Comments`, icon: <MessageSquare size={16} /> },
             { id: "reports", label: `Reports (${reportsList.filter(r => r.status === 'pending').length})`, icon: <AlertTriangle size={16} /> },
+            { id: "verifications", label: `Verifications (${verificationsList.filter(v => v.status === 'pending').length})`, icon: <CheckCircle size={16} /> },
             { id: "seo", label: "SEO Settings", icon: <Globe size={16} /> },
             { id: "settings", label: "Site Config", icon: <Settings size={16} /> },
             { id: "messages", label: "DMs Manager", icon: <Mail size={16} /> },
@@ -787,6 +818,79 @@ export default function Admin() {
                   ))}
                 </div>
                 {renderPagination(usersPage, filteredUsers.length, setUsersPage)}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* TAB: VERIFICATIONS */}
+        {activeTab === "verifications" && (
+          <div className="bg-[#111] border border-[#222] rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+            <div className="p-4 border-b border-[#222] bg-[#1a1a1a]/50 text-zinc-400 font-bold text-xs uppercase tracking-wider grid grid-cols-12 gap-4">
+              <div className="col-span-4">User Details</div>
+              <div className="col-span-5">Reason / Justification</div>
+              <div className="col-span-3 text-right">Actions</div>
+            </div>
+            
+            {filteredVerifications.length === 0 ? (
+              <div className="text-center py-16 text-zinc-500 text-sm">No verification requests found.</div>
+            ) : (
+              <>
+                <div className="flex flex-col divide-y divide-[#222]">
+                  {paginatedVerifications.map((v) => (
+                    <div key={v.id} className="p-4.5 grid grid-cols-12 gap-4 items-center text-sm">
+                      
+                      {/* User Info */}
+                      <div className="col-span-4 flex items-center gap-3">
+                        <img src={v.user?.avatarUrl || "https://i.pravatar.cc/150?img=1"} className="w-10 h-10 rounded-full object-cover border border-[#333]" alt="" />
+                        <div className="min-w-0">
+                          <div className="font-bold flex items-center gap-1.5 truncate">
+                            {v.user?.username}
+                            {v.user?.isVerified && <span className="verified-badge" title="Verified" />}
+                          </div>
+                          <div className="text-[11px] text-zinc-400 truncate">{v.user?.fullName || "AuraGram User"}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Reason */}
+                      <div className="col-span-5 text-zinc-300 text-xs whitespace-pre-wrap pr-4 break-words">
+                        {v.reason || <span className="text-zinc-600 italic">No justification provided.</span>}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="col-span-3 flex justify-end items-center gap-2 shrink-0">
+                        {v.status === 'pending' ? (
+                          <>
+                            <button
+                              onClick={() => handleResolveVerification(v.id, v.userId, 'approved')}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <Check size={13} />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleResolveVerification(v.id, v.userId, 'rejected')}
+                              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <X size={13} />
+                              Reject
+                            </button>
+                          </>
+                        ) : (
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                            v.status === 'approved'
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              : "bg-red-500/10 text-red-500 border border-red-500/20"
+                          }`}>
+                            {v.status}
+                          </span>
+                        )}
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+                {renderPagination(verificationsPage, filteredVerifications.length, setVerificationsPage)}
               </>
             )}
           </div>

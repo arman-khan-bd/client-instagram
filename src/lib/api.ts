@@ -1948,6 +1948,62 @@ class ApiClient {
     if (error) throw error;
     return data || [];
   }
+
+  async getVerificationRequest(userId: string) {
+    const { data, error } = await supabase
+      .from('VerificationRequest')
+      .select('*')
+      .eq('userId', userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async createVerificationRequest(userId: string, reason: string) {
+    const { data, error } = await supabase
+      .from('VerificationRequest')
+      .upsert({
+        userId,
+        status: 'pending',
+        reason,
+        updatedAt: new Date().toISOString()
+      }, { onConflict: 'userId' })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getVerificationRequests() {
+    const { data, error } = await supabase
+      .from('VerificationRequest')
+      .select(`
+        *,
+        user:User!VerificationRequest_userId_fkey(id, username, fullName, avatarUrl)
+      `)
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async updateVerificationRequest(requestId: number, userId: string, status: 'approved' | 'rejected') {
+    const { data, error } = await supabase
+      .from('VerificationRequest')
+      .update({ status, updatedAt: new Date().toISOString() })
+      .eq('id', requestId)
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (status === 'approved') {
+      const { error: userError } = await supabase
+        .from('User')
+        .update({ isVerified: true })
+        .eq('id', userId);
+      if (userError) throw userError;
+    }
+    return data;
+  }
 }
 
 export const api = new ApiClient();

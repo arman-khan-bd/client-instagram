@@ -178,6 +178,35 @@ export default function Profile() {
     return uploadedPhotos.slice(start, start + PHOTOS_PER_PAGE);
   }, [uploadedPhotos, photosDialogPage]);
 
+
+  const [verificationRequest, setVerificationRequest] = useState<any>(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+
+  useEffect(() => {
+    if (isSelf && currentUser?.id) {
+      api.getVerificationRequest(currentUser.id)
+        .then((req) => setVerificationRequest(req))
+        .catch((err) => console.error("Error fetching verification request:", err));
+    }
+  }, [isSelf, currentUser?.id]);
+
+  const handleRequestVerification = async () => {
+    const reason = prompt("Why should this profile be verified? (e.g. public figure, creator, business)");
+    if (!reason || !reason.trim()) return;
+
+    setVerificationLoading(true);
+    try {
+      const res = await api.createVerificationRequest(currentUser.id, reason.trim());
+      setVerificationRequest(res);
+      showToast("Verification request submitted successfully!", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Failed to submit verification request", "info");
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
   // Determine which user profile reference to resolve first
   const profileUser = useMemo(() => {
     if (isSelf) {
@@ -619,6 +648,25 @@ export default function Profile() {
                 >
                   Add Day
                 </button>
+                {!(dbProfile?.isVerified || currentUser?.isVerified) && (
+                  <button
+                    onClick={handleRequestVerification}
+                    disabled={verificationLoading || (verificationRequest && verificationRequest.status === "pending")}
+                    className={`px-4 py-2 rounded-lg text-[13px] font-bold transition cursor-pointer border ${
+                      verificationRequest?.status === "pending"
+                        ? "border-[var(--border)] text-zinc-500 bg-transparent cursor-not-allowed"
+                        : "border-[#3897f0] bg-[#3897f0] text-white hover:bg-[#3897f0]/80"
+                    }`}
+                  >
+                    {verificationLoading
+                      ? "Submitting..."
+                      : verificationRequest?.status === "pending"
+                      ? "Verification Pending"
+                      : verificationRequest?.status === "rejected"
+                      ? "Re-request Verification"
+                      : "Request Verification"}
+                  </button>
+                )}
               </>
             ) : (
               <>

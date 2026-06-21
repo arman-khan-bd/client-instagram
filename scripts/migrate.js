@@ -365,6 +365,16 @@ CREATE TABLE IF NOT EXISTS "TvViewingHistory" (
   "sessionId"    TEXT        NOT NULL,
   "viewedAt"     TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── VerificationRequest ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "VerificationRequest" (
+  "id"          SERIAL      PRIMARY KEY,
+  "userId"      UUID        NOT NULL UNIQUE CONSTRAINT "VerificationRequest_userId_fkey" REFERENCES "User"("id") ON DELETE CASCADE,
+  "status"      TEXT        NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+  "reason"      TEXT,
+  "createdAt"   TIMESTAMPTZ DEFAULT NOW(),
+  "updatedAt"   TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -398,6 +408,7 @@ const rlsStatements = [
   `ALTER TABLE "TvChannel"               ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvActiveSession"         ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvViewingHistory"        ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "VerificationRequest"     ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
@@ -421,6 +432,7 @@ const rlsStatements = [
   `ALTER TABLE "TvChannel"               FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvActiveSession"         FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvViewingHistory"        FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "VerificationRequest"     FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -857,6 +869,14 @@ const rlsStatements = [
     when others then null;
   end;
   $$;`,
+
+  // ── VerificationRequest policies ──
+  `DROP POLICY IF EXISTS "VerificationRequest: select" ON "VerificationRequest"`,
+  `DROP POLICY IF EXISTS "VerificationRequest: insert" ON "VerificationRequest"`,
+  `DROP POLICY IF EXISTS "VerificationRequest: admin all" ON "VerificationRequest"`,
+  `CREATE POLICY "VerificationRequest: select" ON "VerificationRequest" FOR SELECT USING (auth.uid() = "userId" OR EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
+  `CREATE POLICY "VerificationRequest: insert" ON "VerificationRequest" FOR INSERT WITH CHECK (auth.uid() = "userId")`,
+  `CREATE POLICY "VerificationRequest: admin all" ON "VerificationRequest" FOR ALL USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin')) WITH CHECK (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
