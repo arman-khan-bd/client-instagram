@@ -500,7 +500,6 @@ export default function PostCard({ post }: PostCardProps) {
   const [localLikes, setLocalLikes]   = useState(post.likes);
   const [reactionsList, setReactionsList] = useState<{ type: string; userId: string }[]>([]);
   const [showReactionsModal, setShowReactionsModal] = useState(false);
-  const { currentUser } = useApp();
 
   const [revealed, setRevealed] = useState(false);
   const isOwner = currentUser && String(currentUser.id) === String(post.user.id);
