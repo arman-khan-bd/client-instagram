@@ -24,7 +24,7 @@ import {
   Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "../ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, type CarouselApi } from "../ui/carousel";
 
 interface TvChannel {
   id: number;
@@ -636,7 +636,7 @@ export default function TvPortal() {
         </AnimatePresence>
 
         {/* Video Player Section */}
-        <div className="flex-1 flex items-center justify-center p-0 sm:p-4 md:p-8 bg-[#040406] min-h-[180px] sm:min-h-0">
+        <div className="w-full aspect-video lg:flex-1 lg:h-auto flex items-center justify-center p-0 sm:p-4 md:p-8 bg-[#040406] shrink-0 lg:shrink">
           {selectedChannel ? (
             <div 
               ref={playerContainerRef}
@@ -866,7 +866,7 @@ export default function TvPortal() {
                 exit={{ height: 0, opacity: 0 }}
                 className="p-3 pb-5 overflow-hidden"
               >
-                <Carousel opts={{ align: "start", dragFree: true }} setApi={setCarouselApi} className="w-full">
+                <Carousel opts={{ align: "start", dragFree: true }} setApi={setCarouselApi} className="w-full relative px-7">
                   <CarouselContent className="-ml-2">
                     {filteredChannels.map((channel) => (
                       <CarouselItem key={channel.id} className="pl-2 basis-auto">
@@ -896,6 +896,8 @@ export default function TvPortal() {
                       </CarouselItem>
                     ))}
                   </CarouselContent>
+                  <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 bg-black/60 border-white/10 hover:bg-black/80 w-6 h-6 flex items-center justify-center text-white z-20 cursor-pointer disabled:opacity-40" />
+                  <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/60 border-white/10 hover:bg-black/80 w-6 h-6 flex items-center justify-center text-white z-20 cursor-pointer disabled:opacity-40" />
                 </Carousel>
               </motion.div>
             )}
