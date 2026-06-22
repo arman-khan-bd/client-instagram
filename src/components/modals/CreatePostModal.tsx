@@ -467,12 +467,20 @@ export default function CreatePostModal() {
               {/* Media Preview Container */}
               <div className="aspect-square bg-black overflow-hidden relative border-b border-[#222]">
                 {isTextOnlyPost ? (
-                  /* Color BG preview box */
+                  /* Color BG preview box with inline writing */
                   <div
-                    className="w-full h-full flex items-center justify-center p-8 text-center text-[19px] font-semibold font-sans break-words text-white select-text leading-relaxed"
+                    className="w-full h-full flex items-center justify-center p-8 text-center text-[19px] font-semibold font-sans break-words text-white select-text leading-relaxed relative"
                     style={{ background: BG_GRADIENTS[selectedBgIdx!].value }}
                   >
-                    {caption || "Your text will appear here..."}
+                    <textarea
+                      ref={textareaRef}
+                      placeholder="Your text will appear here..."
+                      value={caption}
+                      onChange={handleCaptionChange}
+                      maxLength={2200}
+                      className="w-full h-full bg-transparent border-none outline-none resize-none text-center text-white placeholder-white/60 font-semibold focus:ring-0 leading-relaxed font-sans flex items-center justify-center pt-24 no-scrollbar"
+                      style={{ height: '80%' }}
+                    />
                   </div>
                 ) : (
                   /* Standard Image/Video Preview with carousel */
@@ -641,16 +649,17 @@ export default function CreatePostModal() {
                   <span className="text-[10px] text-gray-500">{isReel ? "Video detected — will be posted as a Reel" : "Will be posted as a Photo Post"}</span>
                 </div>
 
-                {/* Caption textbox */}
                 <div className="relative">
-                  <textarea
-                    ref={textareaRef}
-                    placeholder={isTextOnlyPost ? "Write something on your gradient post..." : "Write a caption..."}
-                    value={caption}
-                    onChange={handleCaptionChange}
-                    maxLength={2200}
-                    className="w-full bg-transparent border-none text-[13.5px] text-white outline-none placeholder-[#555] h-20 resize-none"
-                  />
+                  {!isTextOnlyPost && (
+                    <textarea
+                      ref={textareaRef}
+                      placeholder="Write a caption..."
+                      value={caption}
+                      onChange={handleCaptionChange}
+                      maxLength={2200}
+                      className="w-full bg-transparent border-none text-[13.5px] text-white outline-none placeholder-[#555] h-20 resize-none"
+                    />
+                  )}
 
                   {/* Suggestions list overlay */}
                   {showSuggestions && filteredSuggestions.length > 0 && (
