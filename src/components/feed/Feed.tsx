@@ -5,6 +5,8 @@ import { useApp } from "../AppContext";
 import StoriesBar from "./StoriesBar";
 import PostCard from "./PostCard";
 import RightSidebar from "./RightSidebar";
+import { api } from "../../lib/api";
+import { X } from "lucide-react";
 
 const PostSkeleton = () => (
   <div className="bg-[var(--surface)] border border-[var(--border)] backdrop-blur-md rounded-[24px] mb-6 p-4 w-full animate-pulse select-none">
@@ -34,6 +36,113 @@ const PostSkeleton = () => (
     </div>
   </div>
 );
+
+function PeopleYouMayKnow() {
+  const { currentUser, followStates, toggleFollow, setViewingUserId, setActiveTab } = useApp();
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Load hidden list from localStorage
+    const saved = localStorage.getItem("pymk_hidden_users");
+    if (saved) {
+      try {
+        setHiddenUsers(JSON.parse(saved));
+      } catch {}
+    }
+
+    // Load suggested users
+    api.getSuggestedUsers(15)
+      .then((data) => {
+        setSuggestedUsers(data || []);
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
+  const handleHideUser = (userId: string) => {
+    const updated = [...hiddenUsers, userId];
+    setHiddenUsers(updated);
+    localStorage.setItem("pymk_hidden_users", JSON.stringify(updated));
+  };
+
+  const handleUserClick = (username: string) => {
+    setViewingUserId(username);
+    setActiveTab("profile", username);
+  };
+
+  // Filter recommendations: not following, not self, not hidden
+  const displayUsers = suggestedUsers.filter((u) => {
+    const isFollowing = !!followStates[u.id];
+    const isMe = currentUser && (String(currentUser.id) === String(u.id) || u.username === currentUser.name);
+    const isHidden = hiddenUsers.includes(u.id);
+    return !isFollowing && !isMe && !isHidden;
+  });
+
+  if (displayUsers.length === 0) return null;
+
+  return (
+    <div className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-[24px] p-5 mb-6 shadow-sm select-none">
+      <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-extrabold text-[var(--text)] tracking-wide uppercase">People You May Know</span>
+        </div>
+      </div>
+
+      {/* Horizontal Scroll Container */}
+      <div className="flex gap-3.5 overflow-x-auto pb-2 custom-scroll scroll-smooth snap-x snap-mandatory">
+        {displayUsers.map((u) => (
+          <div 
+            key={u.id}
+            className="w-[145px] bg-[var(--surface2)] border border-[var(--border)] rounded-2xl p-3 flex flex-col items-center shrink-0 snap-start relative hover:border-[var(--text3)] transition duration-200"
+          >
+            {/* Top Right Close button as a quick don't know trigger */}
+            <button
+              onClick={() => handleHideUser(u.id)}
+              className="absolute top-2 right-2 p-1 hover:bg-[var(--surface3)] rounded-full transition text-[var(--text3)] hover:text-[var(--text)]"
+              title="Don't Know"
+            >
+              <X size={12} />
+            </button>
+
+            <img
+              src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
+              alt={u.username}
+              onClick={() => handleUserClick(u.username)}
+              className="w-16 h-16 rounded-full object-cover border border-[var(--border)] cursor-pointer hover:scale-105 transition mt-2 mb-2"
+            />
+
+            <div className="w-full text-center mb-3 text-xs">
+              <div 
+                onClick={() => handleUserClick(u.username)}
+                className="font-bold text-[var(--text)] truncate cursor-pointer hover:underline"
+              >
+                {u.username}
+              </div>
+              <div className="text-[10px] text-[var(--text2)] truncate">
+                {u.fullName || u.username}
+              </div>
+            </div>
+
+            <div className="w-full flex flex-col gap-1.5 mt-auto">
+              <button
+                onClick={() => toggleFollow(u.id)}
+                className="w-full py-1.5 bg-insta-blue hover:bg-insta-blue/90 text-white font-extrabold text-[11px] rounded-lg transition"
+              >
+                Follow
+              </button>
+              <button
+                onClick={() => handleHideUser(u.id)}
+                className="w-full py-1.5 bg-[var(--surface3)] hover:bg-[var(--border)] text-[var(--text2)] font-semibold text-[11px] rounded-lg transition"
+              >
+                Don't Know
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Feed() {
   const { posts, isFeedLoaded } = useApp();
@@ -102,13 +211,15 @@ export default function Feed() {
                 No posts to show. Follow some users or create a post!
               </div>
             ) : (
-              posts.slice(0, visibleCount).map((post) => (
-                <div
-                  key={post.id}
-                  className="w-full mb-4"
-                >
-                  <PostCard post={post} />
-                </div>
+              posts.slice(0, visibleCount).map((post, index) => (
+                <React.Fragment key={post.id}>
+                  <div className="w-full mb-4">
+                    <PostCard post={post} />
+                  </div>
+                  {index === 9 || (posts.length < 10 && index === posts.length - 1) ? (
+                    <PeopleYouMayKnow />
+                  ) : null}
+                </React.Fragment>
               ))
             )}
           </div>

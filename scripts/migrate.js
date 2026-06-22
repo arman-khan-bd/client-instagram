@@ -375,6 +375,18 @@ CREATE TABLE IF NOT EXISTS "VerificationRequest" (
   "createdAt"   TIMESTAMPTZ DEFAULT NOW(),
   "updatedAt"   TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── ImageAnalysis ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "ImageAnalysis" (
+  "id"           SERIAL      PRIMARY KEY,
+  "userId"       UUID        CONSTRAINT "ImageAnalysis_userId_fkey" REFERENCES "User"("id") ON DELETE SET NULL,
+  "imageType"    TEXT        NOT NULL,
+  "description"  TEXT,
+  "peopleCount"  INTEGER     DEFAULT 0,
+  "styleTags"    JSONB       DEFAULT '[]'::jsonb,
+  "textFound"    TEXT,
+  "createdAt"    TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -409,6 +421,7 @@ const rlsStatements = [
   `ALTER TABLE "TvActiveSession"         ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvViewingHistory"        ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "VerificationRequest"     ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "ImageAnalysis"           ENABLE ROW LEVEL SECURITY`,
 
   // ── Force RLS even for table owners / superusers (extra safety) ────────────
   `ALTER TABLE "User"                    FORCE ROW LEVEL SECURITY`,
@@ -433,6 +446,7 @@ const rlsStatements = [
   `ALTER TABLE "TvActiveSession"         FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "TvViewingHistory"        FORCE ROW LEVEL SECURITY`,
   `ALTER TABLE "VerificationRequest"     FORCE ROW LEVEL SECURITY`,
+  `ALTER TABLE "ImageAnalysis"           FORCE ROW LEVEL SECURITY`,
 
   // ════════════════════════════════════════════════════════════════════════════
   // User table
@@ -877,6 +891,12 @@ const rlsStatements = [
   `CREATE POLICY "VerificationRequest: select" ON "VerificationRequest" FOR SELECT USING (auth.uid() = "userId" OR EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
   `CREATE POLICY "VerificationRequest: insert" ON "VerificationRequest" FOR INSERT WITH CHECK (auth.uid() = "userId")`,
   `CREATE POLICY "VerificationRequest: admin all" ON "VerificationRequest" FOR ALL USING (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin')) WITH CHECK (EXISTS (SELECT 1 FROM "User" WHERE id = auth.uid() AND role = 'admin'))`,
+
+  // ── ImageAnalysis policies ──
+  `DROP POLICY IF EXISTS "ImageAnalysis: public read" ON "ImageAnalysis"`,
+  `DROP POLICY IF EXISTS "ImageAnalysis: auth insert" ON "ImageAnalysis"`,
+  `CREATE POLICY "ImageAnalysis: public read" ON "ImageAnalysis" FOR SELECT USING (true)`,
+  `CREATE POLICY "ImageAnalysis: auth insert" ON "ImageAnalysis" FOR INSERT WITH CHECK (auth.uid() = "userId" OR "userId" IS NULL)`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2011,6 +2011,32 @@ class ApiClient {
     }
     return data;
   }
+
+  async getSeoSettings() {
+    try {
+      const { data, error } = await supabase
+        .from('SeoSettings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return data || null;
+    } catch (err) {
+      console.warn("Failed to fetch SeoSettings from DB:", err);
+      return null;
+    }
+  }
+
+  async updateSeoSettings(settings: { titlePrefix?: string; description?: string; keywords?: string; robotsTxt?: string; sitemapLinks?: any }) {
+    const { data, error } = await supabase
+      .from('SeoSettings')
+      .update({ ...settings, updatedAt: new Date().toISOString() })
+      .eq('id', 1)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
 }
 
 export const api = new ApiClient();

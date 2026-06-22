@@ -79,6 +79,17 @@ export default function Admin() {
   const [seoTitlePrefix, setSeoTitlePrefix] = useState("AuraGram");
   const [seoDescription, setSeoDescription] = useState("Connect with friends, share what you're up to, or see what's new from others all over the world.");
   const [seoKeywords, setSeoKeywords] = useState("social media, instagram, photos, videos, reels, community");
+  const [seoRobotsTxt, setSeoRobotsTxt] = useState("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\nSitemap: https://auragram.app/sitemap.xml");
+  const [seoSitemapLinks, setSeoSitemapLinks] = useState<any[]>([
+    { url: "https://auragram.app/", priority: 1.0, changefreq: "daily" },
+    { url: "https://auragram.app/explore", priority: 0.8, changefreq: "daily" },
+    { url: "https://auragram.app/search", priority: 0.8, changefreq: "daily" },
+    { url: "https://auragram.app/reels", priority: 0.7, changefreq: "daily" },
+    { url: "https://auragram.app/tv", priority: 0.6, changefreq: "weekly" }
+  ]);
+  const [newSitemapUrl, setNewSitemapUrl] = useState("");
+  const [newSitemapPriority, setNewSitemapPriority] = useState(0.8);
+  const [newSitemapFreq, setNewSitemapFreq] = useState("daily");
   
   // Site General Settings
   const [brandName, setBrandName] = useState("AuraGram");
@@ -167,6 +178,46 @@ export default function Admin() {
       showToast("Failed to load TV statistics", "info");
     }
   };
+
+  const loadSeoSettings = async () => {
+    try {
+      const data = await api.getSeoSettings();
+      if (data) {
+        setSeoTitlePrefix(data.titlePrefix || "AuraGram");
+        setSeoDescription(data.description || "");
+        setSeoKeywords(data.keywords || "");
+        setSeoRobotsTxt(data.robotsTxt || "");
+        if (data.sitemapLinks) {
+          const links = typeof data.sitemapLinks === "string" ? JSON.parse(data.sitemapLinks) : data.sitemapLinks;
+          setSeoSitemapLinks(links);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load SEO settings:", err);
+    }
+  };
+
+  const handleUpdateSeo = async () => {
+    try {
+      await api.updateSeoSettings({
+        titlePrefix: seoTitlePrefix,
+        description: seoDescription,
+        keywords: seoKeywords,
+        robotsTxt: seoRobotsTxt,
+        sitemapLinks: seoSitemapLinks,
+      });
+      showToast("SEO settings updated globally! 🌐", "success");
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Failed to update SEO settings", "info");
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin && activeTab === "seo") {
+      loadSeoSettings();
+    }
+  }, [isAdmin, activeTab]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -1136,47 +1187,171 @@ export default function Admin() {
 
         {/* TAB 6: SEO SETTINGS */}
         {activeTab === "seo" && (
-          <div className="bg-[#111] border border-[#222] p-6 rounded-2xl shadow-xl max-w-[650px] animate-fade-in flex flex-col gap-6">
-            <h3 className="font-bold text-[15px] border-b border-[#222] pb-3 text-zinc-300">Manage Global Metadata & Page Indexing</h3>
-            
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">SEO Portal Title Prefix</label>
-              <input
-                type="text"
-                value={seoTitlePrefix}
-                onChange={(e) => setSeoTitlePrefix(e.target.value)}
-                className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 text-sm text-white outline-none focus:border-insta-blue transition"
-              />
-              <span className="text-[10px] text-zinc-500">This prefix precedes page descriptors in browser tab titles (e.g. "AuraGram").</span>
+          <div className="flex flex-col gap-6 animate-fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              
+              {/* Left Column: Meta Info */}
+              <div className="bg-[#111] border border-[#222] p-6 rounded-2xl shadow-xl flex flex-col gap-5">
+                <h3 className="font-bold text-[14px] border-b border-[#222] pb-3 text-zinc-300 flex items-center gap-2">
+                  <span>🌐 Metadata Config</span>
+                </h3>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">SEO Portal Title Prefix</label>
+                  <input
+                    type="text"
+                    value={seoTitlePrefix}
+                    onChange={(e) => setSeoTitlePrefix(e.target.value)}
+                    className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition"
+                  />
+                  <span className="text-[9px] text-zinc-500">Prefix that precedes page names (e.g. "AuraGram").</span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Default Meta Description</label>
+                  <textarea
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    rows={4}
+                    className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition resize-none"
+                  />
+                  <span className="text-[9px] text-zinc-500">General search engine snippet description loaded for index.</span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Meta Keywords</label>
+                  <input
+                    type="text"
+                    value={seoKeywords}
+                    onChange={(e) => setSeoKeywords(e.target.value)}
+                    className="bg-[#1a1a1a] border border-[#333] rounded-lg p-2.5 text-xs text-white outline-none focus:border-insta-blue transition"
+                  />
+                  <span className="text-[9px] text-zinc-500">Comma-separated indexing terms.</span>
+                </div>
+              </div>
+
+              {/* Right Column: robots.txt Editor */}
+              <div className="bg-[#111] border border-[#222] p-6 rounded-2xl shadow-xl flex flex-col gap-5">
+                <h3 className="font-bold text-[14px] border-b border-[#222] pb-3 text-zinc-300 flex items-center justify-between">
+                  <span>🤖 robots.txt Editor</span>
+                  <span className="text-[10px] text-zinc-500 font-bold bg-[#1a1a1a] border border-[#222] px-2 py-0.5 rounded-full select-all">/robots.txt</span>
+                </h3>
+
+                <div className="flex flex-col gap-1.5">
+                  <textarea
+                    value={seoRobotsTxt}
+                    onChange={(e) => setSeoRobotsTxt(e.target.value)}
+                    rows={11}
+                    className="bg-[#080808] border border-[#333] rounded-xl p-3.5 text-xs font-mono text-green-400 outline-none focus:border-insta-blue transition resize-y leading-relaxed"
+                    style={{ tabSize: 4 }}
+                  />
+                  <span className="text-[9px] text-zinc-500">Directly defines search engine crawling rules and points to sitemaps.</span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">Default Meta Description</label>
-              <textarea
-                value={seoDescription}
-                onChange={(e) => setSeoDescription(e.target.value)}
-                rows={3}
-                className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 text-sm text-white outline-none focus:border-insta-blue transition resize-none"
-              />
-              <span className="text-[10px] text-zinc-500">General search engine snippet description loaded for anonymous visitors.</span>
-            </div>
+            {/* Sitemap Configuration Section */}
+            <div className="bg-[#111] border border-[#222] p-6 rounded-2xl shadow-xl flex flex-col gap-5">
+              <h3 className="font-bold text-[14px] border-b border-[#222] pb-3 text-zinc-300 flex items-center justify-between">
+                <span>🗺️ Dynamic Sitemap URLs</span>
+                <span className="text-[10px] text-zinc-500 font-bold bg-[#1a1a1a] border border-[#222] px-2 py-0.5 rounded-full select-all">/sitemap.xml</span>
+              </h3>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wide">Search Tags / Meta Keywords</label>
-              <input
-                type="text"
-                value={seoKeywords}
-                onChange={(e) => setSeoKeywords(e.target.value)}
-                className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 text-sm text-white outline-none focus:border-insta-blue transition"
-              />
-              <span className="text-[10px] text-zinc-500">Comma-separated key values indexing keywords index.</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#222] text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="py-2.5 px-3">Target URL</th>
+                      <th className="py-2.5 px-3 w-28">Priority</th>
+                      <th className="py-2.5 px-3 w-32">Change Freq</th>
+                      <th className="py-2.5 px-3 w-16 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#222]/60">
+                    {seoSitemapLinks.map((link, idx) => (
+                      <tr key={idx} className="hover:bg-[#1a1a1a]/30 transition">
+                        <td className="py-3 px-3 font-mono text-zinc-300 break-all select-all">{link.url}</td>
+                        <td className="py-3 px-3 font-semibold text-zinc-400">{link.priority}</td>
+                        <td className="py-3 px-3 capitalize text-zinc-400">{link.changefreq}</td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            onClick={() => {
+                              setSeoSitemapLinks(prev => prev.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 rounded transition cursor-pointer"
+                            title="Remove link from sitemap"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Add New Link to Sitemap */}
+              <div className="bg-[#181818]/60 p-4 rounded-xl border border-[#222]/80 flex flex-col sm:flex-row gap-3.5 items-end">
+                <div className="flex-1 w-full flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Target Site URL</label>
+                  <input
+                    type="url"
+                    placeholder="e.g. https://auragram.app/terms"
+                    value={newSitemapUrl}
+                    onChange={(e) => setNewSitemapUrl(e.target.value)}
+                    className="bg-[#0f0f0f] border border-[#2c2c2c] rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-insta-blue transition w-full"
+                  />
+                </div>
+
+                <div className="w-full sm:w-28 flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Priority</label>
+                  <select
+                    value={newSitemapPriority}
+                    onChange={(e) => setNewSitemapPriority(parseFloat(e.target.value))}
+                    className="bg-[#0f0f0f] border border-[#2c2c2c] rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-insta-blue transition w-full cursor-pointer font-bold"
+                  >
+                    {[1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1].map(p => (
+                      <option key={p} value={p}>{p.toFixed(1)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="w-full sm:w-32 flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Frequency</label>
+                  <select
+                    value={newSitemapFreq}
+                    onChange={(e) => setNewSitemapFreq(e.target.value)}
+                    className="bg-[#0f0f0f] border border-[#2c2c2c] rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-insta-blue transition w-full cursor-pointer capitalize font-bold"
+                  >
+                    {["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"].map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newSitemapUrl.trim()) return;
+                    if (!newSitemapUrl.match(/^https?:\/\//i)) {
+                      showToast("Please enter a valid absolute URL.", "info");
+                      return;
+                    }
+                    setSeoSitemapLinks(prev => [...prev, { url: newSitemapUrl.trim(), priority: newSitemapPriority, changefreq: newSitemapFreq }]);
+                    setNewSitemapUrl("");
+                  }}
+                  className="px-4 py-2 bg-[var(--surface3)] hover:bg-[var(--border)] border border-[#333] hover:border-[#444] rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer w-full sm:w-auto"
+                >
+                  Add Link
+                </button>
+              </div>
             </div>
 
             <button
-              onClick={() => showToast("SEO settings updated globally! 🌐", "success")}
-              className="px-4 py-2.5 bg-insta-blue hover:bg-insta-blue/90 font-bold rounded-lg text-sm tracking-wide shadow-md transition self-start cursor-pointer"
+              onClick={handleUpdateSeo}
+              className="px-6 py-3 bg-insta-blue hover:bg-insta-blue/90 font-bold rounded-xl text-sm tracking-wide shadow-md transition self-start cursor-pointer shadow-insta-blue/15 hover:scale-[1.02] active:scale-[0.98]"
             >
-              Update SEO Config
+              Save SEO Configuration
             </button>
           </div>
         )}
