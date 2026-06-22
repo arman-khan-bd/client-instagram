@@ -7,6 +7,13 @@ import PostCard from "./PostCard";
 import RightSidebar from "./RightSidebar";
 import { api } from "../../lib/api";
 import { X } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "../ui/carousel";
 
 const PostSkeleton = () => (
   <div className="bg-[var(--surface)] border border-[var(--border)] backdrop-blur-md rounded-[24px] mb-6 p-4 w-full animate-pulse select-none">
@@ -88,57 +95,66 @@ function PeopleYouMayKnow() {
         </div>
       </div>
 
-      {/* Horizontal Scroll Container */}
-      <div className="flex gap-3.5 overflow-x-auto pb-2 custom-scroll scroll-smooth snap-x snap-mandatory">
-        {displayUsers.map((u) => (
-          <div 
-            key={u.id}
-            className="w-[145px] bg-[var(--surface2)] border border-[var(--border)] rounded-2xl p-3 flex flex-col items-center shrink-0 snap-start relative hover:border-[var(--text3)] transition duration-200"
-          >
-            {/* Top Right Close button as a quick don't know trigger */}
-            <button
-              onClick={() => handleHideUser(u.id)}
-              className="absolute top-2 right-2 p-1 hover:bg-[var(--surface3)] rounded-full transition text-[var(--text3)] hover:text-[var(--text)]"
-              title="Don't Know"
-            >
-              <X size={12} />
-            </button>
+      {/* Shadcn Carousel Container */}
+      <div className="relative px-2">
+        <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+          <CarouselContent className="-ml-3">
+            {displayUsers.map((u) => (
+              <CarouselItem key={u.id} className="pl-3 basis-auto">
+                <div 
+                  className="w-[145px] h-[210px] bg-[var(--surface2)] border border-[var(--border)] rounded-2xl p-3 flex flex-col items-center shrink-0 relative hover:border-[var(--text3)] transition duration-200"
+                >
+                  {/* Top Right Close button as a quick don't know trigger */}
+                  <button
+                    onClick={() => handleHideUser(u.id)}
+                    className="absolute top-2 right-2 p-1 hover:bg-[var(--surface3)] rounded-full transition text-[var(--text3)] hover:text-[var(--text)]"
+                    title="Don't Know"
+                  >
+                    <X size={12} />
+                  </button>
 
-            <img
-              src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
-              alt={u.username}
-              onClick={() => handleUserClick(u.username)}
-              className="w-16 h-16 rounded-full object-cover border border-[var(--border)] cursor-pointer hover:scale-105 transition mt-2 mb-2"
-            />
+                  <img
+                    src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
+                    alt={u.username}
+                    onClick={() => handleUserClick(u.username)}
+                    className="w-14 h-14 rounded-full object-cover border border-[var(--border)] cursor-pointer hover:scale-105 transition mt-2 mb-1.5"
+                  />
 
-            <div className="w-full text-center mb-3 text-xs">
-              <div 
-                onClick={() => handleUserClick(u.username)}
-                className="font-bold text-[var(--text)] truncate cursor-pointer hover:underline"
-              >
-                {u.username}
-              </div>
-              <div className="text-[10px] text-[var(--text2)] truncate">
-                {u.fullName || u.username}
-              </div>
-            </div>
+                  <div className="w-full text-center mb-2.5 text-xs">
+                    <div 
+                      onClick={() => handleUserClick(u.username)}
+                      className="font-bold text-[var(--text)] truncate cursor-pointer hover:underline"
+                    >
+                      {u.username}
+                    </div>
+                    <div className="text-[10px] text-[var(--text2)] truncate">
+                      {u.fullName || u.username}
+                    </div>
+                  </div>
 
-            <div className="w-full flex flex-col gap-1.5 mt-auto">
-              <button
-                onClick={() => toggleFollow(u.id)}
-                className="w-full py-1.5 bg-insta-blue hover:bg-insta-blue/90 text-white font-extrabold text-[11px] rounded-lg transition"
-              >
-                Follow
-              </button>
-              <button
-                onClick={() => handleHideUser(u.id)}
-                className="w-full py-1.5 bg-[var(--surface3)] hover:bg-[var(--border)] text-[var(--text2)] font-semibold text-[11px] rounded-lg transition"
-              >
-                Don't Know
-              </button>
-            </div>
+                  <div className="w-full flex flex-col gap-1.5 mt-auto">
+                    <button
+                      onClick={() => toggleFollow(u.id)}
+                      className="w-full py-1.5 bg-insta-blue hover:bg-insta-blue/90 text-white font-extrabold text-[11px] rounded-lg transition"
+                    >
+                      Follow
+                    </button>
+                    <button
+                      onClick={() => handleHideUser(u.id)}
+                      className="w-full py-1.5 bg-[var(--surface3)] hover:bg-[var(--border)] text-[var(--text2)] font-semibold text-[11px] rounded-lg transition"
+                    >
+                      Don't Know
+                    </button>
+                  </div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 pointer-events-none flex justify-between px-1">
+            <CarouselPrevious className="pointer-events-auto h-8 w-8 relative left-0 translate-x-[-50%] shadow-md bg-[var(--surface)] border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)]" />
+            <CarouselNext className="pointer-events-auto h-8 w-8 relative right-0 translate-x-[50%] shadow-md bg-[var(--surface)] border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface2)]" />
           </div>
-        ))}
+        </Carousel>
       </div>
     </div>
   );

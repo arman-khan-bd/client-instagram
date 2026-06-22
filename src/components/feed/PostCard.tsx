@@ -807,9 +807,9 @@ export default function PostCard({ post }: PostCardProps) {
               e.stopPropagation();
               handleUserClick(cleanName);
             }}
-            className="text-insta-blue font-semibold cursor-pointer hover:underline"
+            className="text-[#FF2E93] font-semibold cursor-pointer hover:underline"
           >
-            {part}
+            {part.substring(1)}
           </span>
         );
       }
