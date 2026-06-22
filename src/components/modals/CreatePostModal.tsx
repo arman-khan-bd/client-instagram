@@ -513,6 +513,32 @@ export default function CreatePostModal() {
                       className="w-full h-full bg-transparent border-none outline-none resize-none text-center text-white placeholder-white/60 font-semibold focus:ring-0 leading-relaxed font-sans flex items-center justify-center pt-24 no-scrollbar"
                       style={{ height: '80%' }}
                     />
+                    {/* Inline suggestions list overlay for text-only post */}
+                    {showSuggestions && dbSuggestions.length > 0 && (
+                      <div className="absolute left-4 right-4 bottom-4 bg-[#18181b]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl max-h-[160px] overflow-y-auto shadow-2xl z-[100] custom-scroll p-1 flex flex-col gap-0.5 text-left">
+                        {dbSuggestions.map((u) => (
+                          <button
+                            key={`preview-suggest-${u.id}`}
+                            type="button"
+                            onClick={() => selectSuggestion(u.name)}
+                            className="flex items-center gap-3 w-full p-2 hover:bg-white/[0.06] rounded-lg transition text-left cursor-pointer shrink-0"
+                          >
+                            <img
+                              src={u.img}
+                              alt={u.name}
+                              className="w-7 h-7 rounded-full object-cover border border-white/[0.05]"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[12px] font-bold text-white truncate flex items-center gap-1">
+                                {u.name}
+                                {u.verified && <span className="verified-badge w-3 h-3" />}
+                              </span>
+                              <span className="text-[10px] text-gray-400 truncate">{u.full}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   /* Standard Image/Video Preview with carousel */
@@ -694,7 +720,7 @@ export default function CreatePostModal() {
                   )}
 
                   {/* Suggestions list overlay */}
-                  {showSuggestions && dbSuggestions.length > 0 && (
+                  {!isTextOnlyPost && showSuggestions && dbSuggestions.length > 0 && (
                     <div className="absolute left-0 right-0 bottom-full mb-2 bg-[#18181b]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl max-h-[160px] overflow-y-auto shadow-2xl z-[100] custom-scroll p-1 flex flex-col gap-0.5">
                       {dbSuggestions.map((u) => (
                         <button
