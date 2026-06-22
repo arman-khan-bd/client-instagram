@@ -616,6 +616,13 @@ class ApiClient {
     return users || [];
   }
 
+  async searchGlobal(q: string): Promise<{ users: any[]; images: any[] }> {
+    if (!q) return { users: [], images: [] };
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) throw new Error("Search request failed");
+    return res.json();
+  }
+
   async getSuggestedUsers(limit = 5) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     

@@ -132,31 +132,35 @@ export default function Search() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [dbUsers, setDbUsers] = useState<any[]>([]);
+  const [dbImages, setDbImages] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
   const categories = [
     { id: "all", label: "All" },
     { id: "people", label: "People" },
+    { id: "images", label: "AI Images" },
     { id: "tags", label: "Tags" },
     { id: "places", label: "Places" },
   ];
 
-  // Debounced search trigger for Supabase Users table
+  // Debounced search trigger for Supabase Users and Image Metadata
   useEffect(() => {
     if (!searchQuery.trim()) {
       setDbUsers([]);
+      setDbImages([]);
       return;
     }
 
     setSearching(true);
     const delayDebounce = setTimeout(() => {
-      api.searchUsers(searchQuery)
+      api.searchGlobal(searchQuery)
         .then((res) => {
-          setDbUsers(res);
+          setDbUsers(res.users || []);
+          setDbImages(res.images || []);
           api.logSearch(searchQuery);
         })
         .catch((err) => {
-          console.error("Failed to query database users:", err);
+          console.error("Failed to query database search:", err);
         })
         .finally(() => {
           setSearching(false);
@@ -194,7 +198,7 @@ export default function Search() {
           <SearchIcon size={18} className="absolute left-4.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
           <input
             type="text"
-            placeholder="Search username or name..."
+            placeholder="Search username, name, or image description..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-12 pr-4.5 py-3.5 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
@@ -220,7 +224,7 @@ export default function Search() {
 
         {/* Results / Explore Grid */}
         {searchQuery.trim() !== "" ? (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-6">
             {searching ? (
               <div className="flex flex-col gap-3">
                 {[1, 2, 3].map((i) => (
@@ -233,33 +237,96 @@ export default function Search() {
                   </div>
                 ))}
               </div>
-            ) : dbUsers.length === 0 ? (
-              <div className="text-center py-12 text-[var(--text2)] text-[14px]">
-                No accounts found for "{searchQuery}"
-              </div>
             ) : (
-              dbUsers.map((u) => (
-                <div
-                  key={u.id}
-                  onClick={() => handleUserClick(u.id)}
-                  className="flex items-center gap-3.5 p-3 rounded-xl hover:bg-[var(--surface2)] cursor-pointer transition select-none animate-fade-in"
-                >
-                  <img
-                    src={u.avatarUrl || "https://i.pravatar.cc/150?img=1"}
-                    alt={u.username}
-                    className="w-11 h-11 rounded-full object-cover border border-[var(--border)]"
-                  />
-                  <div>
-                    <div className="text-[14px] font-semibold flex items-center gap-1.5">
-                      {u.username}
-                      {u.isVerified && <span className="verified-badge" title="Verified" />}
-                    </div>
-                    <div className="text-[12px] text-[var(--text2)]">
-                      {u.fullName}
-                    </div>
+              <>
+                {/* Users Section */}
+                {(activeCategory === "all" || activeCategory === "people") && (
+                  <div className="flex flex-col gap-1.5">
+                    {dbUsers.length > 0 && (
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Accounts</h3>
+                    )}
+                    {dbUsers.length > 0 ? (
+                      dbUsers.map((u) => (
+                        <div
+                          key={u.id}
+                          onClick={() => handleUserClick(u.id)}
+                          className="flex items-center gap-3.5 p-3 rounded-xl hover:bg-[var(--surface2)] cursor-pointer transition select-none animate-fade-in"
+                        >
+                          <img
+                            src={u.avatarUrl || "https://i.pravatar.cc/150?img=1"}
+                            alt={u.username}
+                            className="w-11 h-11 rounded-full object-cover border border-[var(--border)]"
+                          />
+                          <div>
+                            <div className="text-[14px] font-semibold flex items-center gap-1.5">
+                              {u.username}
+                              {u.isVerified && <span className="verified-badge" title="Verified" />}
+                            </div>
+                            <div className="text-[12px] text-[var(--text2)]">
+                              {u.fullName}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      activeCategory === "people" && (
+                        <div className="text-center py-12 text-[var(--text2)] text-[14px]">
+                          No accounts found for "{searchQuery}"
+                        </div>
+                      )
+                    )}
                   </div>
-                </div>
-              ))
+                )}
+
+                {/* Analyzed Images Section */}
+                {(activeCategory === "all" || activeCategory === "images") && (
+                  <div className="flex flex-col gap-1.5">
+                    {dbImages.length > 0 && (
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">AI Analyzed Images</h3>
+                    )}
+                    {dbImages.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-1 md:gap-2 auto-rows-fr">
+                        {dbImages.map((img) => (
+                          <div
+                            key={img.id}
+                            className="relative aspect-square overflow-hidden cursor-pointer group bg-[var(--surface2)] border border-[var(--border)] rounded-xl"
+                          >
+                            {img.mediaUrl ? (
+                              <img
+                                src={img.mediaUrl}
+                                alt={img.description}
+                                className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-r from-zinc-800 to-zinc-950 text-white font-semibold text-[10px] sm:text-xs">
+                                🖼️ No Image Link
+                              </div>
+                            )}
+
+                            {/* Media Overlay */}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition duration-200 p-3 flex flex-col justify-end text-xs text-white">
+                              <p className="font-semibold line-clamp-2">"{img.description}"</p>
+                              {img.textFound && (
+                                <p className="text-[10px] text-green-400 mt-1 truncate">📝 {img.textFound}</p>
+                              )}
+                              {img.user && (
+                                <p className="text-[9px] text-gray-400 mt-1">By @{img.user.username}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      activeCategory === "images" && (
+                        <div className="text-center py-12 text-[var(--text2)] text-[14px]">
+                          No analyzed images found matching "{searchQuery}"
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (

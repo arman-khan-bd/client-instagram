@@ -90,6 +90,26 @@ export async function POST(request: Request) {
       extractedText = "";
     }
 
+    // Upload image to Cloudinary so we can display/search it later
+    let mediaUrl = "";
+    try {
+      const uploadForm = new FormData();
+      uploadForm.append("file", imageBlob, file.name || "analysis.jpg");
+      uploadForm.append("upload_preset", "auragram");
+      const cloudinaryRes = await fetch("https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload", {
+        method: "POST",
+        body: uploadForm
+      });
+      if (cloudinaryRes.ok) {
+        const cloudinaryData = await cloudinaryRes.json();
+        mediaUrl = cloudinaryData.secure_url || "";
+      } else {
+        console.warn("Cloudinary upload failed on analysis:", await cloudinaryRes.text());
+      }
+    } catch (uploadErr) {
+      console.error("Failed to upload analyzed image to Cloudinary:", uploadErr);
+    }
+
     // Extract authorization details to find current user
     const authHeader = request.headers.get('Authorization');
     const token = authHeader ? authHeader.replace('Bearer ', '') : null;
@@ -112,6 +132,7 @@ export async function POST(request: Request) {
         .from('ImageAnalysis')
         .insert({
           userId,
+          mediaUrl,
           imageType,
           description,
           peopleCount,
@@ -133,7 +154,8 @@ export async function POST(request: Request) {
 
       // New requested keys
       imageType,
-      textFound: extractedText
+      textFound: extractedText,
+      mediaUrl
     });
 
   } catch (error: any) {

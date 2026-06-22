@@ -29,16 +29,18 @@ export async function GET() {
       .select("username")
       .order("createdAt", { ascending: false });
 
-    // Dynamic routes from DB: Posts
+    // Dynamic routes from DB: Posts (including caption, mediaUrls, thumbnailUrl)
     const { data: posts } = await supabase
       .from("Post")
-      .select("id")
+      .select("id, caption, mediaUrls, thumbnailUrl, createdAt")
       .eq("isPrivate", false)
       .order("createdAt", { ascending: false });
 
-    // Build the dynamic sitemap XML
+    // Build the dynamic sitemap XML with image and video namespaces
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">`;
 
     // 1. Add static & configured links
     if (Array.isArray(links)) {
@@ -64,15 +66,55 @@ export async function GET() {
       });
     }
 
-    // 3. Add dynamic post dialog links (or post detail links)
+    // 3. Add dynamic post/photo/video sitemap links
     if (posts && posts.length > 0) {
       posts.forEach((post: any) => {
+        let mediaArr: any[] = [];
+        if (post.mediaUrls) {
+          mediaArr = typeof post.mediaUrls === 'string' ? JSON.parse(post.mediaUrls) : post.mediaUrls;
+        }
+
         xml += `
   <url>
     <loc>https://auragram.app/?post=${post.id}</loc>
-    <priority>0.4</priority>
-    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <changefreq>monthly</changefreq>`;
+
+        if (Array.isArray(mediaArr)) {
+          mediaArr.forEach((media: any) => {
+            if (media.type === 'video') {
+              xml += `
+    <video:video>
+      <video:thumbnail_loc>${post.thumbnailUrl || media.url}</video:thumbnail_loc>
+      <video:title>${escapeXml(post.caption ? post.caption.substring(0, 80) : "Video Post")}</video:title>
+      <video:description>${escapeXml(post.caption ? post.caption.substring(0, 200) : "Watch video on AuraGram")}</video:description>
+      <video:content_loc>${media.url}</video:content_loc>
+    </video:video>`;
+            } else {
+              xml += `
+    <image:image>
+      <image:loc>${media.url}</image:loc>
+      <image:title>${escapeXml(post.caption ? post.caption.substring(0, 80) : "Photo Post")}</image:title>
+    </image:image>`;
+            }
+          });
+        }
+
+        xml += `
   </url>`;
+      });
+    }
+
+    function escapeXml(unsafe: string): string {
+      return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
+        }
       });
     }
 
