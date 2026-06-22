@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useApp } from "../AppContext";
 import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image, Film } from "lucide-react";
 import { scanFileForAdultContent } from "../../lib/nsfwDetector";
+import { supabase } from "../../lib/supabase";
 
 // ── VideoThumbnailPicker ──────────────────────────────────────────────────────
 interface VideoThumbnailPickerProps {
@@ -328,14 +329,45 @@ export default function CreatePostModal() {
     }
   };
 
-  const filteredSuggestions = useMemo(() => {
-    if (!suggestionSearch) return users;
-    return users.filter(
-      (u) =>
-        u.name.toLowerCase().includes(suggestionSearch.toLowerCase()) ||
-        u.full.toLowerCase().includes(suggestionSearch.toLowerCase())
-    );
-  }, [users, suggestionSearch]);
+  const [dbSuggestions, setDbSuggestions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!showSuggestions) {
+      setDbSuggestions([]);
+      return;
+    }
+
+    const query = suggestionSearch.trim();
+    const delayDebounce = setTimeout(async () => {
+      try {
+        let dbQuery = supabase
+          .from("User")
+          .select("id, username, fullName, avatarUrl, isVerified")
+          .limit(10);
+
+        if (query) {
+          dbQuery = dbQuery.or(`username.ilike.%${query}%,fullName.ilike.%${query}%`);
+        }
+
+        const { data, error } = await dbQuery;
+        if (!error && data) {
+          setDbSuggestions(
+            data.map((u) => ({
+              id: u.id,
+              name: u.username,
+              full: u.fullName,
+              img: u.avatarUrl || "https://i.pravatar.cc/150?img=1",
+              verified: u.isVerified,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to query suggestions:", err);
+      }
+    }, 200);
+
+    return () => clearTimeout(delayDebounce);
+  }, [suggestionSearch, showSuggestions]);
 
   const selectSuggestion = (username: string) => {
     if (suggestionStartIndex === -1) return;
@@ -662,9 +694,9 @@ export default function CreatePostModal() {
                   )}
 
                   {/* Suggestions list overlay */}
-                  {showSuggestions && filteredSuggestions.length > 0 && (
+                  {showSuggestions && dbSuggestions.length > 0 && (
                     <div className="absolute left-0 right-0 bottom-full mb-2 bg-[#18181b]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl max-h-[160px] overflow-y-auto shadow-2xl z-[100] custom-scroll p-1 flex flex-col gap-0.5">
-                      {filteredSuggestions.map((u) => (
+                      {dbSuggestions.map((u) => (
                         <button
                           key={u.id}
                           type="button"
