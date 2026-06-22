@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useApp } from "../AppContext";
-import { Search as SearchIcon, Heart, MessageCircle } from "lucide-react";
+import { Search as SearchIcon, Heart, MessageCircle, Film, Layers, Camera, Type } from "lucide-react";
 import { api } from "../../lib/api";
 
 // Helper: derive a thumbnail URL from any Cloudinary video URL
@@ -271,7 +271,14 @@ export default function Search() {
                 onClick={() => setActivePostId(item.id)}
                 className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in"
               >
-                {item.mediaType === "video" || item.isReel ? (
+                {item.isTextOnly ? (
+                  <div
+                    style={{ background: item.bgGradient || "linear-gradient(45deg, #12c2e9, #c471ed, #f64f59)" }}
+                    className="w-full h-full flex items-center justify-center p-3 text-center font-bold text-[10px] sm:text-xs md:text-sm break-words text-white select-none"
+                  >
+                    <span className="line-clamp-4 px-1">{item.caption}</span>
+                  </div>
+                ) : item.mediaType === "video" || item.isReel ? (
                   <div className="w-full h-full relative bg-[var(--surface2)]">
                     <VideoThumbnailCard
                       videoUrl={item.imgs?.[0] || item.img || ""}
@@ -290,9 +297,18 @@ export default function Search() {
                     loading="lazy"
                   />
                 )}
-                {(item.mediaType === "video" || item.isReel) && (
-                  <span className="absolute top-2 right-2 text-sm z-10">🎬</span>
-                )}
+                {/* Media Indicator Overlay (Top Right) */}
+                <div className="absolute top-2 right-2 z-10 text-white drop-shadow-md opacity-90">
+                  {item.mediaType === "video" || item.isReel ? (
+                    <Film size={16} className="fill-white/10" />
+                  ) : item.isTextOnly ? (
+                    <Type size={16} />
+                  ) : (item.imgs && item.imgs.length > 1) ? (
+                    <Layers size={16} className="rotate-90" />
+                  ) : (
+                    <Camera size={16} />
+                  )}
+                </div>
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-6 text-[14px] font-bold text-white">
                   <span className="flex items-center gap-1.5">
                     <Heart size={18} fill="currentColor" />

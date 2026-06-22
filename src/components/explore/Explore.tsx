@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { useApp } from "../AppContext";
-import { Heart, MessageCircle, Film, Layers } from "lucide-react";
+import { Heart, MessageCircle, Film, Layers, Camera, Type } from "lucide-react";
 
 import { VideoThumbnailCard } from "../search/Search";
 
@@ -91,15 +91,17 @@ export default function Explore() {
                 )}
 
                 {/* Media Indicator Overlay (Top Right) */}
-                {!item.isTextOnly && (
-                  <div className="absolute top-2 right-2 z-10 text-white drop-shadow-md opacity-90">
-                    {isVideo ? (
-                      <Film size={16} className="fill-white/10" />
-                    ) : hasMultipleImages ? (
-                      <Layers size={16} className="rotate-90" />
-                    ) : null}
-                  </div>
-                )}
+                <div className="absolute top-2 right-2 z-10 text-white drop-shadow-md opacity-90">
+                  {isVideo ? (
+                    <Film size={16} className="fill-white/10" />
+                  ) : item.isTextOnly ? (
+                    <Type size={16} />
+                  ) : hasMultipleImages ? (
+                    <Layers size={16} className="rotate-90" />
+                  ) : (
+                    <Camera size={16} />
+                  )}
+                </div>
 
                 {/* Hover stats overlay */}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-200 flex items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm md:text-base font-bold text-white z-20">
