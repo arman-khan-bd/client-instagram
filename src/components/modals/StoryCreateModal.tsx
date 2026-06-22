@@ -119,6 +119,44 @@ export default function StoryCreateModal() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
+      // 1. File size validation (20 MB max)
+      const maxSizeBytes = 20 * 1024 * 1024; // 20 MB
+      if (selected.size > maxSizeBytes) {
+        showToast("⚠️ Error: Max file size is 20MB.", "info");
+        alert(`Error: The file is too large (${(selected.size / (1024 * 1024)).toFixed(1)}MB). Max allowed size is 20MB.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      // 2. Video duration validation (5 minutes max)
+      if (selected.type.startsWith("video/")) {
+        try {
+          const videoElement = document.createElement("video");
+          videoElement.preload = "metadata";
+          videoElement.src = URL.createObjectURL(selected);
+          
+          await new Promise<void>((resolve, reject) => {
+            videoElement.onloadedmetadata = () => {
+              URL.revokeObjectURL(videoElement.src);
+              if (videoElement.duration > 300) { // 300 seconds = 5 minutes
+                reject(new Error("Video duration exceeds 5 minutes."));
+              } else {
+                resolve();
+              }
+            };
+            videoElement.onerror = () => {
+              URL.revokeObjectURL(videoElement.src);
+              reject(new Error("Failed to load video metadata."));
+            };
+          });
+        } catch (err: any) {
+          showToast(`⚠️ Error: ${err.message || "Invalid video file."}`, "info");
+          alert(err.message || "Failed to validate video duration.");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
+      }
+
       const tempUrl = URL.createObjectURL(selected);
       setPreviewUrl(tempUrl);
       setFile(selected);
@@ -593,6 +631,7 @@ export default function StoryCreateModal() {
                 <div>
                   <p className="font-semibold text-sm text-zinc-300">Upload photo or video</p>
                   <p className="text-xs text-zinc-600 mt-1">Recommended: 9:16 aspect ratio</p>
+                  <p className="text-[10px] text-zinc-500 mt-2 font-medium">Max video duration: 5 min · Max file size: 20 MB</p>
                 </div>
               </div>
             </div>

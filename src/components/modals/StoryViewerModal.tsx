@@ -54,6 +54,9 @@ export default function StoryViewerModal() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const [videoDuration, setVideoDuration] = useState(5000);
 
   const groupIndex = storyViewerIndex ?? 0;
   const currentGroup = storyGroups[groupIndex];
@@ -67,6 +70,11 @@ export default function StoryViewerModal() {
     setReplyText("");
     setShowAnalytics(false);
   }, [storyViewerIndex]);
+
+  // Reset video duration when active story changes
+  useEffect(() => {
+    setVideoDuration(5000);
+  }, [activeStory?.id]);
 
   // Load interactions for the creator
   const loadInteractions = () => {
@@ -125,12 +133,23 @@ export default function StoryViewerModal() {
     }
   }, [isPaused, activeStory?.audioUrl]);
 
+  // Sync video play/pause status with isPaused
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (isPaused) {
+      video.pause();
+    } else {
+      video.play().catch(() => {});
+    }
+  }, [isPaused, activeStory?.id]);
+
   // Story Timer handler
   useEffect(() => {
     if (storyViewerIndex === null || !currentGroup || isPaused || showAnalytics) return;
 
     setProgress(0);
-    const duration = 5000; // 5 seconds per story
+    const duration = activeStory?.mediaType === "video" ? videoDuration : 5000;
     const intervalTime = 50; // update every 50ms
     const step = (intervalTime / duration) * 100;
 
@@ -147,7 +166,7 @@ export default function StoryViewerModal() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [storyViewerIndex, isPaused, groupIndex, activeStoryIndex, currentGroup, showAnalytics]);
+  }, [storyViewerIndex, isPaused, groupIndex, activeStoryIndex, currentGroup, showAnalytics, videoDuration, activeStory?.mediaType]);
 
   if (storyViewerIndex === null || !currentGroup || !activeStory) return null;
 
@@ -438,11 +457,13 @@ export default function StoryViewerModal() {
         >
           {activeStory.mediaType === "video" ? (
             <video
+              ref={videoRef}
               src={activeStory.mediaUrl}
               autoPlay
               muted
               playsInline
               loop
+              onLoadedMetadata={(e) => setVideoDuration(e.currentTarget.duration * 1000)}
               style={getFilterStyle()}
               className="w-full h-full object-contain"
             />
