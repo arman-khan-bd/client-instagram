@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       .select(`
         *,
         user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile),
-        originalPost:Post!originalPostId(
+        originalPost:originalPostId(
           *,
           user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile)
         )

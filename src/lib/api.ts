@@ -263,7 +263,7 @@ class ApiClient {
       .select(`
         *,
         user:User!Post_userId_fkey(id, username, avatarUrl, isVerified),
-        originalPost:Post!originalPostId(
+        originalPost:originalPostId(
           *,
           user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
         )
@@ -683,7 +683,7 @@ class ApiClient {
           commentsCount:Comment(count),
           originalPostId,
           user:User!Post_userId_fkey(id, username, avatarUrl, isVerified),
-          originalPost:Post!originalPostId(
+          originalPost:originalPostId(
             *,
             user:User!Post_userId_fkey(id, username, avatarUrl, isVerified)
           )
@@ -1455,7 +1455,7 @@ class ApiClient {
       .select(`
         *,
         user:User!Post_userId_fkey(id, username, fullName, avatarUrl, isVerified, private_profile),
-        originalPost:Post!originalPostId(
+        originalPost:originalPostId(
           *,
           user:User!Post_userId_fkey(id, username, avatarUrl, isVerified, private_profile)
         )
