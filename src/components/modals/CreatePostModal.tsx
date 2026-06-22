@@ -173,8 +173,6 @@ export default function CreatePostModal() {
   // Facebook-style toolbar panel visibility
   const [activePanel, setActivePanel] = useState<"location" | "tag" | "feeling" | "music" | "audience" | "color" | null>(null);
 
-  if (!showCreatePostModal) return null;
-
   // Derive postType from files: any video => reel, else post
   const isReel = fileTypes.some((t) => t === "video");
 
@@ -429,6 +427,8 @@ export default function CreatePostModal() {
 
   // Preview is text-only if background gradient is selected and no images are uploaded
   const isTextOnlyPost = selectedBgIdx !== null && imagePreviews.length === 0;
+
+  if (!showCreatePostModal) return null;
 
   return (
     <div

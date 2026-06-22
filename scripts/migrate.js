@@ -380,6 +380,7 @@ CREATE TABLE IF NOT EXISTS "VerificationRequest" (
 CREATE TABLE IF NOT EXISTS "ImageAnalysis" (
   "id"           SERIAL      PRIMARY KEY,
   "userId"       UUID        CONSTRAINT "ImageAnalysis_userId_fkey" REFERENCES "User"("id") ON DELETE SET NULL,
+  "mediaUrl"     TEXT,
   "imageType"    TEXT        NOT NULL,
   "description"  TEXT,
   "peopleCount"  INTEGER     DEFAULT 0,
@@ -387,6 +388,8 @@ CREATE TABLE IF NOT EXISTS "ImageAnalysis" (
   "textFound"    TEXT,
   "createdAt"    TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE "ImageAnalysis" ADD COLUMN IF NOT EXISTS "mediaUrl" TEXT;
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
