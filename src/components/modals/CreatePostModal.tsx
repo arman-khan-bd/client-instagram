@@ -5,6 +5,11 @@ import { useApp } from "../AppContext";
 import { Upload, X, MapPin, Tag, Smile, Music, Globe, Palette, ChevronLeft, ChevronRight, Video, Image, Film } from "lucide-react";
 import { scanFileForAdultContent } from "../../lib/nsfwDetector";
 import { supabase } from "../../lib/supabase";
+import dynamic from "next/dynamic";
+
+const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
+  ssr: false,
+});
 
 // ── VideoThumbnailPicker ──────────────────────────────────────────────────────
 interface VideoThumbnailPickerProps {
@@ -164,12 +169,14 @@ export default function CreatePostModal() {
   const [userTagInput, setUserTagInput] = useState("");
   const [userTags, setUserTags] = useState<string[]>([]);
   const [feeling, setFeeling] = useState("");
-  const [audience, setAudience] = useState("Public");
+  const [audience, setAudience] = useState("public");
+  const [customUser, setCustomUser] = useState("");
   const [music, setMusic] = useState("");
   // postType is auto-detected: video = reel, image/text = post
 
   // Text gradient background posting
   const [selectedBgIdx, setSelectedBgIdx] = useState<number | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Facebook-style toolbar panel visibility
   const [activePanel, setActivePanel] = useState<"location" | "tag" | "feeling" | "music" | "audience" | "color" | null>(null);
@@ -189,8 +196,11 @@ export default function CreatePostModal() {
     setUserTags([]);
     setFeeling("");
     setMusic("");
+    setAudience("public");
+    setCustomUser("");
     setSelectedBgIdx(null);
     setActivePanel(null);
+    setShowEmojiPicker(false);
     setIsSharing(false);
     setVideoThumbnails({});
     setIsScanning(false);
@@ -429,6 +439,8 @@ export default function CreatePostModal() {
           feelings: feeling,
           tags: userTags,
           music: music ? `${music} 🎶` : undefined,
+          privacy: audience,
+          privacyCustomUser: audience === "custom" ? customUser : undefined,
         });
       } else {
         const thumbnailDataUrls: Record<number, string> = {};
@@ -445,6 +457,8 @@ export default function CreatePostModal() {
           tags: userTags,
           music: music ? `${music} 🎶` : undefined,
           thumbnailDataUrls,
+          privacy: audience,
+          privacyCustomUser: audience === "custom" ? customUser : undefined,
         });
       }
       handleClose();
@@ -504,6 +518,35 @@ export default function CreatePostModal() {
                     className="w-full h-full flex items-center justify-center p-8 text-center text-[19px] font-semibold font-sans break-words text-white select-text leading-relaxed relative"
                     style={{ background: BG_GRADIENTS[selectedBgIdx!].value }}
                   >
+                    {/* Emoji Selector on Top Left */}
+                    <div className="absolute top-4 left-4 z-[210]">
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="p-1.5 bg-black/45 hover:bg-black/65 backdrop-blur-md rounded-full transition text-white/95 hover:text-white cursor-pointer flex items-center justify-center border border-white/10"
+                        title="Add Emoji"
+                      >
+                        <Smile size={18} />
+                      </button>
+                      {showEmojiPicker && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-[215]"
+                            onClick={() => setShowEmojiPicker(false)}
+                          />
+                          <div className="absolute top-10 left-0 shadow-2xl z-[220]">
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                setCaption((prev) => prev + emojiData.emoji);
+                                setShowEmojiPicker(false);
+                              }}
+                              theme={"dark" as any}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <textarea
                       ref={textareaRef}
                       placeholder="Your text will appear here..."
@@ -968,13 +1011,37 @@ export default function CreatePostModal() {
                   <div className="bg-[#181818] p-3 rounded-xl border border-white/[0.04] flex flex-col gap-2 animate-fadeIn">
                     <select
                       value={audience}
-                      onChange={(e) => setAudience(e.target.value)}
-                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none"
+                      onChange={(e) => {
+                        setAudience(e.target.value);
+                        if (e.target.value !== "custom") {
+                          setCustomUser("");
+                        } else if (!customUser && users && users.length > 0) {
+                          setCustomUser(users[0].name);
+                        }
+                      }}
+                      className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none cursor-pointer"
                     >
-                      <option value="Public">Public 🌎</option>
-                      <option value="Friends">Friends 👥</option>
-                      <option value="Close Friends">Close Friends ⭐️</option>
+                      <option value="public">🌍 Public</option>
+                      <option value="followers">👥 Followers</option>
+                      <option value="private">🔒 Private</option>
+                      <option value="custom">👤 Custom User</option>
                     </select>
+                    {audience === "custom" && users && users.length > 0 && (
+                      <div className="flex flex-col gap-1 mt-1 animate-fadeIn">
+                        <label className="text-[10px] text-gray-400 font-semibold select-none">Select Allowed User:</label>
+                        <select
+                          value={customUser}
+                          onChange={(e) => setCustomUser(e.target.value)}
+                          className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3.5 py-2 text-[12px] text-white outline-none cursor-pointer"
+                        >
+                          {users.map((u) => (
+                            <option key={`custom-user-sel-${u.id}`} value={u.name}>
+                              {u.name} ({u.full || u.name})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 )}
 

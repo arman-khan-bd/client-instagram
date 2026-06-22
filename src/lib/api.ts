@@ -149,6 +149,8 @@ class ApiClient {
     thumbnailDataUrl?: string; // base64 data URL for video thumbnail frame
     thumbnailDataUrls?: Record<number, string>; // base64 data URLs for multiple video thumbnail frames
     originalPostId?: number;
+    privacy?: string;
+    privacyCustomUser?: string;
   }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) throw new Error('Not authenticated');
@@ -259,6 +261,9 @@ class ApiClient {
         userId: authUser.id,
         category: classifyContent(data.caption || '', mediaUrls, !!data.isTextOnly),
         originalPostId: data.originalPostId || null,
+        isPrivate: data.privacy ? data.privacy !== 'public' : false,
+        privacy: data.privacy || 'public',
+        privacyCustomUser: data.privacyCustomUser || null,
       })
       .select(`
         *,
@@ -1713,14 +1718,26 @@ class ApiClient {
     if (error) throw error;
   }
 
-  async updatePost(postId: number, data: { caption?: string; location?: string; isPrivate?: boolean }) {
+  async updatePost(postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string }) {
+    const updatePayload: any = {
+      caption: data.caption,
+      location: data.location,
+    };
+    if (data.isPrivate !== undefined) {
+      updatePayload.isPrivate = data.isPrivate;
+    }
+    if (data.privacy !== undefined) {
+      updatePayload.privacy = data.privacy;
+      // Keep isPrivate in sync for backwards compatibility
+      updatePayload.isPrivate = data.privacy !== 'public';
+    }
+    if (data.privacyCustomUser !== undefined) {
+      updatePayload.privacyCustomUser = data.privacyCustomUser;
+    }
+
     const { error } = await supabase
       .from('Post')
-      .update({
-        caption: data.caption,
-        location: data.location,
-        isPrivate: data.isPrivate
-      })
+      .update(updatePayload)
       .eq('id', postId);
     if (error) throw error;
     // Invalidate Redis feed cache

@@ -240,6 +240,8 @@ ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "originalPostId" INTEGER CONSTRAINT 
 
 -- ── Post Category update ──────────────────────────────────────────────────────
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "category" TEXT DEFAULT 'personal';
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "privacy" TEXT DEFAULT 'public';
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "privacyCustomUser" TEXT;
 
 -- ── UserSearchHistory ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS "UserSearchHistory" (

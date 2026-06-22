@@ -23,6 +23,9 @@ export interface Post {
   user: Pick<User, 'id' | 'username' | 'avatarUrl' | 'isVerified'>;
   _count: { likes: number; comments: number };
   isLiked?: boolean;
+  isPrivate?: boolean;
+  privacy?: string;
+  privacyCustomUser?: string;
   createdAt: string;
 }
 

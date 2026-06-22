@@ -7,6 +7,8 @@ const schemaStatements = [
   `ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isAdultUnmarked" BOOLEAN DEFAULT FALSE`,
   `ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "isPrivate" BOOLEAN DEFAULT FALSE`,
   `ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "category" TEXT DEFAULT 'personal'`,
+  `ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "privacy" TEXT DEFAULT 'public'`,
+  `ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "privacyCustomUser" TEXT`,
   
   // ── VerificationRequest Table ──
   `CREATE TABLE IF NOT EXISTS "VerificationRequest" (

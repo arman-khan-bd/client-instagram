@@ -48,6 +48,8 @@ export interface MockPost {
   isAdult?: boolean;
   isAdultUnmarked?: boolean;
   isPrivate?: boolean;
+  privacy?: string;
+  privacyCustomUser?: string;
   commentsCount?: number;
   videoUrl?: string;
   videoThumbnailUrl?: string;
@@ -200,9 +202,9 @@ interface AppContextType {
   deleteMessage: (messageId: number) => Promise<void>;
   reactToMessage: (messageId: number, emoji: string) => Promise<void>;
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
-  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number }) => Promise<void>;
+  createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number; privacy?: string; privacyCustomUser?: string }) => Promise<void>;
   deletePost: (postId: number) => Promise<void>;
-  updatePost: (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean }) => Promise<void>;
+  updatePost: (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }) => Promise<AppContextType["currentUser"]>;
   refetchCurrentUser: () => Promise<void>;
 
@@ -1767,7 +1769,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const createPost = async (
     files: File[],
     caption: string,
-    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number }
+    options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number; privacy?: string; privacyCustomUser?: string }
   ) => {
     let finalCaption = caption;
     if (options?.feelings) {
@@ -1792,6 +1794,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         thumbnailDataUrl: options?.thumbnailDataUrl,
         thumbnailDataUrls: options?.thumbnailDataUrls,
         originalPostId: options?.originalPostId,
+        privacy: options?.privacy,
+        privacyCustomUser: options?.privacyCustomUser,
       });
 
       const rawOriginalPost = Array.isArray(dbPost.originalPost) ? dbPost.originalPost[0] : dbPost.originalPost;
@@ -1953,14 +1957,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const updatePost = useCallback(async (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean }) => {
+  const updatePost = useCallback(async (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string }) => {
     try {
       showToast("Updating post...", "info");
       await api.updatePost(postId, data);
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
-            ? { ...p, caption: data.caption ?? p.caption, location: data.location ?? p.location, isPrivate: data.isPrivate ?? p.isPrivate }
+            ? { 
+                ...p, 
+                caption: data.caption ?? p.caption, 
+                location: data.location ?? p.location, 
+                isPrivate: data.isPrivate ?? p.isPrivate,
+                privacy: data.privacy ?? p.privacy,
+                privacyCustomUser: data.privacyCustomUser ?? p.privacyCustomUser
+              }
             : p
         )
       );

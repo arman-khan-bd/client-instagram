@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Hls from "hls.js";
 import { useApp, MockPost } from "../AppContext";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Maximize, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import ReactionsModal from "../modals/ReactionsModal";
@@ -451,7 +451,7 @@ export default function PostCard({ post }: PostCardProps) {
     addComment, setViewingUserId, setActiveTab,
     setActivePostId, showToast, setSharePostId,
     setPosts, followStates, setReportPostId,
-    currentUser, deletePost, updatePost,
+    currentUser, deletePost, updatePost, users,
   } = useApp();
 
   const [commentText, setCommentText] = useState("");
@@ -461,33 +461,35 @@ export default function PostCard({ post }: PostCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption || "");
   const [editLocation, setEditLocation] = useState(post.location || "");
-  const [editPrivacy, setEditPrivacy] = useState(post.isPrivate || false);
+  const [editPrivacyType, setEditPrivacyType] = useState(post.privacy || (post.isPrivate ? "private" : "public"));
+  const [editPrivacyCustomUser, setEditPrivacyCustomUser] = useState(post.privacyCustomUser || "");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isOwnPost = currentUser && (String(currentUser.id) === String(post.user.id) || post.user.name === currentUser.name);
 
   const handleTogglePrivacy = async () => {
     setShowMenu(false);
     try {
-      await updatePost(post.id, { isPrivate: !post.isPrivate });
+      const nextPrivacy = (post.privacy || (post.isPrivate ? "private" : "public")) === "public" ? "private" : "public";
+      await updatePost(post.id, { privacy: nextPrivacy });
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleDeletePost = async () => {
+  const handleDeletePost = () => {
     setShowMenu(false);
-    if (confirm("Are you sure you want to delete this post?")) {
-      try {
-        await deletePost(post.id);
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    setShowDeleteConfirm(true);
   };
 
   const handleSaveEdit = async () => {
     try {
-      await updatePost(post.id, { caption: editCaption, location: editLocation, isPrivate: editPrivacy });
+      await updatePost(post.id, {
+        caption: editCaption,
+        location: editLocation,
+        privacy: editPrivacyType,
+        privacyCustomUser: editPrivacyType === "custom" ? editPrivacyCustomUser : undefined,
+      });
       setIsEditing(false);
     } catch (err) {
       console.error(err);
@@ -1266,34 +1268,61 @@ export default function PostCard({ post }: PostCardProps) {
               className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-2 text-[13px] text-[var(--text)] outline-none"
             />
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Privacy:</label>
-              <select
-                value={editPrivacy ? "private" : "public"}
-                onChange={(e) => setEditPrivacy(e.target.value === "private")}
-                className="bg-[var(--surface2)] border border-[var(--border)] text-[12px] text-[var(--text)] rounded-lg px-2 py-1 outline-none cursor-pointer"
-              >
-                <option value="public">🌍 Public</option>
-                <option value="private">🔒 Private</option>
-              </select>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Privacy:</label>
+                <select
+                  value={editPrivacyType}
+                  onChange={(e) => {
+                    setEditPrivacyType(e.target.value);
+                    if (e.target.value !== "custom") {
+                      setEditPrivacyCustomUser("");
+                    } else if (!editPrivacyCustomUser && users && users.length > 0) {
+                      setEditPrivacyCustomUser(users[0].name);
+                    }
+                  }}
+                  className="bg-[var(--surface2)] border border-[var(--border)] text-[12px] text-[var(--text)] rounded-lg px-2 py-1 outline-none cursor-pointer"
+                >
+                  <option value="public">🌍 Public</option>
+                  <option value="followers">👥 Followers</option>
+                  <option value="private">🔒 Private</option>
+                  <option value="custom">👤 Custom User</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--surface3)] rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95 text-[var(--text)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="px-3 py-1.5 bg-insta-blue hover:bg-insta-blue/80 text-white rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--surface3)] rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95 text-[var(--text)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                className="px-3 py-1.5 bg-insta-blue hover:bg-insta-blue/80 text-white rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95"
-              >
-                Save Changes
-              </button>
-            </div>
+            {editPrivacyType === "custom" && users && users.length > 0 && (
+              <div className="flex items-center gap-2 mt-1 animate-fadeIn">
+                <label className="text-[10px] text-gray-400 font-semibold select-none">Allowed User:</label>
+                <select
+                  value={editPrivacyCustomUser}
+                  onChange={(e) => setEditPrivacyCustomUser(e.target.value)}
+                  className="bg-[var(--surface2)] border border-[var(--border)] text-[12px] text-[var(--text)] rounded-lg px-2 py-1 outline-none cursor-pointer"
+                >
+                  {users.map((u) => (
+                    <option key={`edit-custom-user-sel-${u.id}`} value={u.name}>
+                      {u.name} ({u.full || u.name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -1345,6 +1374,61 @@ export default function PostCard({ post }: PostCardProps) {
       )}
 
       <ReactionsModal isOpen={showReactionsModal} onClose={() => setShowReactionsModal(false)} postId={post.id} />
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteConfirm(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="relative w-full max-w-[340px] bg-[var(--surface2)] border border-[var(--border)] rounded-[24px] overflow-hidden shadow-2xl z-10 text-[var(--text)] text-center p-6 flex flex-col items-center gap-4 animate-fadeIn"
+            >
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-1">
+                <Trash2 size={24} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <h4 className="font-bold text-[16px] text-white">Delete Post?</h4>
+                <p className="text-[12px] text-[var(--text2)] leading-relaxed px-4">
+                  Are you sure you want to delete this post? This action cannot be undone.
+                </p>
+              </div>
+              <div className="w-full flex flex-col gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowDeleteConfirm(false);
+                    try {
+                      await deletePost(post.id);
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl transition cursor-pointer active:scale-[0.98]"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full py-2.5 bg-[var(--surface3)] hover:bg-[var(--border)] text-[var(--text)] font-bold text-xs rounded-xl transition cursor-pointer active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
