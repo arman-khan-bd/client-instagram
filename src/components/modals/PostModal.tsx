@@ -224,19 +224,7 @@ export default function PostModal() {
       return;
     }
 
-    const isFeedVideo = fromFeed && (
-      fromFeed.isReel || 
-      fromFeed.mediaType === "video" || 
-      (fromFeed.imgs && fromFeed.imgs.some((m: string) => typeof m === "string" && (m.match(/\.(mp4|mov|webm)/i) || m.includes("/video/upload/"))))
-    );
 
-    if (isFeedVideo) {
-      setDbComments([]);
-      setCurrentReaction(null);
-      setReactionsList([]);
-      setLoadingComments(false);
-      return;
-    }
 
     if (!fromFeed) {
       setLoadingPost(true);
