@@ -219,21 +219,11 @@ export default function PostModal() {
     }
 
     const fromFeed = posts.find((p) => p.id === activePostId);
-    if (fromFeed && fromFeed.originalPostId) {
-      setActivePostId(fromFeed.originalPostId);
-      return;
-    }
-
-
 
     if (!fromFeed) {
       setLoadingPost(true);
       api.getPost(activePostId)
         .then((dbPost) => {
-          if (dbPost.originalPostId) {
-            setActivePostId(dbPost.originalPostId);
-            return;
-          }
           const rawOriginalPost = Array.isArray(dbPost.originalPost) ? dbPost.originalPost[0] : dbPost.originalPost;
           const isShared = !!(dbPost.originalPostId && rawOriginalPost && rawOriginalPost.id);
           const targetPostForMedia = isShared ? rawOriginalPost : dbPost;

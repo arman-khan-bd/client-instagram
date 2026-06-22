@@ -55,7 +55,7 @@ export default function Explore() {
             return (
               <div
                 key={item.uniqueId}
-                onClick={() => setActivePostId(item.originalPostId || item.id)}
+                onClick={() => setActivePostId(item.id)}
                 className={`relative overflow-hidden cursor-pointer group select-none rounded-sm sm:rounded-md border border-[var(--border)] ${
                   item.isTall ? "row-span-2" : ""
                 }`}
