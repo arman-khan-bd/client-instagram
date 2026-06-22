@@ -268,7 +268,7 @@ export default function Search() {
             {exploreGridPosts.map((item) => (
               <div
                 key={item.uniqueId}
-                onClick={() => setActivePostId(item.id)}
+                onClick={() => setActivePostId(item.originalPostId || item.id)}
                 className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in"
               >
                 {item.mediaType === "video" || item.isReel ? (

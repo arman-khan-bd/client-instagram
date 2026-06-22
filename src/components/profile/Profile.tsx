@@ -1101,7 +1101,7 @@ export default function Profile() {
                       {uploadedPhotos.slice(0, 9).map((post: any, i: number) => (
                         <div
                           key={`sidebar-photo-${post.id}-${i}`}
-                          onClick={() => setActivePostId(post.id)}
+                          onClick={() => setActivePostId(post.originalPostId || post.id)}
                           className="aspect-square bg-[var(--surface2)] cursor-pointer hover:opacity-90 transition relative overflow-hidden"
                         >
                           <img src={post.img} alt="Preview" className="w-full h-full object-cover" />
@@ -1172,7 +1172,7 @@ export default function Profile() {
                 {profilePostsList.map((post: any, i: number) => (
                   <div
                     key={`grid-post-${post.id}-${i}`}
-                    onClick={() => setActivePostId(post.id)}
+                    onClick={() => setActivePostId(post.originalPostId || post.id)}
                     className="relative aspect-square overflow-hidden cursor-pointer group animate-fade-in rounded-lg bg-[var(--surface2)]"
                   >
                     {post.isTextOnly || post.bgGradient ? (
@@ -1263,7 +1263,7 @@ export default function Profile() {
                       <div
                         key={`dialog-photo-${post.id}-${idx}`}
                         onClick={() => {
-                          setActivePostId(post.id);
+                          setActivePostId(post.originalPostId || post.id);
                           setShowPhotosDialog(false);
                         }}
                         className="aspect-square bg-[var(--surface3)] rounded-lg overflow-hidden border border-[var(--border)] cursor-pointer hover:opacity-85 hover:scale-[1.02] transition duration-200"

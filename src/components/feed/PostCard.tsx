@@ -768,7 +768,7 @@ export default function PostCard({ post }: PostCardProps) {
         // Start a delay before opening the dialog, to verify if it's a single or double tap
         if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
         singleTapTimer.current = setTimeout(() => {
-          setActivePostId(post.id);
+          setActivePostId(post.originalPostId || post.id);
           singleTapTimer.current = null;
         }, 280);
       }
@@ -960,12 +960,18 @@ export default function PostCard({ post }: PostCardProps) {
                   );
                   if (isVideoMedia) {
                     return (
-                      <video
+                      <FeedVideo
                         src={mediaUrl}
-                        className="w-full h-full object-cover"
-                        controls
-                        muted
-                        playsInline
+                        poster={post.originalPost.img || undefined}
+                        postId={post.originalPost.id}
+                        onDoubleTap={() => {
+                          setShowHeartPop(true);
+                          setTimeout(() => setShowHeartPop(false), 850);
+                          commitReaction("love");
+                        }}
+                        onLongPress={() => {
+                          setShowLongPicker(true);
+                        }}
                       />
                     );
                   } else {
@@ -1215,7 +1221,7 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         </div>
 
-        <button onClick={() => setActivePostId(post.id)} className="text-[var(--text)] cursor-pointer hover:scale-105 active:scale-95 transition">
+        <button onClick={() => setActivePostId(post.originalPostId || post.id)} className="text-[var(--text)] cursor-pointer hover:scale-105 active:scale-95 transition">
           <MessageCircle size={24} />
         </button>
 
@@ -1307,7 +1313,7 @@ export default function PostCard({ post }: PostCardProps) {
           )}
 
           {/* Comments link */}
-          <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
+          <div onClick={() => setActivePostId(post.originalPostId || post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
             {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
           </div>
 
@@ -1320,7 +1326,7 @@ export default function PostCard({ post }: PostCardProps) {
           <form 
             onClick={(e) => {
               e.preventDefault();
-              setActivePostId(post.id);
+              setActivePostId(post.originalPostId || post.id);
             }}
             className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15 cursor-pointer"
           >
