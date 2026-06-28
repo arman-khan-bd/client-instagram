@@ -584,6 +584,23 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const isOwnPost = currentUser && (String(currentUser.id) === String(post.user.id) || post.user.name === currentUser.name);
+
+  const handleTogglePrivacy = async () => {
+    setShowMenu(false);
+    try {
+      const nextPrivacy = (post.privacy || (post.isPrivate ? "private" : "public")) === "public" ? "private" : "public";
+      await updatePost(post.id, { privacy: nextPrivacy });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeletePost = () => {
+    setShowMenu(false);
+    setShowDeleteConfirm(true);
+  };
+
   // ── Reaction state ─────────────────────────────────────────────────────────
   const [currentReaction, setCurrentReaction] = useState<ReactionType>(null);
   const [hasReacted, setHasReacted] = useState(false);
