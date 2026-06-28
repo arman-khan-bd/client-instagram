@@ -82,7 +82,7 @@ function ReactionPicker({ visible, anchorBottom = true, hoveredIdx, onHover, onS
 // ── Video Player in Feed ──────────────────────────────────────────────────────
 let globalMuted = true;
 
-function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void; postId: number }) {
+function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId, onAspectRatioCalculated }: { src: string; poster?: string; onDoubleTap?: () => void; onLongPress?: () => void; postId: number; onAspectRatioCalculated?: (ratio: number) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { setActiveTab, activePostId } = useApp();
   const [playing, setPlaying] = useState(false);
@@ -206,6 +206,9 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
       setIsVertical(true);
     } else {
       setIsVertical(false);
+    }
+    if (video.videoWidth && video.videoHeight && onAspectRatioCalculated) {
+      onAspectRatioCalculated(video.videoWidth / video.videoHeight);
     }
 
     const savedTime = localStorage.getItem(`video_time_${postId}`);
@@ -365,7 +368,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
       <video
         ref={videoRef}
         poster={posterUrl}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
         playsInline
         muted={muted}
         loop
@@ -394,7 +397,7 @@ function FeedVideo({ src, poster, onDoubleTap, onLongPress, postId }: { src: str
         <img
           src={posterUrl}
           alt="thumbnail"
-          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+          className="absolute inset-0 w-full h-full object-contain z-0 pointer-events-none"
         />
       )}
 
@@ -546,6 +549,9 @@ export default function PostCard({ post }: PostCardProps) {
   const touchStartCenter = useRef<{ x: number; y: number } | null>(null);
   const isZooming = useRef(false);
   const [isPinching, setIsPinching] = useState(false);
+
+  const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
+  const [origMediaAspectRatio, setOrigMediaAspectRatio] = useState<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -1000,7 +1006,10 @@ export default function PostCard({ post }: PostCardProps) {
                 {post.originalPost.caption}
               </div>
             ) : (
-              <div className="relative aspect-video w-full overflow-hidden bg-black">
+              <div 
+                className="relative w-full flex items-center justify-center bg-black/95 overflow-hidden min-h-[100px] max-h-[550px]"
+                style={{ aspectRatio: origMediaAspectRatio || 1.777 }}
+              >
                 {(() => {
                   const mediaUrl = post.originalPost.imgs?.[0] || post.originalPost.img || "";
                   const isVideoMedia = typeof mediaUrl === "string" && (
@@ -1020,13 +1029,20 @@ export default function PostCard({ post }: PostCardProps) {
                         onLongPress={() => {
                           setShowLongPicker(true);
                         }}
+                        onAspectRatioCalculated={setOrigMediaAspectRatio}
                       />
                     );
                   } else {
                     return (
                       <img
                         src={mediaUrl}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
+                        onLoad={(e) => {
+                          const img = e.currentTarget;
+                          if (img.naturalWidth && img.naturalHeight) {
+                            setOrigMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+                          }
+                        }}
                         alt=""
                       />
                     );
@@ -1046,7 +1062,8 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       ) : (
         <div
-          className={`relative aspect-square select-none ${isPinching ? 'z-50 overflow-visible' : 'overflow-hidden'}`}
+          className={`relative select-none flex items-center justify-center bg-black/95 min-h-[100px] max-h-[550px] w-full overflow-hidden ${isPinching ? 'z-40 overflow-visible' : ''}`}
+          style={{ aspectRatio: mediaAspectRatio || 1 }}
           onContextMenu={(e) => e.preventDefault()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -1102,6 +1119,7 @@ export default function PostCard({ post }: PostCardProps) {
                             onLongPress={() => {
                               setShowLongPicker(true);
                             }}
+                            onAspectRatioCalculated={setMediaAspectRatio}
                           />
                           {isNextMediaVideo && (
                             <video src={nextMediaUrl} preload="auto" className="hidden" muted playsInline />
@@ -1113,8 +1131,14 @@ export default function PostCard({ post }: PostCardProps) {
                         <>
                           <img
                             src={currentMediaUrl}
-                            className="w-full h-full object-cover transition-all duration-300"
+                            className="w-full h-full object-contain transition-all duration-300"
                             style={{ ...zoomStyle, filter: post.filter && post.filter !== "none" ? post.filter : undefined }}
+                            onLoad={(e) => {
+                              const img = e.currentTarget;
+                              if (img.naturalWidth && img.naturalHeight) {
+                                setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+                              }
+                            }}
                             alt="post"
                             draggable={false}
                             onPointerDown={onImagePointerDown}
