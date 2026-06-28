@@ -454,7 +454,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // Legacy URL redirect: /profile -> /me
       router.replace("/me");
     }
-  }, [pathname, currentUser, router]);
+  }, [pathname, router]);
 
   // setActiveTab pushes to router AND updates local state
   const setActiveTab = useCallback((tab: string, customViewingUserId?: string | number | null) => {

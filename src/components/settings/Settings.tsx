@@ -16,6 +16,10 @@ export default function Settings() {
   const [phone, setPhone] = useState(currentUser?.phone || "");
   const [savingGeneral, setSavingGeneral] = useState(false);
 
+  // Username validation checking states
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [usernameError, setUsernameError] = useState("");
+
   // Security state
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,6 +45,106 @@ export default function Settings() {
   useEffect(() => {
     setActivityPage(1);
   }, [selectedFilter, activeSection]);
+
+  // Forbidden terms validation helper
+  const isForbiddenText = (text: string): boolean => {
+    const forbiddenPatterns = [
+      /\ballah\b/i, /\bgod\b/i, /\bbhagwan\b/i, /\bdeity\b/i, /\blord\b/i, /\bjesus\b/i, /\bkrishna\b/i, /\bshiva\b/i,
+      /\bporn\b/i, /\bx-rated\b/i, /\bsex\b/i, /\bnude\b/i, /\badult\b/i, /\berotic\b/i
+    ];
+    return forbiddenPatterns.some(pattern => pattern.test(text));
+  };
+
+  // Emojis & non-keyboard symbols validation helper
+  const hasEmojisOrSymbols = (text: string): boolean => {
+    // Matches emojis, custom symbols, and non-keyboard character sets outside printable ASCII + general letters
+    const emojiRegex = /[\uD800-\uDFFF\u2600-\u27BF\u1F300-\u1F9FF]/;
+    return emojiRegex.test(text);
+  };
+
+  // Username validation: only a-z (lowercase), "-", and "_" allowed.
+  const validateUsernameText = (uname: string): { valid: boolean; error: string } => {
+    if (!uname) return { valid: false, error: "Username cannot be empty" };
+    if (uname.length < 3) return { valid: false, error: "Username must be at least 3 characters" };
+    
+    // Check characters
+    const usernameRegex = /^[a-z0-9_-]+$/;
+    if (!usernameRegex.test(uname)) {
+      return { valid: false, error: "Only lowercase letters (a-z), numbers, dash (-), and underscore (_) are allowed" };
+    }
+
+    if (isForbiddenText(uname)) {
+      return { valid: false, error: "Username contains forbidden religious or adult terms" };
+    }
+
+    if (hasEmojisOrSymbols(uname)) {
+      return { valid: false, error: "Username cannot contain emojis or special symbols" };
+    }
+
+    return { valid: true, error: "" };
+  };
+
+  // Full Name validation: can use any alphabet/number without keyboard symbols
+  const validateFullNameText = (name: string): { valid: boolean; error: string } => {
+    if (!name) return { valid: false, error: "Full Name cannot be empty" };
+    
+    // Any alphabet without keyboard symbols (only spaces, letters of any language, numbers)
+    const nameRegex = /^[A-Za-z0-9\s\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u0400-\u04FF\u0900-\u097F]+$/;
+    if (!nameRegex.test(name)) {
+      return { valid: false, error: "Full Name must not contain keyboard symbols, punctuation or emojis" };
+    }
+
+    if (isForbiddenText(name)) {
+      return { valid: false, error: "Full Name contains forbidden religious or adult terms" };
+    }
+
+    if (hasEmojisOrSymbols(name)) {
+      return { valid: false, error: "Full Name cannot contain emojis or special symbols" };
+    }
+
+    return { valid: true, error: "" };
+  };
+
+  // Live username checker effect
+  useEffect(() => {
+    if (!username || username === currentUser?.name) {
+      setUsernameStatus("idle");
+      setUsernameError("");
+      return;
+    }
+
+    const validation = validateUsernameText(username);
+    if (!validation.valid) {
+      setUsernameStatus("invalid");
+      setUsernameError(validation.error);
+      return;
+    }
+
+    setUsernameStatus("checking");
+    setUsernameError("");
+
+    const checkTimeout = setTimeout(async () => {
+      try {
+        const { data: existingUser, error: checkError } = await supabase
+          .from("User")
+          .select("id")
+          .eq("username", username.trim().toLowerCase())
+          .maybeSingle();
+
+        if (checkError) throw checkError;
+        if (existingUser) {
+          setUsernameStatus("taken");
+          setUsernameError("This username is already taken by another account");
+        } else {
+          setUsernameStatus("available");
+        }
+      } catch (err) {
+        setUsernameStatus("idle");
+      }
+    }, 450);
+
+    return () => clearTimeout(checkTimeout);
+  }, [username, currentUser]);
 
   // Sync state if currentUser changes (e.g. from background refetches)
   useEffect(() => {
@@ -214,11 +318,21 @@ export default function Settings() {
 
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) {
-      showToast("Username cannot be empty!", "info");
+
+    // 1. Validate full name rules
+    const nameValidation = validateFullNameText(fullName);
+    if (!nameValidation.valid) {
+      showToast(nameValidation.error, "info");
       return;
     }
+
+    // 2. Validate username rules
     const targetUsername = username.trim().toLowerCase();
+    const usernameValidation = validateUsernameText(targetUsername);
+    if (!usernameValidation.valid) {
+      showToast(usernameValidation.error, "info");
+      return;
+    }
     
     setSavingGeneral(true);
     try {
@@ -239,7 +353,7 @@ export default function Settings() {
       const { error } = await supabase
         .from("User")
         .update({
-          fullName,
+          fullName: fullName.trim(),
           username: targetUsername,
           email: email.trim(),
           phone: phone.trim(),
@@ -371,27 +485,56 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[12px] font-bold text-[var(--text2)]">Full Name</label>
-                    <div className="relative">
-                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
+                    <div className="relative flex items-center">
+                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text3)] z-10" />
                       <input
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-10 pr-10 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
                         required
                       />
+                      <div className="absolute right-3.5 flex items-center gap-1.5 select-none pointer-events-none">
+                        {fullName && validateFullNameText(fullName).valid ? (
+                          <span className="text-[#2ecc71] font-bold text-[15px]">✓</span>
+                        ) : fullName ? (
+                          <span className="text-[#e74c3c] font-bold text-[15px]" title={validateFullNameText(fullName).error}>✗</span>
+                        ) : null}
+                      </div>
                     </div>
+                    {fullName && !validateFullNameText(fullName).valid && (
+                      <span className="text-[11px] text-[#e74c3c] font-semibold mt-0.5">{validateFullNameText(fullName).error}</span>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[12px] font-bold text-[var(--text2)]">Username</label>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-4 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
-                      required
-                    />
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl pl-4 pr-10 py-3 text-[14px] text-[var(--text)] outline-none focus:border-[#3897f0] transition-colors"
+                        required
+                      />
+                      <div className="absolute right-3.5 flex items-center gap-1.5 select-none pointer-events-none">
+                        {usernameStatus === "checking" && (
+                          <div className="w-4.5 h-4.5 border-2 border-insta-blue border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {usernameStatus === "available" && (
+                          <span className="text-[#2ecc71] font-bold text-[15px]" title="Username is available">✓</span>
+                        )}
+                        {(usernameStatus === "taken" || usernameStatus === "invalid") && (
+                          <span className="text-[#e74c3c] font-bold text-[15px]" title={usernameError || "Taken"}>✗</span>
+                        )}
+                      </div>
+                    </div>
+                    {usernameError && (
+                      <span className="text-[11px] text-[#e74c3c] font-semibold mt-0.5">{usernameError}</span>
+                    )}
+                    {usernameStatus === "available" && (
+                      <span className="text-[11px] text-[#2ecc71] font-semibold mt-0.5">Username is available</span>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
