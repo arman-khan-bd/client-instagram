@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
-import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List, X, Image } from "lucide-react";
+import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List, X, Image, Send, Check, Link2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../../lib/api";
 import { VideoThumbnailCard } from "../search/Search";
@@ -139,11 +139,16 @@ export default function Profile() {
     showToast,
     setActiveChatId,
     createConversation,
+    chats,
+    sendMessage,
   } = useApp();
 
   const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged" | "feed" | "photos">("feed");
   const [dbProfile, setDbProfile] = useState<any>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showShareProfileModal, setShowShareProfileModal] = useState(false);
+  const [shareProfileCopied, setShareProfileCopied] = useState(false);
+  const [shareProfileSentTo, setShareProfileSentTo] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "feed" >(() => {
@@ -789,6 +794,15 @@ export default function Profile() {
                     </button>
                   </>
                 )}
+                {/* Profile share button */}
+                <button
+                  onClick={() => setShowShareProfileModal(true)}
+                  className="px-5 py-2.5 bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700 hover:from-zinc-700 hover:to-zinc-800 text-white rounded-xl text-[13px] font-bold cursor-pointer transition active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+                  title="Share Profile"
+                >
+                  <Send size={14} />
+                  <span>Share</span>
+                </button>
               </div>
             </div>
 
@@ -1400,6 +1414,138 @@ export default function Profile() {
               onClick={(e) => e.stopPropagation()}
               alt="Preview"
             />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Share Modal */}
+      <AnimatePresence>
+        {showShareProfileModal && (
+          <div 
+            className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[300] flex items-center justify-center p-4 text-[var(--text)] select-none animate-fadeIn"
+            onClick={() => setShowShareProfileModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[var(--surface2)] border border-[var(--border)] rounded-3xl pb-6 max-w-[460px] w-full flex flex-col text-[var(--text)] shadow-2xl overflow-y-auto max-h-[85vh] no-scrollbar"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-[var(--border)] bg-[var(--surface2)] sticky top-0 z-30">
+                <h3 className="text-[15px] font-bold">Share Profile</h3>
+                <button
+                  onClick={() => setShowShareProfileModal(false)}
+                  className="p-1.5 rounded-full hover:bg-[var(--surface3)] transition text-[var(--text2)] hover:text-[var(--text)] cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Profile Card Preview */}
+              <div className="p-5 border-b border-[var(--border)] shrink-0 flex flex-col items-center text-center bg-black/10 m-4 rounded-2xl border border-[var(--border)]">
+                <img
+                  src={dbProfile?.avatarUrl || profileUser.img}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-[var(--border)] mb-3 shadow-lg"
+                  alt="Avatar"
+                />
+                <h4 className="text-[16px] font-bold text-white leading-tight">{dbProfile?.fullName || profileUser.full}</h4>
+                <p className="text-[12.5px] text-[var(--text2)] mt-0.5">@{dbProfile?.username || profileUser.name}</p>
+                {profileUser.bio && (
+                  <p className="text-[11px] text-[var(--text3)] mt-2 line-clamp-2 px-6">{profileUser.bio}</p>
+                )}
+                
+                {/* Mini Stats capsule */}
+                <div className="flex gap-4 mt-4 py-1.5 px-4 bg-white/[0.03] border border-white/[0.05] rounded-full text-[11px] text-gray-400">
+                  <span><strong>{dbProfile?.posts?.length ?? tabPosts.length}</strong> posts</span>
+                  <span className="w-[1px] bg-white/[0.08]" />
+                  <span><strong>{dbProfile?._count?.followers ?? profileUser.followers}</strong> followers</span>
+                </div>
+              </div>
+
+              {/* DM Contacts Row */}
+              <div className="px-5 py-3 shrink-0">
+                <p className="text-[11px] text-[var(--text3)] font-semibold uppercase tracking-wider mb-3">
+                  Send directly to DMs
+                </p>
+                <div className="flex gap-4 overflow-x-auto pb-1 no-scrollbar">
+                  {chats && chats.length > 0 ? (
+                    chats.map((chat: any) => (
+                      <button
+                        key={`share-profile-chat-${chat.id}`}
+                        onClick={() => {
+                          const profileUrl = typeof window !== "undefined" 
+                            ? `${window.location.origin}/@${profileUser.name}` 
+                            : `/@${profileUser.name}`;
+                          setShareProfileSentTo(chat.id);
+                          sendMessage(chat.id, `Hey! Check out this profile: ${profileUrl}`);
+                          showToast(`Shared to ${chat.user.name} 📤`, "message");
+                          setTimeout(() => setShareProfileSentTo(null), 1500);
+                        }}
+                        className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer"
+                      >
+                        <div className="relative">
+                          <img
+                            src={chat.user.img}
+                            className="w-12 h-12 rounded-full object-cover border-2 border-transparent group-hover:border-[#3897f0] transition"
+                            alt={chat.user.name}
+                          />
+                          {shareProfileSentTo === chat.id && (
+                            <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
+                              <Check size={18} className="text-[#3897f0]" />
+                            </div>
+                          )}
+                          {chat.online && (
+                            <span className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[var(--bg)]" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-[var(--text2)] group-hover:text-[var(--text)] transition max-w-[50px] truncate">
+                          {chat.user.name}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-gray-500 italic py-2">No active chats found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Copy Profile Link Section */}
+              <div className="px-5 pb-2 shrink-0 border-t border-[var(--border)] pt-4">
+                <p className="text-[11px] text-[var(--text3)] font-semibold uppercase tracking-wider mb-2.5">
+                  Profile Link
+                </p>
+                <div className="flex items-center gap-2 bg-[var(--surface3)] rounded-xl p-3 border border-[var(--border)]">
+                  <Link2 size={14} className="text-[var(--text3)] shrink-0" />
+                  <span className="flex-1 text-[11.5px] text-[var(--text2)] truncate select-all">
+                    {typeof window !== "undefined" ? `${window.location.origin}/@${profileUser.name}` : `/@${profileUser.name}`}
+                  </span>
+                  <button
+                    onClick={async () => {
+                      const profileUrl = typeof window !== "undefined" 
+                        ? `${window.location.origin}/@${profileUser.name}` 
+                        : `/@${profileUser.name}`;
+                      try {
+                        await navigator.clipboard.writeText(profileUrl);
+                        setShareProfileCopied(true);
+                        showToast("Profile link copied! 📋", "share");
+                        setTimeout(() => setShareProfileCopied(false), 2000);
+                      } catch {
+                        showToast("Could not copy link", "info");
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                      shareProfileCopied
+                        ? "bg-green-500/10 text-green-400 border border-green-500/30"
+                        : "bg-insta-blue/10 text-insta-blue hover:bg-insta-blue/20 border border-insta-blue/20"
+                    }`}
+                  >
+                    {shareProfileCopied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>

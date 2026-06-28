@@ -204,7 +204,7 @@ interface AppContextType {
   createConversation: (options: { name?: string; avatarUrl?: string; isGroup?: boolean; participantIds: string[] }) => Promise<any>;
   createPost: (files: File[], caption: string, options?: { location?: string; filter?: string; feelings?: string; tags?: string[]; music?: string; bgGradient?: string; isTextOnly?: boolean; thumbnailDataUrl?: string; thumbnailDataUrls?: Record<number, string>; originalPostId?: number; privacy?: string; privacyCustomUser?: string }) => Promise<void>;
   deletePost: (postId: number) => Promise<void>;
-  updatePost: (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string }) => Promise<void>;
+  updatePost: (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string; mediaUrls?: any[]; thumbnailUrl?: string; isTextOnly?: boolean; bgGradient?: string; filter?: string }) => Promise<void>;
   saveProfileChanges: (data: { name: string; username: string; web: string; bio: string; gender: string; avatarUrl?: string; education?: string; work?: string; city?: string; country?: string; hometown?: string; phone?: string; hobbies?: string; interests?: string; coverPhoto?: string; email?: string }) => Promise<AppContextType["currentUser"]>;
   refetchCurrentUser: () => Promise<void>;
 
@@ -1793,7 +1793,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       showToast("Sharing your post… ✨", "info");
       const dbPost = await api.createPost({
-        caption: finalCaption || "New post! 📸",
+        caption: finalCaption || "",
         location: options?.location,
         files: files.length > 0 ? files : undefined,
         bgGradient: options?.bgGradient,
@@ -1858,7 +1858,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         img,
         imgs: isTextOnly ? [] : mediaUrls,
         thumbnailUrls: isTextOnly ? [] : thumbnailUrls,
-        caption: finalCaption || "New post! 📸",
+        caption: finalCaption || "",
         likes: 0,
         comments: [],
         time: "just now",
@@ -1965,23 +1965,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const updatePost = useCallback(async (postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string }) => {
+  const updatePost = useCallback(async (postId: number, data: {
+    caption?: string;
+    location?: string;
+    isPrivate?: boolean;
+    privacy?: string;
+    privacyCustomUser?: string;
+    mediaUrls?: any[];
+    thumbnailUrl?: string;
+    isTextOnly?: boolean;
+    bgGradient?: string;
+    filter?: string;
+  }) => {
     try {
       showToast("Updating post...", "info");
       await api.updatePost(postId, data);
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? { 
-                ...p, 
-                caption: data.caption ?? p.caption, 
-                location: data.location ?? p.location, 
-                isPrivate: data.isPrivate ?? p.isPrivate,
-                privacy: data.privacy ?? p.privacy,
-                privacyCustomUser: data.privacyCustomUser ?? p.privacyCustomUser
-              }
-            : p
-        )
+        prev.map((p) => {
+          if (p.id === postId) {
+            const updated: any = {
+              ...p,
+              caption: data.caption !== undefined ? data.caption : p.caption,
+              location: data.location !== undefined ? data.location : p.location,
+              isPrivate: data.isPrivate !== undefined ? data.isPrivate : p.isPrivate,
+              privacy: data.privacy !== undefined ? data.privacy : p.privacy,
+              privacyCustomUser: data.privacyCustomUser !== undefined ? data.privacyCustomUser : p.privacyCustomUser,
+            };
+            if (data.isTextOnly !== undefined) {
+              updated.isTextOnly = data.isTextOnly;
+            }
+            if (data.bgGradient !== undefined) {
+              updated.bgGradient = data.bgGradient;
+            }
+            if (data.filter !== undefined) {
+              updated.filter = data.filter;
+            }
+            if (data.mediaUrls !== undefined) {
+              const urls = data.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.url));
+              const isVideo = data.mediaUrls.some((m: any) => m.type === 'video');
+              updated.img = urls[0] || '';
+              updated.imgs = urls;
+              updated.mediaType = isVideo ? 'video' : 'image';
+              updated.videoUrl = isVideo ? urls[0] : undefined;
+            }
+            if (data.thumbnailUrl !== undefined) {
+              updated.thumbnailUrl = data.thumbnailUrl;
+            }
+            return updated;
+          }
+          return p;
+        })
       );
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("post-updated", { detail: { postId, data } }));

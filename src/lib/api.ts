@@ -1735,7 +1735,18 @@ class ApiClient {
     if (error) throw error;
   }
 
-  async updatePost(postId: number, data: { caption?: string; location?: string; isPrivate?: boolean; privacy?: string; privacyCustomUser?: string }) {
+  async updatePost(postId: number, data: {
+    caption?: string;
+    location?: string;
+    isPrivate?: boolean;
+    privacy?: string;
+    privacyCustomUser?: string;
+    mediaUrls?: any[];
+    thumbnailUrl?: string;
+    isTextOnly?: boolean;
+    bgGradient?: string;
+    filter?: string;
+  }) {
     const updatePayload: any = {
       caption: data.caption,
       location: data.location,
@@ -1750,6 +1761,21 @@ class ApiClient {
     }
     if (data.privacyCustomUser !== undefined) {
       updatePayload.privacyCustomUser = data.privacyCustomUser;
+    }
+    if (data.mediaUrls !== undefined) {
+      updatePayload.mediaUrls = data.mediaUrls;
+    }
+    if (data.thumbnailUrl !== undefined) {
+      updatePayload.thumbnailUrl = data.thumbnailUrl;
+    }
+    if (data.isTextOnly !== undefined) {
+      updatePayload.isTextOnly = data.isTextOnly;
+    }
+    if (data.bgGradient !== undefined) {
+      updatePayload.bgGradient = data.bgGradient;
+    }
+    if (data.filter !== undefined) {
+      updatePayload.filter = data.filter;
     }
 
     const { error } = await supabase

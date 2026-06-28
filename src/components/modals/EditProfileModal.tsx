@@ -351,16 +351,106 @@ export default function EditProfileModal() {
             </button>
           ))}
         </div>
+        <div className="w-full border-b border-zinc-800 shrink-0 bg-[#0a0a0a] z-10">
+          <div className="flex items-center justify-between px-5 py-4 max-w-[700px] mx-auto">
+            <button
+              onClick={handleClose}
+              className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+            <h3 className="font-bold text-[15px]">Edit Profile</h3>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || isUploading || isCoverUploading}
+              className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 ${
+                saveSuccess
+                  ? "bg-[#22c55e] text-white"
+                  : "bg-[#3897f0] hover:bg-[#2d86d9] text-white"
+              }`}
+            >
+              {isSaving ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <Check size={14} />
+                  Saved
+                </>
+              ) : (
+                "Save"
+              )}
+            </button>
+          </div>
+        </div>
 
-        {/* ── Form Body ── */}
-        <form onSubmit={handleSave} className="flex-1 overflow-y-auto custom-scroll px-5 pb-6 space-y-4">
-
-          {/* ── Basic Info ── */}
+        {/* ── Form ── */}
+        <form
+          onSubmit={handleSave}
+          className="flex-1 p-5 md:p-8 overflow-y-auto space-y-6 custom-scroll max-w-[700px] w-full mx-auto"
+        >
+          {/* ── Profile Header info card (Avatar, cover preview) ── */}
           {activeSection === "basic" && (
             <>
+              {/* Profile banner picture preview card */}
+              <div className="relative rounded-3xl overflow-hidden border border-[#1e1e1e] bg-[#111] p-4.5 md:p-6 mb-1">
+                {/* Background cover photo */}
+                <div className="absolute inset-0 h-[100px] bg-gradient-to-r from-insta-blue to-purple-600 z-0">
+                  {coverPhoto && (
+                    <img src={coverPhoto} className="w-full h-full object-cover opacity-80" alt="cover" />
+                  )}
+                  <div className="absolute inset-0 bg-black/45" />
+                  <button
+                    type="button"
+                    onClick={() => !isCoverUploading && coverInputRef.current?.click()}
+                    className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 transition text-white px-3 py-1.5 rounded-xl text-[10.5px] font-bold border border-white/10 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Camera size={13} />
+                    Change Cover
+                  </button>
+                  <input
+                    type="file"
+                    ref={coverInputRef}
+                    onChange={handleCoverChange}
+                    className="hidden"
+                    accept="image/*"
+                  />
+                </div>
+
+                {/* Avatar block */}
+                <div className="relative z-10 pt-[55px] flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
+                  <div className="relative shrink-0 group">
+                    <img
+                      src={avatarUrl || "https://i.pravatar.cc/150?img=1"}
+                      className="w-[90px] h-[90px] rounded-full object-cover border-4 border-black shadow-lg"
+                      alt="avatar"
+                    />
+                    <div
+                      onClick={() => !isUploading && avatarInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                    >
+                      <Camera size={20} className="text-white" />
+                    </div>
+                    <input
+                      type="file"
+                      ref={avatarInputRef}
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                      accept="image/*"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <h4 className="text-[17px] font-bold text-white leading-snug truncate">{name || "Your Name"}</h4>
+                    <p className="text-[12px] text-[#888] mt-0.5 font-medium select-all truncate">@{username || "username"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic Fields */}
               <div className="bg-[#111] rounded-2xl p-4 border border-[#1e1e1e] space-y-4">
                 <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest">Identity</p>
-
                 <div>
                   <label className={labelClass}><User size={11} /> Full Name</label>
                   <input
@@ -368,11 +458,9 @@ export default function EditProfileModal() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className={inputClass}
-                    placeholder="Full Name"
-                    maxLength={50}
+                    placeholder="Enter your full name..."
                   />
                 </div>
-
                 <div>
                   <label className={labelClass}><AtSign size={11} /> Username</label>
                   <input
@@ -380,13 +468,14 @@ export default function EditProfileModal() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className={inputClass}
-                    placeholder="Username"
-                    maxLength={30}
+                    placeholder="Enter your username..."
                   />
                 </div>
+              </div>
 
-                <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest mt-6">Basic Information</p>
-
+              <div className="bg-[#111] rounded-2xl p-4 border border-[#1e1e1e] space-y-4">
+                <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest">General Info</p>
+                
                 <div>
                   <label className={labelClass}><Users size={11} /> Gender</label>
                   <select
@@ -396,6 +485,8 @@ export default function EditProfileModal() {
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
+                    <option value="Custom">Custom</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
                   </select>
                 </div>
 
@@ -420,23 +511,6 @@ export default function EditProfileModal() {
                     placeholder="e.g. user@example.com"
                   />
                 </div>
-              </div>
-
-              {/* Cover Photo hint */}
-              <div
-                onClick={() => !isCoverUploading && coverInputRef.current?.click()}
-                className="bg-[#111] rounded-2xl p-4 border border-[#1e1e1e] flex items-center gap-3 cursor-pointer hover:bg-[#151515] transition group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#1a1a1a] flex items-center justify-center shrink-0">
-                  <Image size={18} className="text-[#3897f0]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold">Cover Photo</p>
-                  <p className="text-[11px] text-[#555] mt-0.5 truncate">
-                    {coverPhoto ? "Tap to change cover" : "Add a cover photo to your profile"}
-                  </p>
-                </div>
-                <ChevronRight size={16} className="text-[#444] group-hover:text-[#888] transition" />
               </div>
             </>
           )}
@@ -607,38 +681,40 @@ export default function EditProfileModal() {
         </form>
 
         {/* ── Bottom Save Bar ── */}
-        <div className="px-5 py-4 border-t border-[#1a1a1a] shrink-0 flex items-center justify-between gap-3">
-          <div className="flex gap-1">
-            {(Object.keys(SECTION_LABELS) as Section[]).map((section) => (
-              <button
-                key={section}
-                onClick={() => setActiveSection(section)}
-                className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
-                  activeSection === section ? "bg-[#3897f0] w-4" : "bg-[#333]"
-                }`}
-              />
-            ))}
+        <div className="w-full border-t border-[#1a1a1a] shrink-0 bg-[#0a0a0a]">
+          <div className="px-5 py-4 flex items-center justify-between gap-3 max-w-[700px] mx-auto">
+            <div className="flex gap-1">
+              {(Object.keys(SECTION_LABELS) as Section[]).map((section) => (
+                <button
+                  key={section}
+                  onClick={() => setActiveSection(section)}
+                  className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
+                    activeSection === section ? "bg-[#3897f0] w-4" : "bg-[#333]"
+                  }`}
+                />
+              ))}
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={isSaving || isUploading || isCoverUploading}
+              className={`flex-1 max-w-[160px] py-2.5 rounded-xl text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                saveSuccess
+                  ? "bg-[#22c55e] text-white"
+                  : "bg-[#3897f0] hover:bg-[#2d86d9] text-white"
+              }`}
+            >
+              {isSaving ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                "Saved ✅"
+              ) : (
+                "Save Changes"
+              )}
+            </button>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={isSaving || isUploading || isCoverUploading}
-            className={`flex-1 max-w-[160px] py-2.5 rounded-xl text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-              saveSuccess
-                ? "bg-[#22c55e] text-white"
-                : "bg-[#3897f0] hover:bg-[#2d86d9] text-white"
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : saveSuccess ? (
-              "Saved ✅"
-            ) : (
-              "Save Changes"
-            )}
-          </button>
         </div>
       </div>
     </div>

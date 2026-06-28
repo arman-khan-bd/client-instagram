@@ -341,6 +341,7 @@ export default function Reels() {
 
   // Prevent scroll in reels page when reaction picker is showing on mobile screen
   useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
     if (showPickerForReelId !== null) {
       const preventDefault = (e: TouchEvent) => {
         if (e.cancelable) e.preventDefault();

@@ -3,10 +3,18 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Hls from "hls.js";
 import { useApp, MockPost } from "../AppContext";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Maximize, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Play, Pause, Volume2, VolumeX, Maximize, Trash2, X, Plus, Camera, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../lib/api";
 import ReactionsModal from "../modals/ReactionsModal";
+
+export const BG_GRADIENTS = [
+  { name: "Sunset", value: "linear-gradient(45deg, #FF8A00, #FF2E93, #9E00FF)" },
+  { name: "Ocean Breeze", value: "linear-gradient(135deg, #02AAB0 0%, #00CDAC 100%)" },
+  { name: "Neon Glow", value: "linear-gradient(135deg, #F107A3 0%, #7B2FF7 100%)" },
+  { name: "Dark Nebula", value: "linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)" },
+  { name: "Lime Energy", value: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)" },
+];
 
 // ── Reactions ─────────────────────────────────────────────────────────────────
 export const REACTIONS = [
@@ -461,41 +469,118 @@ export default function PostCard({ post }: PostCardProps) {
   const [showHeartPop, setShowHeartPop] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const [isEditing, setIsEditing] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption || "");
   const [editLocation, setEditLocation] = useState(post.location || "");
   const [editPrivacyType, setEditPrivacyType] = useState(post.privacy || (post.isPrivate ? "private" : "public"));
   const [editPrivacyCustomUser, setEditPrivacyCustomUser] = useState(post.privacyCustomUser || "");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editIsTextOnly, setEditIsTextOnly] = useState(post.isTextOnly || false);
+  const [editBgGradient, setEditBgGradient] = useState(post.bgGradient || "linear-gradient(135deg, #FF8A00, #FF2E93, #9E00FF)");
+  const [editSelectedFiles, setEditSelectedFiles] = useState<File[]>([]);
+  const [editMediaPreviews, setEditMediaPreviews] = useState<string[]>([]);
+  const [editFileTypes, setEditFileTypes] = useState<("image" | "video")[]>([]);
+  const [editSelectedBgIdx, setEditSelectedBgIdx] = useState<number | null>(null);
+  const [editIsSaving, setEditIsSaving] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
-  const isOwnPost = currentUser && (String(currentUser.id) === String(post.user.id) || post.user.name === currentUser.name);
-
-  const handleTogglePrivacy = async () => {
+  const handleOpenEditDialog = () => {
+    setEditCaption(post.caption || "");
+    setEditLocation(post.location || "");
+    setEditPrivacyType(post.privacy || (post.isPrivate ? "private" : "public"));
+    setEditPrivacyCustomUser(post.privacyCustomUser || "");
+    setEditIsTextOnly(post.isTextOnly || false);
+    setEditBgGradient(post.bgGradient || "linear-gradient(135deg, #FF8A00, #FF2E93, #9E00FF)");
+    setEditSelectedFiles([]);
+    setEditMediaPreviews(post.imgs && post.imgs.length > 0 ? post.imgs : (post.img ? [post.img] : []));
+    setEditFileTypes(
+      post.mediaType === "video" ? ["video"] : (post.imgs && post.imgs.length > 0 ? post.imgs.map((u: any) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/") ? "video" : "image") : (post.img ? [post.mediaType || "image"] : []))
+    );
+    setEditSelectedBgIdx(
+      post.isTextOnly ? BG_GRADIENTS.findIndex(g => g.value === post.bgGradient) : null
+    );
+    setShowEditDialog(true);
     setShowMenu(false);
-    try {
-      const nextPrivacy = (post.privacy || (post.isPrivate ? "private" : "public")) === "public" ? "private" : "public";
-      await updatePost(post.id, { privacy: nextPrivacy });
-    } catch (err) {
-      console.error(err);
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const fileList = Array.from(files);
+      const newUrls = fileList.map(f => URL.createObjectURL(f));
+      const newTypes = fileList.map(f => f.type.startsWith("video/") ? "video" as const : "image" as const);
+      
+      setEditSelectedFiles(prev => [...prev, ...fileList]);
+      setEditMediaPreviews(prev => [...prev, ...newUrls]);
+      setEditFileTypes(prev => [...prev, ...newTypes]);
+      setEditIsTextOnly(false);
+      setEditSelectedBgIdx(null);
     }
   };
 
-  const handleDeletePost = () => {
-    setShowMenu(false);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleSaveEdit = async () => {
+  const handleSaveEditDialog = async () => {
+    setEditIsSaving(true);
     try {
+      let finalMediaUrls: any[] = [];
+      let finalThumbnailUrl = "";
+
+      if (editIsTextOnly && editSelectedBgIdx !== null) {
+        finalThumbnailUrl = BG_GRADIENTS[editSelectedBgIdx].value;
+      } else {
+        const uploadedUrls = await Promise.all(
+          editMediaPreviews.map(async (previewUrl, idx) => {
+            if (previewUrl.startsWith("http")) {
+              const fileType = editFileTypes[idx] || "image";
+              return { url: previewUrl, type: fileType };
+            } else {
+              const fileIndex = editMediaPreviews.slice(0, idx).filter(url => !url.startsWith("http")).length;
+              const file = editSelectedFiles[fileIndex];
+              if (!file) throw new Error("File not found for upload");
+
+              const isVideo = file.type.startsWith('video/');
+              const uploadData = new FormData();
+              uploadData.append('file', file);
+              uploadData.append('upload_preset', 'auragram');
+
+              const cloudinaryEndpoint = isVideo
+                ? 'https://api.cloudinary.com/v1_1/dj7pg5slk/video/upload'
+                : 'https://api.cloudinary.com/v1_1/dj7pg5slk/image/upload';
+
+              const res = await fetch(cloudinaryEndpoint, {
+                method: 'POST',
+                body: uploadData,
+              });
+
+              if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error?.message || `${isVideo ? 'Video' : 'Image'} upload failed`);
+              }
+
+              const { secure_url } = await res.json();
+              return { url: secure_url, type: isVideo ? 'video' : 'image' };
+            }
+          })
+        );
+        finalMediaUrls = uploadedUrls;
+        finalThumbnailUrl = uploadedUrls[0]?.url || "";
+      }
+
       await updatePost(post.id, {
         caption: editCaption,
         location: editLocation,
         privacy: editPrivacyType,
         privacyCustomUser: editPrivacyType === "custom" ? editPrivacyCustomUser : undefined,
+        isTextOnly: editIsTextOnly,
+        bgGradient: editIsTextOnly && editSelectedBgIdx !== null ? BG_GRADIENTS[editSelectedBgIdx].value : undefined,
+        mediaUrls: finalMediaUrls,
+        thumbnailUrl: finalThumbnailUrl,
       });
-      setIsEditing(false);
-    } catch (err) {
+
+      setShowEditDialog(false);
+    } catch (err: any) {
       console.error(err);
+      showToast(err.message || "Failed to update post", "info");
+    } finally {
+      setEditIsSaving(false);
     }
   };
 
@@ -639,6 +724,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   // Prevent page scroll when reaction pickers are visible on mobile screen
   useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
     if (showHoverPicker || showLongPicker) {
       const preventDefault = (e: TouchEvent) => {
         if (e.cancelable) e.preventDefault();
@@ -940,7 +1026,7 @@ export default function PostCard({ post }: PostCardProps) {
                 >
                   {isOwnPost ? (
                     <>
-                      <div onClick={() => { setIsEditing(true); setShowMenu(false); }} className="p-3 hover:bg-[var(--surface3)] cursor-pointer">✏️ Edit Post</div>
+                      <div onClick={handleOpenEditDialog} className="p-3 hover:bg-[var(--surface3)] cursor-pointer">✏️ Edit Post</div>
                       <button onClick={handleTogglePrivacy} className="w-full text-left p-3 hover:bg-[var(--surface3)] cursor-pointer border-t border-[var(--border)] flex items-center justify-between bg-transparent outline-none">
                         <span>🔒 Privacy</span>
                         <span className="text-[11px] text-insta-blue font-bold">{post.isPrivate ? "Private" : "Public"}</span>
@@ -1319,131 +1405,51 @@ export default function PostCard({ post }: PostCardProps) {
         <span className="font-normal text-[var(--text2)]">{localLikes === 1 ? 'reaction' : 'reactions'}</span>
       </div>
 
-      {isEditing ? (
-        <div className="p-3.5 border-t border-[var(--border)] bg-black/10 flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Caption</label>
-            <textarea
-              value={editCaption}
-              onChange={(e) => setEditCaption(e.target.value)}
-              placeholder="Edit caption..."
-              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-2 text-[13px] text-[var(--text)] outline-none resize-y min-h-[60px]"
-            />
+      <>
+        {/* Caption */}
+        {!(post.originalPost && post.originalPost.id) && !post.isTextOnly && (
+          <div className="px-3.5 py-1 text-[13px] leading-relaxed">
+            <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
+            {formatCaption(post.caption)}
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Location</label>
-            <input
-              type="text"
-              value={editLocation}
-              onChange={(e) => setEditLocation(e.target.value)}
-              placeholder="Edit location..."
-              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-2 text-[13px] text-[var(--text)] outline-none"
-            />
+        )}
+        {!(post.originalPost && post.originalPost.id) && post.isTextOnly && (
+          <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
+            <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
+            Text post
           </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Privacy:</label>
-                <select
-                  value={editPrivacyType}
-                  onChange={(e) => {
-                    setEditPrivacyType(e.target.value);
-                    if (e.target.value !== "custom") {
-                      setEditPrivacyCustomUser("");
-                    } else if (!editPrivacyCustomUser && users && users.length > 0) {
-                      setEditPrivacyCustomUser(users[0].name);
-                    }
-                  }}
-                  className="bg-[var(--surface2)] border border-[var(--border)] text-[12px] text-[var(--text)] rounded-lg px-2 py-1 outline-none cursor-pointer"
-                >
-                  <option value="public">🌍 Public</option>
-                  <option value="followers">👥 Followers</option>
-                  <option value="private">🔒 Private</option>
-                  <option value="custom">👤 Custom User</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 border border-[var(--border)] hover:bg-[var(--surface3)] rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95 text-[var(--text)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveEdit}
-                  className="px-3 py-1.5 bg-insta-blue hover:bg-insta-blue/80 text-white rounded-lg text-[12px] font-semibold cursor-pointer transition active:scale-95"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-            {editPrivacyType === "custom" && users && users.length > 0 && (
-              <div className="flex items-center gap-2 mt-1 animate-fadeIn">
-                <label className="text-[10px] text-gray-400 font-semibold select-none">Allowed User:</label>
-                <select
-                  value={editPrivacyCustomUser}
-                  onChange={(e) => setEditPrivacyCustomUser(e.target.value)}
-                  className="bg-[var(--surface2)] border border-[var(--border)] text-[12px] text-[var(--text)] rounded-lg px-2 py-1 outline-none cursor-pointer"
-                >
-                  {users.map((u) => (
-                    <option key={`edit-custom-user-sel-${u.id}`} value={u.name}>
-                      {u.name} ({u.full || u.name})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
+        )}
+
+        {/* Comments link */}
+        <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
+          {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
         </div>
-      ) : (
-        <>
-          {/* Caption */}
-          {!(post.originalPost && post.originalPost.id) && !post.isTextOnly && (
-            <div className="px-3.5 py-1 text-[13px] leading-relaxed">
-              <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
-              {formatCaption(post.caption)}
-            </div>
-          )}
-          {!(post.originalPost && post.originalPost.id) && post.isTextOnly && (
-            <div className="px-3.5 py-1 text-[13px] text-[var(--text2)]">
-              <span onClick={() => handleUserClick(post.user.name)} className="font-bold mr-2 cursor-pointer hover:underline text-[var(--text)]">{post.user.name}</span>
-              Text post
-            </div>
-          )}
 
-          {/* Comments link */}
-          <div onClick={() => setActivePostId(post.id)} className="px-3.5 py-1 text-[12px] text-[var(--text2)] cursor-pointer hover:text-[var(--text)] transition">
-            {(post.commentsCount ?? 0) > 0 ? `View all ${post.commentsCount} comments` : "Add a comment…"}
-          </div>
+        {/* Time */}
+        <div className="px-3.5 pt-0.5 pb-3.5 text-[11px] text-[var(--text3)] uppercase tracking-wider">
+          {post.time} · AURAGRAM
+        </div>
 
-          {/* Time */}
-          <div className="px-3.5 pt-0.5 pb-3.5 text-[11px] text-[var(--text3)] uppercase tracking-wider">
-            {post.time} · AURAGRAM
-          </div>
-
-          {/* Comment input */}
-          <form 
-            onClick={(e) => {
-              e.preventDefault();
-              setActivePostId(post.id);
-            }}
-            className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15 cursor-pointer"
-          >
-            <span className="text-[20px] cursor-pointer">😊</span>
-            <input
-              type="text"
-              placeholder="Add a comment…"
-              readOnly
-              className="flex-1 bg-transparent border-none text-[13px] text-[var(--text)] outline-none placeholder-[var(--text3)] cursor-pointer"
-            />
-            <button type="button" className="text-[#3897f0] font-bold text-[13px]">
-              Post
-            </button>
-          </form>
-        </>
-      )}
+        {/* Comment input */}
+        <form 
+          onClick={(e) => {
+            e.preventDefault();
+            setActivePostId(post.id);
+          }}
+          className="border-t border-[var(--border)] flex items-center p-3.5 gap-3 bg-black/15 cursor-pointer"
+        >
+          <span className="text-[20px] cursor-pointer">😊</span>
+          <input
+            type="text"
+            placeholder="Add a comment…"
+            readOnly
+            className="flex-1 bg-transparent border-none text-[13px] text-[var(--text)] outline-none placeholder-[var(--text3)] cursor-pointer"
+          />
+          <button type="button" className="text-[#3897f0] font-bold text-[13px]">
+            Post
+          </button>
+        </form>
+      </>
 
       <ReactionsModal isOpen={showReactionsModal} onClose={() => setShowReactionsModal(false)} postId={post.id} />
 
@@ -1464,6 +1470,7 @@ export default function PostCard({ post }: PostCardProps) {
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
               className="relative w-full max-w-[340px] bg-[var(--surface2)] border border-[var(--border)] rounded-[24px] overflow-hidden shadow-2xl z-10 text-[var(--text)] text-center p-6 flex flex-col items-center gap-4 animate-fadeIn"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-1">
                 <Trash2 size={24} />
@@ -1496,6 +1503,212 @@ export default function PostCard({ post }: PostCardProps) {
                 >
                   Cancel
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Post Edit Dialog Modal */}
+      <AnimatePresence>
+        {showEditDialog && (
+          <div 
+            className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[250] flex items-center justify-center p-4 text-[var(--text)] select-none"
+            onClick={() => setShowEditDialog(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-[24px] w-full max-w-[550px] max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col relative custom-scroll"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-[var(--surface)] sticky top-0 z-30">
+                <button
+                  onClick={() => setShowEditDialog(false)}
+                  className="text-[var(--text)] hover:text-gray-300 text-[14px] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <h3 className="font-bold text-[15px]">Edit Post</h3>
+                <button
+                  onClick={handleSaveEditDialog}
+                  disabled={editIsSaving || (!editIsTextOnly && editMediaPreviews.length === 0)}
+                  className="text-insta-blue hover:text-white font-bold text-[14px] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-opacity"
+                >
+                  {editIsSaving ? "Saving…" : "Save"}
+                </button>
+              </div>
+
+              {/* Post Type Selector */}
+              <div className="flex border-b border-[var(--border)] text-xs shrink-0 select-none bg-[var(--surface2)]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditIsTextOnly(false);
+                    setEditSelectedBgIdx(null);
+                  }}
+                  className={`flex-1 py-3 text-center font-bold cursor-pointer transition ${
+                    !editIsTextOnly ? "text-insta-blue border-b-2 border-insta-blue bg-[var(--surface)]" : "text-[var(--text3)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  🖼️ Media Post
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditIsTextOnly(true);
+                    setEditSelectedBgIdx(editSelectedBgIdx !== null ? editSelectedBgIdx : 0);
+                  }}
+                  className={`flex-1 py-3 text-center font-bold cursor-pointer transition ${
+                    editIsTextOnly ? "text-insta-blue border-b-2 border-insta-blue bg-[var(--surface)]" : "text-[var(--text3)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  🎨 Color Text Post
+                </button>
+              </div>
+
+              {/* Media preview/upload list */}
+              {!editIsTextOnly && (
+                <div className="p-4 border-b border-[var(--border)] bg-black/10">
+                  <p className="text-[11px] font-semibold text-[var(--text3)] uppercase tracking-wider mb-2.5">
+                    Photos / Videos
+                  </p>
+                  <div className="flex gap-2.5 overflow-x-auto pb-1 select-none no-scrollbar">
+                    {editMediaPreviews.map((previewUrl, idx) => (
+                      <div key={`edit-media-${idx}`} className="w-16 h-16 rounded-xl overflow-hidden shrink-0 relative border border-[var(--border)] group">
+                        {editFileTypes[idx] === "video" ? (
+                          <video src={previewUrl} className="w-full h-full object-cover" muted />
+                        ) : (
+                          <img src={previewUrl} className="w-full h-full object-cover" alt="media preview" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditMediaPreviews(prev => prev.filter((_, i) => i !== idx));
+                            setEditFileTypes(prev => prev.filter((_, i) => i !== idx));
+                          }}
+                          className="absolute -top-1.5 -right-1.5 bg-black/75 hover:bg-black rounded-full p-0.5 text-white border border-[var(--border)] transition scale-90"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="w-16 h-16 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[var(--text3)] flex items-center justify-center text-[var(--text3)] hover:text-[var(--text)] transition cursor-pointer"
+                    >
+                      <Plus size={20} />
+                    </button>
+                    <input
+                      type="file"
+                      ref={editFileInputRef}
+                      onChange={handleEditFileChange}
+                      className="hidden"
+                      multiple
+                      accept="image/*,video/*"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Color bg post preview with inline editor */}
+              {editIsTextOnly && editSelectedBgIdx !== null && (
+                <div className="aspect-square bg-black overflow-hidden relative border-b border-[var(--border)]">
+                  <div
+                    className="w-full h-full flex items-center justify-center p-8 text-center text-[19px] font-semibold break-words text-white select-text leading-relaxed relative"
+                    style={{ background: BG_GRADIENTS[editSelectedBgIdx].value }}
+                  >
+                    <textarea
+                      placeholder="Your text will appear here..."
+                      value={editCaption}
+                      onChange={(e) => setEditCaption(e.target.value)}
+                      maxLength={2200}
+                      className="w-full h-full bg-transparent border-none outline-none resize-none text-center text-white placeholder-white/60 font-semibold focus:ring-0 leading-relaxed font-sans flex items-center justify-center pt-20 no-scrollbar"
+                    />
+                  </div>
+                  {/* Gradient pickers */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2.5 z-10 bg-black/40 backdrop-blur-md px-3.5 py-2 rounded-full border border-white/10">
+                    {BG_GRADIENTS.map((g, idx) => (
+                      <button
+                        key={g.name}
+                        type="button"
+                        onClick={() => setEditSelectedBgIdx(idx)}
+                        className={`w-6 h-6 rounded-full border-2 cursor-pointer transition hover:scale-110 active:scale-95 ${
+                          editSelectedBgIdx === idx ? "border-white" : "border-transparent"
+                        }`}
+                        style={{ background: g.value }}
+                        title={g.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Form Input fields */}
+              <div className="p-4.5 flex flex-col gap-4">
+                {!editIsTextOnly && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--text2)]">Caption</label>
+                    <textarea
+                      value={editCaption}
+                      onChange={(e) => setEditCaption(e.target.value)}
+                      placeholder="Write a caption..."
+                      className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-3 text-[13.5px] text-[var(--text)] outline-none resize-y min-h-[80px]"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--text2)]">Location</label>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="Enter location..."
+                    className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-3 text-[13.5px] text-[var(--text)] outline-none"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--text2)]">Privacy</label>
+                  <select
+                    value={editPrivacyType}
+                    onChange={(e) => {
+                      setEditPrivacyType(e.target.value);
+                      if (e.target.value !== "custom") {
+                        setEditPrivacyCustomUser("");
+                      } else if (!editPrivacyCustomUser && users && users.length > 0) {
+                        setEditPrivacyCustomUser(users[0].name);
+                      }
+                    }}
+                    className="bg-[var(--surface2)] border border-[var(--border)] text-[13.5px] text-[var(--text)] rounded-xl p-3 outline-none cursor-pointer"
+                  >
+                    <option value="public">🌍 Public</option>
+                    <option value="followers">👥 Followers</option>
+                    <option value="private">🔒 Private</option>
+                    <option value="custom">👤 Custom User</option>
+                  </select>
+                </div>
+
+                {editPrivacyType === "custom" && users && users.length > 0 && (
+                  <div className="flex flex-col gap-1.5 mt-0.5">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text2)]">Allowed User</label>
+                    <select
+                      value={editPrivacyCustomUser}
+                      onChange={(e) => setEditPrivacyCustomUser(e.target.value)}
+                      className="bg-[var(--surface2)] border border-[var(--border)] text-[13.5px] text-[var(--text)] rounded-xl p-3 outline-none cursor-pointer"
+                    >
+                      {users.map((u) => (
+                        <option key={`edit-custom-user-sel-dialog-${u.id}`} value={u.name}>
+                          {u.name} ({u.full || u.name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
