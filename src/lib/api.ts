@@ -280,6 +280,13 @@ class ApiClient {
     // Invalidate Redis feed cache
     await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
 
+    // Parse mentions and trigger background notifications
+    if (data.caption) {
+      this.parseMentionsAndNotify(data.caption, post.id).catch(err => {
+        console.warn("Failed parsing mentions for post:", post.id, err);
+      });
+    }
+
     return {
       ...post,
       _count: { likes: 0, comments: 0 }
@@ -508,6 +515,11 @@ class ApiClient {
         });
       }
     }
+
+    // Parse mentions and trigger background notifications
+    this.parseMentionsAndNotify(text, Number(postId), comment.id).catch(err => {
+      console.warn("Failed parsing mentions for comment:", comment.id, err);
+    });
 
     // Invalidate Redis feed cache
     await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
@@ -1639,6 +1651,43 @@ class ApiClient {
     return notif;
   }
 
+  async parseMentionsAndNotify(text: string, postId: number, commentId?: number) {
+    if (!text) return;
+    const matches = text.match(/@([a-zA-Z0-9_.]+)/g);
+    if (!matches) return;
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    // Deduplicate usernames
+    const usernames = Array.from(new Set(matches.map(m => m.substring(1).trim().toLowerCase())));
+
+    for (const username of usernames) {
+      try {
+        const { data: targetUser } = await supabase
+          .from('User')
+          .select('id, username')
+          .eq('username', username)
+          .maybeSingle();
+
+        if (targetUser && targetUser.id !== authUser.id) {
+          await supabase.from('Notification').insert({
+            type: 'mention',
+            notifierId: authUser.id,
+            receiverId: targetUser.id,
+            postId: postId,
+            text: commentId 
+              ? `mentioned you in a comment: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`
+              : `mentioned you in a post: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`,
+            unread: true,
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to create mention notification for:", username, err);
+      }
+    }
+  }
+
   async getNotifications() {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return [];
@@ -1768,6 +1817,14 @@ class ApiClient {
       .update(updatePayload)
       .eq('id', postId);
     if (error) throw error;
+
+    // Parse mentions on post edit/update
+    if (data.caption) {
+      this.parseMentionsAndNotify(data.caption, postId).catch(err => {
+        console.warn("Failed parsing mentions for post on update:", postId, err);
+      });
+    }
+
     // Invalidate Redis feed cache
     await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
   }
