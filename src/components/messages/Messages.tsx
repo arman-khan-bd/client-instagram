@@ -221,6 +221,7 @@ export default function Messages() {
     showToast,
     activeChatId,
     setActiveChatId,
+    setActivePostId,
   } = useApp();
 
   const [inputText, setInputText] = useState("");
