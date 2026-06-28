@@ -857,11 +857,13 @@ export default function PostCard({ post }: PostCardProps) {
         return (
           <span
             key={i}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               handleUserClick(cleanName);
             }}
-            className="text-[#FF2E93] font-semibold cursor-pointer hover:underline"
+            className="text-[#3897f0] font-bold cursor-pointer hover:underline"
           >
             {part.substring(1)}
           </span>
@@ -1003,7 +1005,7 @@ export default function PostCard({ post }: PostCardProps) {
                   textShadow: "0 1px 8px rgba(0,0,0,0.3)" 
                 }}
               >
-                {post.originalPost.caption}
+                {formatCaption(post.originalPost.caption)}
               </div>
             ) : (
               <div 
@@ -1078,7 +1080,7 @@ export default function PostCard({ post }: PostCardProps) {
               onPointerCancel={onImagePointerCancel}
               onPointerLeave={onImagePointerCancel}
             >
-              {post.caption}
+              {formatCaption(post.caption)}
             </div>
           ) : (
             <div className={`relative w-full h-full ${isPinching ? 'overflow-visible' : 'overflow-hidden'}`}>

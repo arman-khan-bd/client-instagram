@@ -403,10 +403,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Sync activeTab when pathname changes externally (back/forward)
   useEffect(() => {
     const isProfileUser = pathname.startsWith("/profile/") && pathname !== "/profile";
+    const isOwnProfile = pathname === "/me";
+    const isPublicProfile = pathname.startsWith("/@");
     const isMessagesUser = pathname.startsWith("/messages/") || pathname.startsWith("/message/");
     const tab = pathname.startsWith("/reels/r/") 
       ? "reels" 
-      : isProfileUser 
+      : (isProfileUser || isOwnProfile || isPublicProfile)
         ? "profile" 
         : isMessagesUser
           ? "messages"
@@ -420,8 +422,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("activeReelId", id);
       }
     } else if (isProfileUser) {
+      // Legacy URL redirect: /profile/username -> /@username
       const parts = pathname.split("/");
       const username = decodeURIComponent(parts[parts.length - 1]);
+      router.replace(`/@${username}`);
+    } else if (isOwnProfile) {
+      setViewingUserId(null); // own profile
+    } else if (isPublicProfile) {
+      const username = decodeURIComponent(pathname.substring(2));
       setViewingUserId(username);
     } else if (isMessagesUser) {
       const parts = pathname.split("/");
@@ -433,11 +441,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } else if (pathname === "/profile") {
-      if (currentUser?.name) {
-        router.replace(`/profile/${currentUser.name}`);
-      } else {
-        setViewingUserId(null);
-      }
+      // Legacy URL redirect: /profile -> /me
+      router.replace("/me");
     }
   }, [pathname, currentUser, router]);
 
@@ -449,7 +454,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (tab === "profile") {
       const username = vId || currentUser?.name;
       if (username) {
-        target = `/profile/${username}`;
+        const isSelfUser = !vId || (currentUser && (vId === currentUser.id || vId === currentUser.name || vId.toString().toLowerCase() === currentUser.name.toLowerCase()));
+        target = isSelfUser ? "/me" : `/@${username}`;
+      } else {
+        target = "/me";
       }
     }
     if (pathname !== target && !(tab === "reels" && pathname.startsWith("/reels/r/"))) {

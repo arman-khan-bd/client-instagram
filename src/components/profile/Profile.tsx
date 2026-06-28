@@ -469,11 +469,11 @@ export default function Profile() {
     if (!profileUser) return [];
 
     if (activeTabName === "saved") {
-      return posts.filter((p) => savedPosts.has(p.id));
+      return posts.filter((p: any) => savedPosts.has(p.id));
     }
     if (activeTabName === "photos") {
       return posts.filter(
-        (p) =>
+        (p: any) =>
           !p.isTextOnly && p.img && p.mediaType !== "video" && !p.isReel && !p.videoUrl &&
           (p.user.id === profileUser.id ||
             p.user.id.toString() === profileUser.id.toString() ||
@@ -482,14 +482,14 @@ export default function Profile() {
     }
     if (activeTabName === "tagged") {
       return posts.filter(
-        (p) =>
+        (p: any) =>
           p.caption &&
           p.caption.toLowerCase().includes(`@${profileUser.name.toLowerCase()}`)
       );
     }
     if (activeTabName === "reels") {
       return posts.filter(
-        (p) =>
+        (p: any) =>
           p.isReel &&
           (p.user.id === profileUser.id ||
             p.user.id.toString() === profileUser.id.toString() ||
@@ -498,7 +498,7 @@ export default function Profile() {
     }
     if (activeTabName === "feed") {
       return posts.filter(
-        (p) =>
+        (p: any) =>
           p.user.id === profileUser.id ||
           p.user.id.toString() === profileUser.id.toString() ||
           p.user.name === profileUser.name
@@ -507,7 +507,7 @@ export default function Profile() {
 
     // Default posts
     return posts.filter(
-      (p) =>
+      (p: any) =>
         p.user.id === profileUser.id ||
         p.user.id.toString() === profileUser.id.toString() ||
         p.user.name === profileUser.name
@@ -540,7 +540,7 @@ export default function Profile() {
     if (!profileUser) return [];
     const allUserPosts = dbProfile?.posts 
       ? dbProfile.posts.map(mapDbPostToMockPost) 
-      : posts.filter(p => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
+      : posts.filter((p: any) => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
 
     return allUserPosts.filter(
       (p: any) => !p.isTextOnly && p.img && p.mediaType !== "video" && !p.isReel && !p.videoUrl
@@ -639,8 +639,8 @@ export default function Profile() {
       if (!avatarUrl) return;
       const allUserPosts = dbProfile?.posts 
         ? dbProfile.posts.map(mapDbPostToMockPost) 
-        : posts.filter(p => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
-      const post = allUserPosts.find(p => p.img === avatarUrl || p.imgs?.includes(avatarUrl));
+        : posts.filter((p: any) => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
+      const post = allUserPosts.find((p: any) => p.img === avatarUrl || p.imgs?.includes(avatarUrl));
       if (post) {
         setActivePostId(post.id);
       } else {
@@ -654,8 +654,8 @@ export default function Profile() {
     if (!coverUrl) return;
     const allUserPosts = dbProfile?.posts 
       ? dbProfile.posts.map(mapDbPostToMockPost) 
-      : posts.filter(p => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
-    const post = allUserPosts.find(p => p.img === coverUrl || p.imgs?.includes(coverUrl));
+      : posts.filter((p: any) => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
+    const post = allUserPosts.find((p: any) => p.img === coverUrl || p.imgs?.includes(coverUrl));
     if (post) {
       setActivePostId(post.id);
     } else {
