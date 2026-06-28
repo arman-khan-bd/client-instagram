@@ -361,7 +361,31 @@ export default function EditProfileModal() {
               <div className="bg-[#111] rounded-2xl p-4 border border-[#1e1e1e] space-y-4">
                 <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest">Identity</p>
 
-                <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest">Basic Information</p>
+                <div>
+                  <label className={labelClass}><User size={11} /> Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={inputClass}
+                    placeholder="Full Name"
+                    maxLength={50}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}><AtSign size={11} /> Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className={inputClass}
+                    placeholder="Username"
+                    maxLength={30}
+                  />
+                </div>
+
+                <p className="text-[11px] text-[#555] font-semibold uppercase tracking-widest mt-6">Basic Information</p>
 
                 <div>
                   <label className={labelClass}><Users size={11} /> Gender</label>

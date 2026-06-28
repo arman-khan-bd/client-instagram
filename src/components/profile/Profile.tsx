@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useApp, MockPost, MockUser } from "../AppContext";
-import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List, X } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { Film, Grid, Bookmark, UserSquare, Heart, MessageCircle, Plus, GraduationCap, Briefcase, MapPin, Globe, Home, Star, List, X, Image } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../../lib/api";
 import { VideoThumbnailCard } from "../search/Search";
 import PostCard from "../feed/PostCard";
@@ -141,8 +141,9 @@ export default function Profile() {
     createConversation,
   } = useApp();
 
-  const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged" | "feed">("feed");
+  const [activeTabName, setActiveTabName] = useState<"posts" | "reels" | "saved" | "tagged" | "feed" | "photos">("feed");
   const [dbProfile, setDbProfile] = useState<any>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "feed" >(() => {
@@ -317,6 +318,16 @@ export default function Profile() {
       return;
     }
 
+    // Listen to profile updates to clear cache
+    const handleProfileUpdate = (e: CustomEvent<{ username: string }>) => {
+      const uname = e.detail?.username;
+      if (uname) {
+        delete profileCache[uname];
+        delete profileCache["me"];
+      }
+    };
+    window.addEventListener("profile-updated" as any, handleProfileUpdate);
+
     let active = true;
 
     // Check cache
@@ -357,6 +368,7 @@ export default function Profile() {
 
     return () => {
       active = false;
+      window.removeEventListener("profile-updated" as any, handleProfileUpdate);
     };
   }, [profileUser?.name]);
 
@@ -459,6 +471,15 @@ export default function Profile() {
     if (activeTabName === "saved") {
       return posts.filter((p) => savedPosts.has(p.id));
     }
+    if (activeTabName === "photos") {
+      return posts.filter(
+        (p) =>
+          !p.isTextOnly && p.img && p.mediaType !== "video" && !p.isReel && !p.videoUrl &&
+          (p.user.id === profileUser.id ||
+            p.user.id.toString() === profileUser.id.toString() ||
+            p.user.name === profileUser.name)
+      );
+    }
     if (activeTabName === "tagged") {
       return posts.filter(
         (p) =>
@@ -495,11 +516,14 @@ export default function Profile() {
 
   // Map dbProfile posts or tabPosts fallback
   const profilePostsList = useMemo(() => {
-    if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged" || activeTabName === "feed")) {
+    if (profileUser && dbProfile?.posts && (activeTabName === "posts" || activeTabName === "reels" || activeTabName === "tagged" || activeTabName === "feed" || activeTabName === "photos")) {
       const allMapped = dbProfile.posts.map(mapDbPostToMockPost);
 
       if (activeTabName === "reels") {
         return allMapped.filter((p: any) => p.isReel);
+      }
+      if (activeTabName === "photos") {
+        return allMapped.filter((p: any) => !p.isTextOnly && p.img && p.mediaType !== "video" && !p.isReel && !p.videoUrl);
       }
       if (activeTabName === "tagged") {
         return allMapped.filter((p: any) =>
@@ -513,10 +537,15 @@ export default function Profile() {
   }, [dbProfile, tabPosts, activeTabName, profileUser]);
 
   const uploadedPhotos = useMemo(() => {
-    return profilePostsList.filter(
+    if (!profileUser) return [];
+    const allUserPosts = dbProfile?.posts 
+      ? dbProfile.posts.map(mapDbPostToMockPost) 
+      : posts.filter(p => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
+
+    return allUserPosts.filter(
       (p: any) => !p.isTextOnly && p.img && p.mediaType !== "video" && !p.isReel && !p.videoUrl
     );
-  }, [profilePostsList]);
+  }, [dbProfile, posts, profileUser]);
 
   const totalPages = Math.ceil(uploadedPhotos.length / PHOTOS_PER_PAGE);
   const currentPhotos = useMemo(() => {
@@ -602,175 +631,207 @@ export default function Profile() {
   };
 
   const handleAvatarClick = () => {
-    // If has story, view it
-    const storyIdx = storyGroups.findIndex(g => g.userId === profileUser.id);
+    const storyIdx = storyGroups.findIndex(g => g.userId.toString() === profileUser.id.toString());
     if (storyIdx !== -1) {
       setStoryViewerIndex(storyIdx);
-    } else if (isSelf) {
-      setShowStoryCreate(true);
+    } else {
+      const avatarUrl = dbProfile?.avatarUrl || profileUser.img;
+      if (!avatarUrl) return;
+      const allUserPosts = dbProfile?.posts 
+        ? dbProfile.posts.map(mapDbPostToMockPost) 
+        : posts.filter(p => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
+      const post = allUserPosts.find(p => p.img === avatarUrl || p.imgs?.includes(avatarUrl));
+      if (post) {
+        setActivePostId(post.id);
+      } else {
+        setPreviewImageUrl(avatarUrl);
+      }
+    }
+  };
+
+  const handleCoverClick = () => {
+    const coverUrl = profileUser.coverPhoto || dbProfile?.coverPhoto;
+    if (!coverUrl) return;
+    const allUserPosts = dbProfile?.posts 
+      ? dbProfile.posts.map(mapDbPostToMockPost) 
+      : posts.filter(p => p.user.id === profileUser.id || p.user.id.toString() === profileUser.id.toString() || p.user.name === profileUser.name);
+    const post = allUserPosts.find(p => p.img === coverUrl || p.imgs?.includes(coverUrl));
+    if (post) {
+      setActivePostId(post.id);
+    } else {
+      setPreviewImageUrl(coverUrl);
     }
   };
 
   // Find if user has active story
-  const hasStory = storyGroups.some(g => g.userId === profileUser.id);
+  const hasStory = storyGroups.some(g => g.userId.toString() === profileUser.id.toString());
 
   return (
     <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none">
       <div className="max-w-[900px] mx-auto">
 
         {/* ── Cover Photo ── */}
-        <div className="relative h-[180px] md:h-[240px] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] overflow-hidden">
+        <div 
+          onClick={handleCoverClick}
+          className="relative h-[180px] md:h-[240px] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] overflow-hidden shadow-[inset_0_-20px_30px_-10px_rgba(0,0,0,0.8),0_4px_25px_rgba(0,0,0,0.5)] border-b border-white/5 cursor-pointer group"
+        >
           {profileUser.coverPhoto ? (
             <img
               src={profileUser.coverPhoto}
               alt="Cover"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-all duration-300 group-hover:brightness-95"
             />
           ) : (
             <div className="w-full h-full" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)" }} />
           )}
           {/* Gradient overlay at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
         </div>
 
-        <div className="px-4 pb-8">
-          {/* ── Profile Header ── */}
-          <div className="flex gap-5 items-end mb-5 -mt-10 relative z-10">
-            {/* Avatar */}
-            <div className="relative shrink-0 select-none">
-              <div
-                onClick={handleAvatarClick}
-                className={`w-[90px] h-[90px] md:w-[120px] md:h-[120px] rounded-full p-[3px] cursor-pointer overflow-hidden flex items-center justify-center ${
-                  hasStory
-                    ? "bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
-                    : "bg-[var(--surface2)]"
-                } ring-4 ring-[var(--bg)]`}
-              >
-                <img
-                  src={dbProfile?.avatarUrl || profileUser.img}
-                  className="w-full h-full rounded-full object-cover border-2 border-[var(--bg)]"
-                  alt="Profile"
-                />
-              </div>
-              {isSelf && (
-                <div
-                  onClick={() => setShowStoryCreate(true)}
-                  className="absolute bottom-1 right-1 bg-insta-blue border border-[var(--bg)] hover:bg-insta-blue/90 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs cursor-pointer active:scale-95 transition"
-                  title="Create Day / Story"
-                >
-                  <Plus size={14} />
-                </div>
-              )}
-            </div>
-
-            {/* Name + Actions (desktop) */}
-            <div className="flex-1 flex flex-col min-w-0 pb-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-[22px] font-light truncate drop-shadow-sm">{dbProfile?.username || profileUser.name}</h2>
-                {(dbProfile?.isVerified || profileUser.verified) && (
-                  <span className="verified-badge" title="Verified" />
-                )}
-              </div>
-              <p className="text-[13px] text-[var(--text2)] truncate">{dbProfile?.fullName || profileUser.full}</p>
-            </div>
-          </div>
-
-          {/* ── Actions Row ── */}
-          <div className="flex items-center gap-2.5 flex-wrap mb-5">
-            {isSelf ? (
-              <>
-                <button
-                  onClick={() => setShowEditProfileModal(true)}
-                  className="px-4 py-2 border border-[var(--border)] rounded-lg text-[13px] font-bold hover:bg-[var(--surface2)] transition cursor-pointer"
-                >
-                  Edit profile
-                </button>
-                <button
-                  onClick={() => setShowStoryCreate(true)}
-                  className="px-4 py-2 border border-[var(--border)] rounded-lg text-[13px] font-bold hover:bg-[var(--surface2)] transition cursor-pointer"
-                >
-                  Add Day
-                </button>
-                {!(dbProfile?.isVerified || currentUser?.verified) && (
-                  <button
-                    onClick={handleRequestVerification}
-                    disabled={verificationLoading || (verificationRequest && verificationRequest.status === "pending")}
-                    className={`px-4 py-2 rounded-lg text-[13px] font-bold transition cursor-pointer border ${
-                      verificationRequest?.status === "pending"
-                        ? "border-[var(--border)] text-zinc-500 bg-transparent cursor-not-allowed"
-                        : "border-[#3897f0] bg-[#3897f0] text-white hover:bg-[#3897f0]/80"
-                    }`}
+        <div className="px-4 pb-8 relative z-20 max-w-[860px] mx-auto">
+          {/* Main Card (Glassmorphic unique profile design) */}
+          <div className="-mt-16 md:-mt-20 mb-6 bg-white/[0.03] dark:bg-black/40 backdrop-blur-xl border border-white/[0.08] dark:border-zinc-800/80 rounded-[32px] p-5 md:p-8 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)] transition duration-300">
+            {/* Header section (Avatar + identity details) */}
+            <div className="flex flex-col md:flex-row gap-6 md:items-end justify-between mb-6">
+              <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-end text-center sm:text-left">
+                {/* Avatar with dynamic ring */}
+                <div className="relative shrink-0 select-none">
+                  <div
+                    onClick={handleAvatarClick}
+                    className={`w-[100px] h-[100px] md:w-[130px] md:h-[130px] rounded-full p-[4px] cursor-pointer overflow-hidden flex items-center justify-center ${
+                      hasStory
+                        ? "bg-[linear-gradient(45deg,#f09433,#e6683c,#dc2743,#bc1888)]"
+                        : "bg-gradient-to-tr from-pink-500/80 via-purple-600/80 to-indigo-500/80"
+                    } shadow-lg shadow-black/30 hover:scale-[1.03] active:scale-[0.98] transition duration-300 ring-4 ring-black/40`}
                   >
-                    {verificationLoading
-                      ? "Submitting..."
-                      : verificationRequest?.status === "pending"
-                      ? "Verification Pending"
-                      : verificationRequest?.status === "rejected"
-                      ? "Re-request Verification"
-                      : "Request Verification"}
-                  </button>
+                    <img
+                      src={dbProfile?.avatarUrl || profileUser.img}
+                      className="w-full h-full rounded-full object-cover border-2 border-black/40"
+                      alt="Profile"
+                    />
+                  </div>
+                  {isSelf && (
+                    <div
+                      onClick={() => setShowStoryCreate(true)}
+                      className="absolute bottom-1 right-1 bg-gradient-to-r from-insta-blue to-purple-600 hover:from-insta-blue/90 hover:to-purple-600/90 border border-black/30 text-white w-7 h-7 rounded-full flex items-center justify-center cursor-pointer active:scale-90 transition shadow-lg"
+                      title="Create Day / Story"
+                    >
+                      <Plus size={16} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Identity details */}
+                <div className="flex flex-col min-w-0 pb-1">
+                  <div className="flex items-center justify-center sm:justify-start gap-3 flex-wrap">
+                    <h2 className="text-[24px] font-bold tracking-tight text-white drop-shadow-sm">{dbProfile?.username || profileUser.name}</h2>
+                    {(dbProfile?.isVerified || profileUser.verified) && (
+                      <span className="verified-badge w-[18px] h-[18px]" title="Verified" />
+                    )}
+                  </div>
+                  <p className="text-[14px] text-[var(--text2)] font-medium mt-0.5">{dbProfile?.fullName || profileUser.full}</p>
+                </div>
+              </div>
+
+              {/* Action buttons (Right aligned on desktop, centered on mobile) */}
+              <div className="flex items-center justify-center sm:justify-start gap-2.5 flex-wrap">
+                {isSelf ? (
+                  <>
+                    <button
+                      onClick={() => setShowEditProfileModal(true)}
+                      className="px-5 py-2.5 bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700 hover:from-zinc-700 hover:to-zinc-800 text-white rounded-xl text-[13px] font-bold cursor-pointer transition active:scale-95 shadow-md"
+                    >
+                      Edit Profile
+                    </button>
+                    <button
+                      onClick={() => setShowStoryCreate(true)}
+                      className="px-5 py-2.5 bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700 hover:from-zinc-700 hover:to-zinc-800 text-white rounded-xl text-[13px] font-bold cursor-pointer transition active:scale-95 shadow-md"
+                    >
+                      Add Day
+                    </button>
+                    {!(dbProfile?.isVerified || currentUser?.verified) && (
+                      <button
+                        onClick={handleRequestVerification}
+                        disabled={verificationLoading || (verificationRequest && verificationRequest.status === "pending")}
+                        className={`px-5 py-2.5 rounded-xl text-[13px] font-bold transition cursor-pointer border ${
+                          verificationRequest?.status === "pending"
+                            ? "border-zinc-800 text-zinc-500 bg-transparent cursor-not-allowed"
+                            : "border-[#3897f0] bg-[#3897f0] text-white hover:bg-[#3897f0]/80 shadow-md shadow-insta-blue/20"
+                        }`}
+                      >
+                        {verificationLoading
+                          ? "Submitting..."
+                          : verificationRequest?.status === "pending"
+                          ? "Pending Verify"
+                          : "Verify Profile"}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleFollowToggle}
+                      className={`px-6 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer transition active:scale-95 ${
+                        dbProfile?.isFollowing
+                          ? "bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-white"
+                          : dbProfile?.isRequested
+                            ? "bg-zinc-700 hover:bg-zinc-600 text-white"
+                            : "bg-gradient-to-r from-insta-blue to-purple-600 hover:from-insta-blue/90 hover:to-purple-600/90 text-white shadow-md shadow-insta-blue/15"
+                      }`}
+                    >
+                      {dbProfile?.isFollowing ? "Following" : dbProfile?.isRequested ? "Requested" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
+                    </button>
+                    <button
+                      onClick={handleMessageUser}
+                      className="px-6 py-2.5 bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700 hover:from-zinc-700 hover:to-zinc-800 text-white rounded-xl text-[13px] font-bold cursor-pointer transition active:scale-95 shadow-md"
+                    >
+                      Message
+                    </button>
+                  </>
                 )}
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleFollowToggle}
-                  className={`px-4.5 py-2 rounded-lg text-[13px] font-bold cursor-pointer transition ${
-                    dbProfile?.isFollowing
-                      ? "border border-[var(--border)] hover:bg-[var(--surface2)] text-[var(--text)]"
-                      : dbProfile?.isRequested
-                        ? "bg-zinc-700 hover:bg-zinc-600 text-white"
-                        : "bg-insta-blue hover:bg-insta-blue/90 text-white"
-                  }`}
+              </div>
+            </div>
+
+            {/* Stats bar in a glass widget capsule */}
+            <div className="flex gap-4 sm:gap-6 py-3 px-5 bg-white/[0.02] dark:bg-black/30 backdrop-blur-md border border-white/[0.05] dark:border-zinc-800/80 rounded-2xl w-fit mb-5 shadow-inner">
+              <div className="text-center px-1">
+                <span className="font-extrabold text-[16px] text-white block leading-tight">{dbProfile?.posts?.length ?? tabPosts.length}</span>
+                <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">posts</span>
+              </div>
+              <div className="w-[1px] bg-white/[0.08] dark:bg-zinc-800 self-stretch" />
+              <div onClick={() => handleOpenFollowers("followers")} className="text-center px-1 cursor-pointer hover:opacity-80 transition">
+                <span className="font-extrabold text-[16px] text-white block leading-tight">{dbProfile?._count?.followers ?? profileUser.followers}</span>
+                <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">followers</span>
+              </div>
+              <div className="w-[1px] bg-white/[0.08] dark:bg-zinc-800 self-stretch" />
+              <div onClick={() => handleOpenFollowers("following")} className="text-center px-1 cursor-pointer hover:opacity-80 transition">
+                <span className="font-extrabold text-[16px] text-white block leading-tight">{dbProfile?._count?.following ?? profileUser.following}</span>
+                <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">following</span>
+              </div>
+            </div>
+
+            {/* Bio */}
+            {(dbProfile?.bio || profileUser.bio) && (
+              <div className="text-[14px] leading-relaxed select-text text-zinc-200 mb-4 bg-white/[0.01] border border-white/[0.02] rounded-xl p-3.5">
+                <p className="whitespace-pre-line">{dbProfile?.bio || profileUser.bio}</p>
+              </div>
+            )}
+
+            {/* Website */}
+            {profileUser.web && (
+              <div className="mb-2">
+                <a
+                  href={profileUser.web.startsWith("http") ? profileUser.web : `https://${profileUser.web}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-insta-blue hover:underline font-semibold text-[14px] select-all flex items-center gap-1.5 w-fit"
                 >
-                  {dbProfile?.isFollowing ? "Following" : dbProfile?.isRequested ? "Requested" : dbProfile?.followsMe ? "Follow Back" : "Follow"}
-                </button>
-                <button
-                  onClick={handleMessageUser}
-                  className="px-4.5 py-2 border border-[var(--border)] rounded-lg text-[13px] font-bold hover:bg-[var(--surface2)] transition cursor-pointer"
-                >
-                  Message
-                </button>
-              </>
+                  <Globe size={14} />
+                  {profileUser.web}
+                </a>
+              </div>
             )}
           </div>
-
-          {/* ── Stats Row ── */}
-          <div className="flex gap-7 mb-5 text-[14px]">
-            <div>
-              <span className="font-bold mr-1">{dbProfile?._count?.posts ?? tabPosts.length}</span>
-              <span className="text-[var(--text2)]">posts</span>
-            </div>
-            <div onClick={() => handleOpenFollowers("followers")} className="cursor-pointer hover:opacity-80">
-              <span className="font-bold mr-1">{dbProfile?._count?.followers ?? profileUser.followers}</span>
-              <span className="text-[var(--text2)]">followers</span>
-            </div>
-            <div onClick={() => handleOpenFollowers("following")} className="cursor-pointer hover:opacity-80">
-              <span className="font-bold mr-1">{dbProfile?._count?.following ?? profileUser.following}</span>
-              <span className="text-[var(--text2)]">following</span>
-            </div>
-          </div>
-
-          {/* ── Bio ── */}
-          {(dbProfile?.bio || profileUser.bio) && (
-            <div className="text-[14px] leading-relaxed select-text mb-4">
-              <p className="whitespace-pre-line text-[var(--text)]">{dbProfile?.bio || profileUser.bio}</p>
-            </div>
-          )}
-
-          {/* ── Website ── */}
-          {profileUser.web && (
-            <div className="mb-4">
-              <a
-                href={profileUser.web.startsWith("http") ? profileUser.web : `https://${profileUser.web}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-insta-blue hover:underline font-semibold text-[14px] select-all"
-              >
-                {profileUser.web}
-              </a>
-            </div>
-          )}
 
           {/* ── About / Info Card ── */}
           {(
@@ -782,7 +843,7 @@ export default function Profile() {
             profileUser.hobbies ||
             profileUser.interests
           ) && (
-            <div className="mb-6 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-2.5">
+            <div className="mb-6 bg-white/[0.02] dark:bg-black/30 backdrop-blur-xl border border-white/[0.05] dark:border-zinc-800/80 rounded-2xl p-5 space-y-3.5 shadow-lg">
               <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--text3)] mb-3">About</p>
 
               {profileUser.work && (
@@ -856,7 +917,7 @@ export default function Profile() {
 
           {/* Highlights / Day List */}
           {activeStories.length > 0 && (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[var(--border)]">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar py-4 border-t border-[var(--border)] mb-4">
             {activeStories.map((story, idx) => (
               <div
                 key={`profile-story-${story.id}`}
@@ -929,6 +990,15 @@ export default function Profile() {
           </button>
           
           <button
+            onClick={() => setActiveTabName("photos")}
+            className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
+              activeTabName === "photos" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
+            }`}
+          >
+            <Image size={14} /> Photos
+          </button>
+          
+          <button
             onClick={() => setActiveTabName("reels")}
             className={`flex-1 py-4 text-center cursor-pointer transition flex items-center justify-center gap-1.5 border-t-2 ${
               activeTabName === "reels" ? "border-[var(--text)] text-[var(--text)]" : "border-transparent text-[var(--text3)] hover:text-[var(--text)]"
@@ -962,7 +1032,7 @@ export default function Profile() {
           {activeTabName !== "feed" && (
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-2 mt-4 px-1 select-none">
               <span className="text-[13px] font-bold text-[var(--text2)] uppercase tracking-wider">
-                {activeTabName === "posts" ? "Posts" : activeTabName}
+                {activeTabName === "posts" ? "Posts" : activeTabName === "photos" ? "Photos" : activeTabName}
               </span>
               <div className="flex items-center gap-1 bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)]">
                 <button
@@ -1303,6 +1373,33 @@ export default function Profile() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Lightbox fullscreen preview modal */}
+      <AnimatePresence>
+        {previewImageUrl && (
+          <div 
+            className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4 cursor-pointer"
+            onClick={() => setPreviewImageUrl(null)}
+          >
+            <button
+              className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white cursor-pointer z-[310] border border-white/10 transition"
+              onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(null); }}
+            >
+              <X size={20} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              src={previewImageUrl}
+              className="max-w-full max-h-screen object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              alt="Preview"
+            />
           </div>
         )}
       </AnimatePresence>

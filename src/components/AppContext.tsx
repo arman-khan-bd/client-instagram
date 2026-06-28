@@ -2007,6 +2007,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         email: data.email,
       } as any);
 
+      // If profile picture updated, create a post
+      if (data.avatarUrl && data.avatarUrl !== currentUser.img) {
+        try {
+          await supabase.from('Post').insert({
+            caption: `${currentUser.name} updated their profile picture.`,
+            mediaUrls: [{ url: data.avatarUrl, type: 'image' }],
+            thumbnailUrl: data.avatarUrl,
+            mobileUrl: data.avatarUrl,
+            masterUrl: 'none',
+            userId: currentUser.id,
+            category: 'personal',
+            privacy: 'public',
+            isPrivate: false
+          });
+        } catch (e) {
+          console.warn("Failed to create profile picture post:", e);
+        }
+      }
+
+      // If cover photo updated, create a post
+      if (data.coverPhoto && data.coverPhoto !== currentUser.coverPhoto) {
+        try {
+          await supabase.from('Post').insert({
+            caption: `${currentUser.name} updated their cover photo.`,
+            mediaUrls: [{ url: data.coverPhoto, type: 'image' }],
+            thumbnailUrl: data.coverPhoto,
+            mobileUrl: data.coverPhoto,
+            masterUrl: 'none',
+            userId: currentUser.id,
+            category: 'personal',
+            privacy: 'public',
+            isPrivate: false
+          });
+        } catch (e) {
+          console.warn("Failed to create cover photo post:", e);
+        }
+      }
+
       const updated: AppContextType["currentUser"] = {
         ...currentUser,
         full: data.name,
@@ -2038,6 +2076,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         // Dispatch a custom event so Profile.tsx can bust its module-level cache
         window.dispatchEvent(new CustomEvent("profile-updated", { detail: { username: data.username } }));
       }
+
+      // Invalidate feed cache and refetch
+      await fetch("/api/feed/clear", { method: "POST" }).catch(() => {});
+      await loadFeed(true);
 
       return updated;
     } catch (err: any) {
