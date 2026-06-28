@@ -481,6 +481,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [editFileTypes, setEditFileTypes] = useState<("image" | "video")[]>([]);
   const [editSelectedBgIdx, setEditSelectedBgIdx] = useState<number | null>(null);
   const [editIsSaving, setEditIsSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleOpenEditDialog = () => {
