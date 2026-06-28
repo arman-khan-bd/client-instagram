@@ -901,6 +901,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         full: fresh.fullName || currentUser.full,
         bio: fresh.bio || currentUser.bio,
         img: fresh.avatarUrl || currentUser.img,
+        gender: fresh.gender || currentUser.gender || "",
         education: fresh.education || "",
         work: fresh.work || "",
         city: fresh.city || "",
@@ -1424,7 +1425,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               // Try to load existing profile first (fastest path)
               let { data: dbUser } = await supabase
                 .from('User')
-                .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
+                .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, gender, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
                 .eq('id', session.user.id)
                 .maybeSingle();
 
@@ -1457,7 +1458,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     isVerified: false,
                     role: initialRole,
                   }, { onConflict: 'id' })
-                  .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
+                  .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, gender, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
                   .maybeSingle();
 
                 if (insertErr) {
@@ -1465,7 +1466,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   // Last resort: try to fetch again in case of race condition
                   const { data: retryUser } = await supabase
                     .from('User')
-                    .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
+                    .select('id, username, email, fullName, bio, avatarUrl, isVerified, role, gender, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
                     .eq('id', session.user.id)
                     .maybeSingle();
                   dbUser = retryUser;
@@ -1482,7 +1483,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   full: dbUser.fullName || dbUser.username,
                   bio: dbUser.bio || 'Welcome to AuraGram! ✨',
                   web: dbUser.website || '',
-                  gender: 'Prefer not to say',
+                  gender: dbUser.gender || '',
                   email: dbUser.email || '',
                   role: dbUser.role || 'user',
                   education: dbUser.education || '',
@@ -2046,7 +2047,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         coverPhoto: data.coverPhoto,
         website: data.web,
         email: data.email,
-      } as any);
+        gender: data.gender,
+      });
 
       // If profile picture updated, create a post
       if (data.avatarUrl && data.avatarUrl !== currentUser.img) {

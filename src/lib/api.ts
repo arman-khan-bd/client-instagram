@@ -86,7 +86,7 @@ class ApiClient {
 
     const { data: user, error: dbError } = await supabase
       .from('User')
-      .select('id, username, email, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website')
+      .select('id, username, email, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, gender, private_profile, private_stories, private_reels, private_days, theme')
       .eq('id', authUser.id)
       .single();
 
@@ -662,7 +662,7 @@ class ApiClient {
   async getProfile(username: string) {
     const { data: user, error: userError } = await supabase
       .from('User')
-      .select('id, username, email, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, private_profile, private_stories, private_reels, private_days, theme')
+      .select('id, username, email, fullName, bio, avatarUrl, isVerified, education, work, city, country, hometown, phone, hobbies, interests, coverPhoto, website, gender, private_profile, private_stories, private_reels, private_days, theme')
       .eq('username', username)
       .single();
 
@@ -793,6 +793,56 @@ class ApiClient {
       followsMe,
       isRequested,
     };
+  }
+
+  async updateProfile(data: {
+    fullName?: string;
+    username?: string;
+    bio?: string;
+    website?: string;
+    email?: string;
+    avatarUrl?: string;
+    coverPhoto?: string;
+    gender?: string;
+    education?: string;
+    work?: string;
+    city?: string;
+    country?: string;
+    hometown?: string;
+    phone?: string;
+    hobbies?: string;
+    interests?: string;
+  }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
+
+    const updateData: any = {};
+    if (data.fullName !== undefined) updateData.fullName = data.fullName;
+    if (data.username !== undefined) updateData.username = data.username.trim().toLowerCase();
+    if (data.bio !== undefined) updateData.bio = data.bio;
+    if (data.website !== undefined) updateData.website = data.website;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
+    if (data.coverPhoto !== undefined) updateData.coverPhoto = data.coverPhoto;
+    if (data.gender !== undefined) updateData.gender = data.gender;
+    if (data.education !== undefined) updateData.education = data.education;
+    if (data.work !== undefined) updateData.work = data.work;
+    if (data.city !== undefined) updateData.city = data.city;
+    if (data.country !== undefined) updateData.country = data.country;
+    if (data.hometown !== undefined) updateData.hometown = data.hometown;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.hobbies !== undefined) updateData.hobbies = data.hobbies;
+    if (data.interests !== undefined) updateData.interests = data.interests;
+
+    const { data: updated, error } = await supabase
+      .from('User')
+      .update(updateData)
+      .eq('id', authUser.id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return updated;
   }
 
   async toggleFollow(userId: string) {
