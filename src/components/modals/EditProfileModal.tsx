@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "../AppContext";
 import {
-  User, AtSign, Globe, FileText, Users, GraduationCap, Briefcase,
-  MapPin, Home, Phone, Heart, Star, Image, X, Check, ChevronRight, Camera, Mail
+  User, Globe, FileText, Users, GraduationCap, Briefcase,
+  MapPin, Home, Phone, Heart, Star, Image, X, Check, Camera, Mail
 } from "lucide-react";
 
 type Section = "basic" | "about" | "contact" | "interests";
@@ -46,7 +46,7 @@ const COUNTRIES = [
 export default function EditProfileModal() {
   const { showEditProfileModal, setShowEditProfileModal, currentUser, saveProfileChanges, refetchCurrentUser, showToast } = useApp();
 
-  // Basic
+  // Basic (Non-editable full name and username states kept for context and saving backend)
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -98,11 +98,9 @@ export default function EditProfileModal() {
       setEmail(currentUser.email || "");
       setHobbies(currentUser.hobbies || "");
       setInterests(currentUser.interests || "");
-      // Only reset section on initial open, not on every currentUser update
     }
-  }, [showEditProfileModal]); // Only re-init when modal opens
+  }, [showEditProfileModal]);
 
-  // Sync form when currentUser changes (e.g. after save updates it)
   useEffect(() => {
     if (currentUser && showEditProfileModal) {
       setName(currentUser.full || "");
@@ -124,7 +122,6 @@ export default function EditProfileModal() {
     }
   }, [currentUser]);
 
-  // Clean up timer on unmount
   useEffect(() => {
     return () => {
       if (saveSuccessTimerRef.current) clearTimeout(saveSuccessTimerRef.current);
@@ -187,17 +184,13 @@ export default function EditProfileModal() {
       setIsSaving(true);
       setSaveSuccess(false);
 
-      // Save and get back the updated user object
       await saveProfileChanges({
         name, username, web, bio, gender, avatarUrl, coverPhoto,
         education, work, city, country, hometown, phone, hobbies, interests,
         email,
       });
 
-      // Background refetch to confirm DB data is in sync
       await refetchCurrentUser();
-
-      // Close modal on successful save
       handleClose();
 
     } catch (err) {
@@ -208,202 +201,7 @@ export default function EditProfileModal() {
   };
 
   const inputClass =
-    "w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] focus:ring-1 focus:ring-[#3897f0]/30 transition-all placeholder:text-[#555]";
-  const labelClass = "text-[11px] font-semibold uppercase tracking-widest text-[#666] mb-1.5 flex items-center gap-1.5";
-
-  return (
-    <div
-      onClick={handleClose}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 text-white"
-      style={{ userSelect: "none" }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-2xl w-full max-w-[560px] overflow-hidden shadow-2xl animate-fade-in flex flex-col"
-        style={{ maxHeight: "92vh" }}
-      >
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a] shrink-0">
-          <button
-            onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-[#1a1a1a] hover:bg-[#252525] flex items-center justify-center transition cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-          <h3 className="font-bold text-[15px]">Edit Profile</h3>
-          <button
-            onClick={handleSave}
-            disabled={isSaving || isUploading || isCoverUploading}
-            className={`px-4 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 ${
-              saveSuccess
-                ? "bg-[#22c55e] text-white"
-                : "bg-[#3897f0] hover:bg-[#2d86d9] text-white"
-            }`}
-          >
-            {isSaving ? (
-              <>
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-                Saving...
-              </>
-            ) : saveSuccess ? (
-              <>
-                <Check size={14} />
-                Saved!
-              </>
-            ) : (
-              <>
-                <Check size={14} />
-                Save
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* ── Cover + Avatar ── */}
-        <div className="relative shrink-0">
-          {/* Cover Photo */}
-          <div
-            className="relative h-[130px] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] overflow-hidden group cursor-pointer"
-            onClick={() => !isCoverUploading && coverInputRef.current?.click()}
-          >
-            {coverPhoto && (
-              <img src={coverPhoto} alt="Cover" className="w-full h-full object-cover" />
-            )}
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-              {isCoverUploading ? (
-                <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <div className="flex flex-col items-center gap-1 text-white">
-                  <Camera size={22} />
-                  <span className="text-[11px] font-semibold">Change Cover</span>
-                </div>
-              )}
-            </div>
-            <input
-              type="file"
-              ref={coverInputRef}
-              onChange={handleCoverChange}
-              accept="image/*"
-              className="hidden"
-            />
-          </div>
-
-          {/* Avatar overlay */}
-          <div className="absolute left-5 -bottom-10 z-10">
-            <div
-              className="relative w-[76px] h-[76px] rounded-full border-3 border-[#0a0a0a] overflow-hidden cursor-pointer group"
-              style={{ border: "3px solid #0a0a0a" }}
-              onClick={() => !isUploading && avatarInputRef.current?.click()}
-            >
-              <img
-                src={avatarUrl || "https://i.pravatar.cc/150?img=1"}
-                alt="avatar"
-                className={`w-full h-full object-cover transition ${isUploading ? "blur-[2px] opacity-40" : "group-hover:opacity-75"}`}
-              />
-              
-              {/* Permanent Camera Icon overlay indicator */}
-              <div className="absolute right-1.5 bottom-1.5 bg-black/70 p-1.5 rounded-full border border-zinc-800 text-white z-10 pointer-events-none">
-                <Camera size={12} />
-              </div>
-
-              {/* Uploading loading spinner */}
-              {isUploading && (
-                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1.5">
-                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  <span className="text-[8px] text-white/80 font-bold uppercase tracking-wider">Uploading</span>
-                </div>
-              )}
-
-              {/* Hover overlay indicator when not uploading */}
-              {!isUploading && (
-                <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                  <Camera size={18} className="text-white" />
-                </div>
-              )}
-            </div>
-            <input
-              type="file"
-              ref={avatarInputRef}
-              onChange={handleAvatarChange}
-              accept="image/*"
-              className="hidden"
-            />
-          </div>
-        </div>
-
-        {/* Spacer for avatar overflow */}
-        <div className="h-12 shrink-0" />
-
-        {/* ── Section Nav ── */}
-        <div className="flex gap-1 px-5 pb-3 shrink-0 overflow-x-auto no-scrollbar">
-          {(Object.keys(SECTION_LABELS) as Section[]).map((section) => (
-            <button
-              key={section}
-              onClick={() => setActiveSection(section)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12px] font-semibold whitespace-nowrap transition cursor-pointer ${
-                activeSection === section
-                  ? "bg-[#3897f0] text-white"
-                  : "bg-[#1a1a1a] text-[#888] hover:text-white hover:bg-[#222]"
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setIsUploading(true);
-      showToast("Uploading profile photo... ⚡", "info");
-      const url = await uploadToCloudinary(file, "avatars");
-      setAvatarUrl(url);
-      showToast("Photo uploaded! Click Save to apply.", "success");
-    } catch (err: any) {
-      showToast(err.message || "Upload failed", "info");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setIsCoverUploading(true);
-      showToast("Uploading cover photo... ⚡", "info");
-      const url = await uploadToCloudinary(file, "covers");
-      setCoverPhoto(url);
-      showToast("Cover photo uploaded! Click Save to apply.", "success");
-    } catch (err: any) {
-      showToast(err.message || "Upload failed", "info");
-    } finally {
-      setIsCoverUploading(false);
-    }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsSaving(true);
-      setSaveSuccess(false);
-
-      // Save and get back the updated user object
-      await saveProfileChanges({
-        name, username, web, bio, gender, avatarUrl, coverPhoto,
-        education, work, city, country, hometown, phone, hobbies, interests,
-        email,
-      });
-
-      // Background refetch to confirm DB data is in sync
-      await refetchCurrentUser();
-
-      // Close modal on successful save
-      handleClose();
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const inputClass =
-    "w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] focus:ring-1 focus:ring-[#3897f0]/30 transition-all placeholder:text-[#555]";
+    "w-full bg-[#0a0a0b] border border-zinc-800/80 rounded-xl px-4 py-3 text-[14px] text-white outline-none focus:border-[#3897f0] focus:ring-1 focus:ring-[#3897f0]/30 transition-all placeholder:text-[#555]";
   const labelClass = "text-[11px] font-semibold uppercase tracking-widest text-[#666] mb-1.5 flex items-center gap-1.5";
 
   return (
@@ -464,7 +262,7 @@ export default function EditProfileModal() {
               <button
                 type="button"
                 onClick={() => !isCoverUploading && coverInputRef.current?.click()}
-                className="absolute top-2.5 right-2.5 bg-black/60 hover:bg-black/80 transition text-white p-2 rounded-xl border border-white/10 flex items-center justify-center cursor-pointer"
+                className="absolute top-2.5 right-2.5 bg-black/60 hover:bg-black/85 transition text-white p-2 rounded-xl border border-white/10 flex items-center justify-center cursor-pointer"
                 title="Change Cover Photo"
               >
                 <Camera size={13} />
@@ -675,7 +473,7 @@ export default function EditProfileModal() {
 
             {/* Contact Section */}
             {activeSection === "contact" && (
-              <div className="bg-zinc-900/30 rounded-2xl p-4 border border-zinc-800/60 space-y-4">
+              <div className="bg-zinc-900/30 rounded-2xl p-4 border border-[#1a1a1a] space-y-4">
                 <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest">Contact details</p>
                 <div>
                   <label className={labelClass}><Globe size={11} /> Website link</label>
@@ -705,7 +503,7 @@ export default function EditProfileModal() {
             {/* Interests Section */}
             {activeSection === "interests" && (
               <div className="space-y-5">
-                <div className="bg-zinc-900/30 rounded-2xl p-4 border border-zinc-800/60 space-y-4">
+                <div className="bg-zinc-900/30 rounded-2xl p-4 border border-[#1a1a1a] space-y-4">
                   <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-widest">Personal Passions</p>
                   <div>
                     <label className={labelClass}><Heart size={11} /> Hobbies</label>
