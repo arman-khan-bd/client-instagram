@@ -339,6 +339,41 @@ export default function Reels() {
     });
   }, [reelsList, currentUser?.id]);
 
+  // Prevent scroll in reels page when reaction picker is showing on mobile screen
+  useEffect(() => {
+    if (showPickerForReelId !== null) {
+      const preventDefault = (e: TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
+      };
+
+      window.addEventListener("touchmove", preventDefault, { passive: false });
+
+      const originalBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+
+      const container = containerRef.current;
+      const originalContainerOverflowY = container ? container.style.overflowY || "" : "";
+      const originalContainerOverflow = container ? container.style.overflow || "" : "";
+      
+      if (container) {
+        container.style.setProperty("overflow-y", "hidden", "important");
+        container.style.setProperty("overflow", "hidden", "important");
+      }
+
+      return () => {
+        window.removeEventListener("touchmove", preventDefault);
+        document.body.style.overflow = originalBodyOverflow;
+        if (container) {
+          if (originalContainerOverflowY) container.style.overflowY = originalContainerOverflowY;
+          else container.style.removeProperty("overflow-y");
+          
+          if (originalContainerOverflow) container.style.overflow = originalContainerOverflow;
+          else container.style.removeProperty("overflow");
+        }
+      };
+    }
+  }, [showPickerForReelId]);
+
   // Handle active video autoplay when in view
   useEffect(() => {
     const observerOptions = {
@@ -846,6 +881,7 @@ export default function Reels() {
                       e.preventDefault();
                       setShowPickerForReelId(post.id);
                     }}
+                    style={{ touchAction: "none" }}
                     className={`flex flex-col items-center gap-1 cursor-pointer hover:scale-110 active:scale-90 transition ${
                       activeReaction ? "text-red-500" : "text-white"
                     }`}

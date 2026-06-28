@@ -30,6 +30,9 @@ export async function GET(request: Request) {
           mobileUrl, 
           mediaUrls, 
           caption,
+          isPrivate,
+          privacy,
+          privacyCustomUser,
           likesCount:Like(count),
           commentsCount:Comment(count)
         `)
@@ -48,6 +51,9 @@ export async function GET(request: Request) {
         mobileUrl: p.mobileUrl,
         mediaUrls: p.mediaUrls,
         caption: p.caption,
+        isPrivate: p.isPrivate,
+        privacy: p.privacy,
+        privacyCustomUser: p.privacyCustomUser,
         _count: {
           likes: likesCount,
           comments: commentsCount,

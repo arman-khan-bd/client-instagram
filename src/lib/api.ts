@@ -689,6 +689,8 @@ class ApiClient {
           mediaUrls, 
           caption,
           isPrivate,
+          privacy,
+          privacyCustomUser,
           location,
           createdAt,
           likesCount:Like(count),
@@ -742,27 +744,42 @@ class ApiClient {
     const isSelf = authUser?.id === user.id;
     const shouldHideContent = user.private_profile && !isSelf && !isFollowing;
 
-    const postsWithCounts = shouldHideContent ? [] : posts.map((p: any) => {
-      const likesCount = p.likesCount?.[0]?.count ?? 0;
-      const commentsCount = p.commentsCount?.[0]?.count ?? 0;
-      return {
-        id: p.id,
-        thumbnailUrl: p.thumbnailUrl,
-        mobileUrl: p.mobileUrl,
-        mediaUrls: p.mediaUrls,
-        caption: p.caption,
-        isPrivate: p.isPrivate,
-        location: p.location,
-        createdAt: p.createdAt,
-        originalPostId: p.originalPostId,
-        originalPost: p.originalPost,
-        user: p.user,
-        _count: {
-          likes: likesCount,
-          comments: commentsCount,
+    const postsWithCounts = shouldHideContent ? [] : posts
+      .filter((p: any) => {
+        const postPrivacy = p.privacy || (p.isPrivate ? 'private' : 'public');
+        if (postPrivacy === 'public') return true;
+        if (isSelf) return true;
+        if (postPrivacy === 'private') return false;
+        if (postPrivacy === 'followers') return isFollowing;
+        if (postPrivacy === 'custom') {
+          const currentUsername = authUser?.user_metadata?.username || authUser?.email?.split('@')[0];
+          return currentUsername && p.privacyCustomUser && currentUsername.toLowerCase() === p.privacyCustomUser.toLowerCase();
         }
-      };
-    });
+        return true;
+      })
+      .map((p: any) => {
+        const likesCount = p.likesCount?.[0]?.count ?? 0;
+        const commentsCount = p.commentsCount?.[0]?.count ?? 0;
+        return {
+          id: p.id,
+          thumbnailUrl: p.thumbnailUrl,
+          mobileUrl: p.mobileUrl,
+          mediaUrls: p.mediaUrls,
+          caption: p.caption,
+          isPrivate: p.isPrivate,
+          privacy: p.privacy,
+          privacyCustomUser: p.privacyCustomUser,
+          location: p.location,
+          createdAt: p.createdAt,
+          originalPostId: p.originalPostId,
+          originalPost: p.originalPost,
+          user: p.user,
+          _count: {
+            likes: likesCount,
+            comments: commentsCount,
+          }
+        };
+      });
 
     return {
       ...user,

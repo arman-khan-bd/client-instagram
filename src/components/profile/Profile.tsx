@@ -79,6 +79,9 @@ const mapDbPostToMockPost = (p: any): MockPost => {
     mediaType: isTextOnly ? "text" : (isVideo ? "video" : "image"),
     isAdult: p.isAdult || false,
     isAdultUnmarked: p.isAdultUnmarked || false,
+    isPrivate: p.isPrivate || false,
+    privacy: p.privacy,
+    privacyCustomUser: p.privacyCustomUser,
     originalPostId: p.originalPostId,
     originalPost: isShared ? (() => {
       const origIsTextOnly = typeof rawOriginalPost.thumbnailUrl === "string" && (rawOriginalPost.thumbnailUrl.startsWith("linear-gradient") || rawOriginalPost.thumbnailUrl.startsWith("radial-gradient"));
@@ -510,7 +513,9 @@ export default function Profile() {
   }, [dbProfile, tabPosts, activeTabName, profileUser]);
 
   const uploadedPhotos = useMemo(() => {
-    return profilePostsList.filter((p: any) => !p.isTextOnly && p.img);
+    return profilePostsList.filter(
+      (p: any) => !p.isTextOnly && p.img && p.mediaType !== "video" && !p.isReel && !p.videoUrl
+    );
   }, [profilePostsList]);
 
   const totalPages = Math.ceil(uploadedPhotos.length / PHOTOS_PER_PAGE);

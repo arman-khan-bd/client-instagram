@@ -631,6 +631,49 @@ export default function PostCard({ post }: PostCardProps) {
     }).catch(() => {});
   }, [post.id, currentUser?.id]);
 
+  // Prevent page scroll when reaction pickers are visible on mobile screen
+  useEffect(() => {
+    if (showHoverPicker || showLongPicker) {
+      const preventDefault = (e: TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
+      };
+
+      // Add a non-passive listener to block scrolling gestures at window level
+      window.addEventListener("touchmove", preventDefault, { passive: false });
+
+      // Add overflow hidden to body to prevent scrollbars and page scrolling
+      const originalBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+
+      // Prevent scroll on parent elements with scroll containers (e.g., in feed layout)
+      const scrollContainers = document.querySelectorAll(".overflow-y-auto");
+      const originalOverflows: { el: HTMLElement; overflowY: string; overflow: string }[] = [];
+      
+      scrollContainers.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        originalOverflows.push({
+          el: htmlEl,
+          overflowY: htmlEl.style.overflowY || "",
+          overflow: htmlEl.style.overflow || ""
+        });
+        htmlEl.style.setProperty("overflow-y", "hidden", "important");
+        htmlEl.style.setProperty("overflow", "hidden", "important");
+      });
+
+      return () => {
+        window.removeEventListener("touchmove", preventDefault);
+        document.body.style.overflow = originalBodyOverflow;
+        originalOverflows.forEach(({ el, overflowY, overflow }) => {
+          if (overflowY) el.style.overflowY = overflowY;
+          else el.style.removeProperty("overflow-y");
+          
+          if (overflow) el.style.overflow = overflow;
+          else el.style.removeProperty("overflow");
+        });
+      };
+    }
+  }, [showHoverPicker, showLongPicker]);
+
   // ── Commit a reaction ──────────────────────────────────────────────────────
   const commitReaction = useCallback((type: string) => {
     setShowHoverPicker(false);
@@ -711,6 +754,9 @@ export default function PostCard({ post }: PostCardProps) {
         clearTimeout(likeTouchStartTimer.current);
       }
       return;
+    }
+    if (e.cancelable) {
+      e.preventDefault();
     }
     const touch = e.touches[0];
     const element = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -1204,7 +1250,7 @@ export default function PostCard({ post }: PostCardProps) {
             onTouchMove={handleLikeTouchMove}
             onTouchEnd={handleLikeTouchEnd}
             className="cursor-pointer transition hover:scale-105 active:scale-95 flex items-center gap-1"
-            style={{ color: reactionInfo?.color }}
+            style={{ touchAction: "none", color: reactionInfo?.color }}
           >
             {currentReaction ? (
               <span className="text-[22px] leading-none">{reactionInfo?.emoji}</span>
