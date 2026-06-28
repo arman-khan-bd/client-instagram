@@ -363,14 +363,14 @@ export default function StoryCreateModal() {
                   autoPlay
                   loop
                   style={activeFilter.style}
-                  className="w-full h-full object-cover pointer-events-none"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
               ) : (
                 <img
                   src={previewUrl}
                   alt="Story preview"
                   style={activeFilter.style}
-                  className="w-full h-full object-cover pointer-events-none"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
               )}
 

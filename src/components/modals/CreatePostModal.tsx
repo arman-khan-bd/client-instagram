@@ -256,8 +256,32 @@ export default function CreatePostModal() {
           continue;
         }
       }
+
+      // NSFW Adult Content Safety Scan
+      setIsScanning(true);
+      setScanningUrls([item.url]);
+      try {
+        const scan = await scanFileForAdultContent(item.file);
+        if (scan.isAdult) {
+          showToast(
+            `⚠️ Adult content detected in "${item.file.name}" (${(scan.probability * 100).toFixed(1)}%). Upload blocked. Uploading adult content will result in an automatic account ban.`,
+            "info"
+          );
+          alert(`WARNING: Nude or adult content detected!\n\nThe file "${item.file.name}" was rejected.\nIf you attempt to upload adult content, your account will be banned automatically.`);
+          URL.revokeObjectURL(item.url);
+          continue;
+        }
+      } catch (scanErr) {
+        console.warn("NSFW scan failed for file:", item.file.name, scanErr);
+        // Allow file on scan failure to avoid blocking users unnecessarily
+      } finally {
+        setIsScanning(false);
+        setScanningUrls([]);
+      }
+
       finalFilesToAdd.push(item);
     }
+
 
     if (finalFilesToAdd.length > 0) {
       const urls = finalFilesToAdd.map((f) => f.url);
@@ -508,6 +532,22 @@ export default function CreatePostModal() {
 
         {/* Content Body */}
         <div className="flex flex-col">
+
+          {isScanning && imagePreviews.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-4 text-center px-6 border-b border-[#222]">
+              <div className="w-14 h-14 border-4 border-t-insta-blue border-white/20 rounded-full animate-spin" />
+              <div>
+                <h4 className="text-[15px] font-bold text-white mb-1">Running Safety Scanner</h4>
+                <p className="text-[12px] text-gray-400 max-w-[260px] leading-relaxed">
+                  Checking your file for adult or unsafe content. Please wait…
+                </p>
+                <p className="text-[10px] text-[#ff4a4a] mt-3 font-semibold max-w-[240px] mx-auto">
+                  ⚠️ WARNING: Uploading adult or nude content will result in an automatic account ban.
+                </p>
+              </div>
+            </div>
+          )}
+
           {imagePreviews.length > 0 || isTextOnlyPost ? (
             <form onSubmit={handleShare} className="flex flex-col">
               {/* Media Preview Container */}

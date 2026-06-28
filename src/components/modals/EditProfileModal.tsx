@@ -6,6 +6,7 @@ import {
   User, Globe, FileText, Users, GraduationCap, Briefcase,
   MapPin, Home, Phone, Heart, Star, Image, X, Check, Camera, Mail
 } from "lucide-react";
+import { scanFileForAdultContent } from "../../lib/nsfwDetector";
 
 type Section = "basic" | "about" | "contact" | "interests";
 
@@ -149,6 +150,19 @@ export default function EditProfileModal() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // NSFW Adult Content Safety Scan
+    try {
+      showToast("🔍 Running safety scan...", "info");
+      const scan = await scanFileForAdultContent(file);
+      if (scan.isAdult) {
+        showToast(`⚠️ Adult content detected (${(scan.probability * 100).toFixed(1)}%). Upload blocked.`, "info");
+        alert(`WARNING: Nude or adult content detected!\n\nThis photo was rejected. If you attempt to upload adult content, your account will be banned automatically.`);
+        e.target.value = "";
+        return;
+      }
+    } catch (scanErr) {
+      console.warn("NSFW scan failed for avatar:", scanErr);
+    }
     try {
       setIsUploading(true);
       showToast("Uploading profile photo... ⚡", "info");
@@ -165,6 +179,19 @@ export default function EditProfileModal() {
   const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // NSFW Adult Content Safety Scan
+    try {
+      showToast("🔍 Running safety scan...", "info");
+      const scan = await scanFileForAdultContent(file);
+      if (scan.isAdult) {
+        showToast(`⚠️ Adult content detected (${(scan.probability * 100).toFixed(1)}%). Upload blocked.`, "info");
+        alert(`WARNING: Nude or adult content detected!\n\nThis cover photo was rejected. If you attempt to upload adult content, your account will be banned automatically.`);
+        e.target.value = "";
+        return;
+      }
+    } catch (scanErr) {
+      console.warn("NSFW scan failed for cover:", scanErr);
+    }
     try {
       setIsCoverUploading(true);
       showToast("Uploading cover photo... ⚡", "info");
