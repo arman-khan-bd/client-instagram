@@ -493,7 +493,7 @@ export default function PostCard({ post }: PostCardProps) {
     setEditSelectedFiles([]);
     setEditMediaPreviews(post.imgs && post.imgs.length > 0 ? post.imgs : (post.img ? [post.img] : []));
     setEditFileTypes(
-      post.mediaType === "video" ? ["video" as const] : (post.imgs && post.imgs.length > 0 ? post.imgs.map((u: any) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/") ? "video" as const : "image" as const) : (post.img ? [post.mediaType === "video" ? "video" as const : "image" as const] : []))
+      (post.mediaType as any) === "video" ? ["video" as const] : (post.imgs && post.imgs.length > 0 ? post.imgs.map((u: any) => u.match(/\.(mp4|mov|webm)/i) || u.includes("/video/upload/") ? "video" as const : "image" as const) : (post.img ? [(post.mediaType as any) === "video" ? "video" as const : "image" as const] : []))
     );
     setEditSelectedBgIdx(
       post.isTextOnly ? BG_GRADIENTS.findIndex(g => g.value === post.bgGradient) : null
