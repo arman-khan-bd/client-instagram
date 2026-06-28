@@ -12,6 +12,9 @@ interface SuggestedUser {
   isVerified: boolean;
 }
 
+// Module-level cache to persist suggestions across routing and prevent refetching
+let suggestionsCache: SuggestedUser[] | null = null;
+
 export default function RightSidebar() {
   const {
     currentUser,
@@ -22,15 +25,29 @@ export default function RightSidebar() {
     showToast,
   } = useApp();
 
-  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>(() => {
+    return suggestionsCache || [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !suggestionsCache;
+  });
 
   useEffect(() => {
+    if (suggestionsCache) {
+      return;
+    }
+    
     api.getSuggestedUsers(5)
       .then((data: any) => {
-        setSuggestedUsers(data || []);
+        const list = data || [];
+        suggestionsCache = list;
+        setSuggestedUsers(list);
       })
       .catch((err) => {
         console.error("Failed to load suggestions:", err);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -86,41 +103,54 @@ export default function RightSidebar() {
 
       {/* Suggested Users List */}
       <div className="flex flex-col gap-3.5 mb-6">
-        {suggestedUsers.map((u) => {
-          const isFollowing = !!followStates[u.id];
-          return (
-            <div key={u.id} className="flex items-center gap-2.5">
-              <img
-                src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
-                className="w-[38px] h-[38px] rounded-full object-cover cursor-pointer border border-[var(--border)]"
-                alt={u.username}
-                onClick={() => handleUserClick(u.username)}
-              />
-              <div className="flex-1 min-w-0">
-                <div
-                  onClick={() => handleUserClick(u.username)}
-                  className="text-[13px] font-semibold cursor-pointer hover:underline truncate flex items-center gap-1"
-                >
-                  {u.username}
-                  {u.isVerified && <span className="verified-badge" title="Verified" />}
-                </div>
-                <div className="text-[11px] text-[var(--text2)] truncate">
-                  {u.fullName || u.username}
-                </div>
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={`sug-skel-${i}`} className="flex items-center gap-2.5 animate-pulse">
+              <div className="w-[38px] h-[38px] rounded-full bg-[var(--surface2)] shrink-0" />
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                <div className="h-3.5 w-24 bg-[var(--surface2)] rounded-md" />
+                <div className="h-3 w-16 bg-[var(--surface2)] rounded-md" />
               </div>
-              {currentUser && String(currentUser.id) !== String(u.id) && u.username !== currentUser.name && (
-                <button
-                  onClick={() => toggleFollow(u.id)}
-                  className={`text-[12px] font-bold cursor-pointer transition ${
-                    isFollowing ? "text-[var(--text2)] hover:text-[var(--text)]" : "text-[#3897f0] hover:text-[var(--text)]"
-                  }`}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </button>
-              )}
+              <div className="h-4 w-10 bg-[var(--surface2)] rounded-md" />
             </div>
-          );
-        })}
+          ))
+        ) : (
+          suggestedUsers.map((u) => {
+            const isFollowing = !!followStates[u.id];
+            return (
+              <div key={u.id} className="flex items-center gap-2.5">
+                <img
+                  src={u.avatarUrl || `https://i.pravatar.cc/150?u=${u.id}`}
+                  className="w-[38px] h-[38px] rounded-full object-cover cursor-pointer border border-[var(--border)]"
+                  alt={u.username}
+                  onClick={() => handleUserClick(u.username)}
+                />
+                <div className="flex-1 min-w-0">
+                  <div
+                    onClick={() => handleUserClick(u.username)}
+                    className="text-[13px] font-semibold cursor-pointer hover:underline truncate flex items-center gap-1"
+                  >
+                    {u.username}
+                    {u.isVerified && <span className="verified-badge" title="Verified" />}
+                  </div>
+                  <div className="text-[11px] text-[var(--text2)] truncate">
+                    {u.fullName || u.username}
+                  </div>
+                </div>
+                {currentUser && String(currentUser.id) !== String(u.id) && u.username !== currentUser.name && (
+                  <button
+                    onClick={() => toggleFollow(u.id)}
+                    className={`text-[12px] font-bold cursor-pointer transition ${
+                      isFollowing ? "text-[var(--text2)] hover:text-[var(--text)]" : "text-[#3897f0] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {isFollowing ? "Following" : "Follow"}
+                  </button>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Footer */}
