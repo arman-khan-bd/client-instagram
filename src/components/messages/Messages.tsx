@@ -6,10 +6,203 @@ import { api } from "../../lib/api";
 import { 
   Phone, Video, Info, Camera, Image as ImageIcon, Mic, Smile, 
   Trash2, Edit2, Reply, X, PlusCircle, CheckCircle, Send, MoreVertical, ShieldAlert,
-  Timer
+  Timer, Play, ExternalLink, Link2, User
 } from "lucide-react";
 
 import { motion } from "framer-motion";
+
+// Link preview component for rich rendering of profiles, posts, reels, and general links
+function MessageLinkPreview({ text, handleUserClick, setActivePostId }: { text: string; handleUserClick: (name: string) => void; setActivePostId: (id: number) => void }) {
+  const [previewData, setPreviewData] = useState<{
+    type: "profile" | "post" | "reel" | "general";
+    title: string;
+    description: string;
+    imageUrl?: string;
+    videoUrl?: string;
+    targetId?: string | number;
+    url: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!text) return;
+    
+    // Check if the text contains a URL matching our site patterns or general URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+    const match = text.match(urlRegex);
+    if (!match) return;
+
+    const url = match[0];
+    setLoading(true);
+
+    try {
+      const urlObj = new URL(url);
+      const path = urlObj.pathname;
+
+      // Profile pattern: /@username
+      if (path.startsWith("/@")) {
+        const username = decodeURIComponent(path.substring(2));
+        api.getProfile(username).then((profile) => {
+          if (profile) {
+            setPreviewData({
+              type: "profile",
+              title: `@${profile.username}`,
+              description: profile.fullName || "AuraGram User Profile",
+              imageUrl: profile.avatarUrl || undefined,
+              targetId: profile.username,
+              url,
+            });
+          }
+        }).catch(() => {}).finally(() => setLoading(false));
+        return;
+      }
+
+      // Own profile: /me
+      if (path === "/me") {
+        api.getMe().then((me) => {
+          if (me) {
+            setPreviewData({
+              type: "profile",
+              title: `@${me.username} (You)`,
+              description: me.fullName || "AuraGram User Profile",
+              imageUrl: me.avatarUrl || undefined,
+              targetId: me.username,
+              url,
+            });
+          }
+        }).catch(() => {}).finally(() => setLoading(false));
+        return;
+      }
+
+      // Reels pattern: /reels/r/[id]
+      if (path.startsWith("/reels/r/")) {
+        const parts = path.split("/");
+        const id = parts[parts.length - 1];
+        if (id) {
+          api.getPost(id).then((post) => {
+            if (post) {
+              const mediaList = Array.isArray(post.mediaUrls) ? post.mediaUrls : [];
+              const mediaUrl = mediaList[0]?.url || post.thumbnailUrl || "";
+              setPreviewData({
+                type: "reel",
+                title: `Reel by @${post.user?.username || "creator"}`,
+                description: post.caption || "Watch this video on AuraGram",
+                imageUrl: post.thumbnailUrl || undefined,
+                videoUrl: mediaUrl.match(/\.(mp4|mov|webm)/i) ? mediaUrl : undefined,
+                targetId: post.id,
+                url,
+              });
+            }
+          }).catch(() => {}).finally(() => setLoading(false));
+          return;
+        }
+      }
+
+      // Posts pattern: /profile/posts (or query parameter post=[id])
+      const postParam = urlObj.searchParams.get("post");
+      if (postParam) {
+        api.getPost(postParam).then((post) => {
+          if (post) {
+            const mediaList = Array.isArray(post.mediaUrls) ? post.mediaUrls : [];
+            const mediaUrl = mediaList[0]?.url || post.thumbnailUrl || "";
+            const isVideo = mediaUrl.match(/\.(mp4|mov|webm)/i) || post.mediaType === "video";
+            setPreviewData({
+              type: "post",
+              title: `Post by @${post.user?.username || "user"}`,
+              description: post.caption || "View photo/video post on AuraGram",
+              imageUrl: post.thumbnailUrl || mediaUrl || undefined,
+              videoUrl: isVideo ? mediaUrl : undefined,
+              targetId: post.id,
+              url,
+            });
+          }
+        }).catch(() => {}).finally(() => setLoading(false));
+        return;
+      }
+
+      // Fallback for general links
+      setPreviewData({
+        type: "general",
+        title: urlObj.hostname,
+        description: url,
+        url,
+      });
+      setLoading(false);
+    } catch (e) {
+      setLoading(false);
+    }
+  }, [text]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-1 w-56 p-2 rounded-xl bg-black/20 animate-pulse border border-white/5 mt-1.5">
+        <div className="h-28 bg-white/5 rounded-lg w-full" />
+        <div className="h-4 bg-white/5 rounded w-3/4 mt-1" />
+        <div className="h-3 bg-white/5 rounded w-1/2" />
+      </div>
+    );
+  }
+
+  if (!previewData) {
+    return <span>{text}</span>;
+  }
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (previewData.type === "profile" && previewData.targetId) {
+      handleUserClick(String(previewData.targetId));
+    } else if ((previewData.type === "post" || previewData.type === "reel") && previewData.targetId) {
+      setActivePostId(Number(previewData.targetId));
+    } else {
+      window.open(previewData.url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="break-all underline text-sky-400 hover:text-sky-300 cursor-pointer block text-xs mb-1.5" onClick={() => window.open(previewData.url, "_blank", "noopener,noreferrer")}>
+        {text}
+      </span>
+      <div 
+        onClick={handleCardClick}
+        className="w-60 overflow-hidden rounded-xl bg-black/45 hover:bg-black/60 border border-white/10 flex flex-col cursor-pointer transition active:scale-[0.98] select-none text-[var(--text)]"
+      >
+        {previewData.imageUrl && (
+          <div className="relative w-full h-32 bg-zinc-950 flex items-center justify-center overflow-hidden border-b border-white/5">
+            {previewData.videoUrl ? (
+              <div className="relative w-full h-full">
+                <video src={previewData.videoUrl} className="w-full h-full object-cover brightness-[0.8]" muted playsInline />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <span className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white border border-white/15">
+                    <Play size={14} fill="currentColor" className="ml-0.5" />
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <img src={previewData.imageUrl} alt={previewData.title} className="w-full h-full object-cover" />
+            )}
+          </div>
+        )}
+        <div className="p-3 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            {previewData.type === "profile" ? (
+              <User size={13} className="text-pink-500" />
+            ) : previewData.type === "reel" ? (
+              <Play size={13} className="text-emerald-500 animate-pulse" />
+            ) : (
+              <Link2 size={13} className="text-sky-400" />
+            )}
+            <span className="text-[12px] font-bold truncate text-white">{previewData.title}</span>
+          </div>
+          <p className="text-[11px] text-[var(--text2)] line-clamp-2 leading-relaxed">
+            {previewData.description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Messages() {
   const {
@@ -637,6 +830,15 @@ export default function Messages() {
                                   className="max-w-[240px] max-h-[300px] object-cover rounded-lg border border-[var(--border)]"
                                 />
                               )
+                            ) : msg.text && (msg.text.includes("http://") || msg.text.includes("https://")) ? (
+                              <MessageLinkPreview 
+                                text={msg.text} 
+                                handleUserClick={(username) => {
+                                  setViewingUserId(username);
+                                  setActiveTab("profile", username);
+                                }} 
+                                setActivePostId={setActivePostId} 
+                              />
                             ) : (
                               msg.text
                             )}
