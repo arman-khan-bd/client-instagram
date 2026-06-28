@@ -488,9 +488,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Helper to close modal history (go back if current state is this modal)
   const closeModalHistory = (modalName: string) => {
     if (typeof window === "undefined") return;
-    if (window.history.state && window.history.state.modal === modalName) {
-      window.history.back();
+    const url = new URL(window.location.href);
+    let keyToRemove = "";
+    if (modalName === "edit-profile") keyToRemove = "edit-profile";
+    else if (modalName === "create-post") keyToRemove = "create-post";
+    else if (modalName === "story-create") keyToRemove = "story-create";
+    else if (modalName === "story") keyToRemove = "story";
+    else if (modalName === "post") keyToRemove = "post";
+    else if (modalName === "share") keyToRemove = "share";
+    else if (modalName === "report") keyToRemove = "report";
+    else if (modalName === "followers") {
+      url.searchParams.delete("followers");
+      url.searchParams.delete("following");
     }
+
+    if (keyToRemove) {
+      url.searchParams.delete(keyToRemove);
+    }
+
+    window.history.replaceState(window.history.state, "", url.pathname + url.search);
   };
 
   // Share dialog
