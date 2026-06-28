@@ -55,10 +55,9 @@ export default function Settings() {
     return forbiddenPatterns.some(pattern => pattern.test(text));
   };
 
-  // Emojis & non-keyboard symbols validation helper
-  const hasEmojisOrSymbols = (text: string): boolean => {
-    // Matches emojis, custom symbols, and non-keyboard character sets outside printable ASCII + general letters
-    const emojiRegex = /[\uD800-\uDFFF\u2600-\u27BF\u1F300-\u1F9FF]/;
+  // Emojis validation helper (blocks only standard/extended emojis, allowing native language symbols/punctuation)
+  const hasEmojis = (text: string): boolean => {
+    const emojiRegex = /[\uD800-\uDFFF\u2600-\u27BF\u1F300-\u1F9FF\u1F000-\u1F9FF\u2600-\u26FF\u2700-\u27BF]/;
     return emojiRegex.test(text);
   };
 
@@ -67,7 +66,7 @@ export default function Settings() {
     if (!uname) return { valid: false, error: "Username cannot be empty" };
     if (uname.length < 3) return { valid: false, error: "Username must be at least 3 characters" };
     
-    // Check characters
+    // Check characters: a-z, numbers, dash, underscore
     const usernameRegex = /^[a-z0-9_-]+$/;
     if (!usernameRegex.test(uname)) {
       return { valid: false, error: "Only lowercase letters (a-z), numbers, dash (-), and underscore (_) are allowed" };
@@ -77,29 +76,19 @@ export default function Settings() {
       return { valid: false, error: "Username contains forbidden religious or adult terms" };
     }
 
-    if (hasEmojisOrSymbols(uname)) {
-      return { valid: false, error: "Username cannot contain emojis or special symbols" };
-    }
-
     return { valid: true, error: "" };
   };
 
-  // Full Name validation: can use any alphabet/number without keyboard symbols
+  // Full Name validation: can use any alphabet (Bangla, Japanese, Russian, etc.) and keyboard symbols but no emojis
   const validateFullNameText = (name: string): { valid: boolean; error: string } => {
     if (!name) return { valid: false, error: "Full Name cannot be empty" };
     
-    // Any alphabet without keyboard symbols (only spaces, letters of any language, numbers)
-    const nameRegex = /^[A-Za-z0-9\s\u00C0-\u00FF\u0100-\u017F\u0180-\u024F\u0400-\u04FF\u0900-\u097F]+$/;
-    if (!nameRegex.test(name)) {
-      return { valid: false, error: "Full Name must not contain keyboard symbols, punctuation or emojis" };
+    if (hasEmojis(name)) {
+      return { valid: false, error: "Full Name cannot contain emojis" };
     }
 
     if (isForbiddenText(name)) {
       return { valid: false, error: "Full Name contains forbidden religious or adult terms" };
-    }
-
-    if (hasEmojisOrSymbols(name)) {
-      return { valid: false, error: "Full Name cannot contain emojis or special symbols" };
     }
 
     return { valid: true, error: "" };
