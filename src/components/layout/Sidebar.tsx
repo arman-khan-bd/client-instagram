@@ -183,13 +183,7 @@ export default function Sidebar() {
           <SettingsIcon size={22} className="min-w-[22px]" />
           <span className="hidden lg:inline text-[15px]">Settings</span>
         </button>
-        <button
-          onClick={() => handleNav("profile")}
-          className="flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--surface2)] transition text-left w-full text-[var(--text2)] hover:text-[var(--text)]"
-        >
-          <Menu size={22} className="min-w-[22px]" />
-          <span className="hidden lg:inline text-[15px]">More</span>
-        </button>
+
         <button
           onClick={doLogout}
           className="flex items-center gap-4 p-3 rounded-xl hover:bg-red-950/20 hover:text-red-400 transition text-left w-full text-red-500/80"

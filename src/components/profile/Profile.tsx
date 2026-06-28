@@ -561,32 +561,40 @@ export default function Profile() {
   if (loading || !dbProfile) {
     return (
       <div className="flex-1 overflow-y-auto h-full w-full custom-scroll text-[var(--text)] select-none bg-[var(--bg)]">
-        <div className="max-w-[900px] mx-auto px-4 py-8 animate-pulse">
-          {/* Profile Header Skeleton */}
-          <div className="flex gap-10 items-start mb-8">
-            <div className="w-[90px] h-[90px] md:w-[140px] md:h-[140px] rounded-full bg-[var(--surface2)] shrink-0" />
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="h-7 w-48 bg-[var(--surface2)] rounded-lg" />
-              <div className="flex gap-6">
-                <div className="h-5 w-16 bg-[var(--surface2)] rounded-md" />
-                <div className="h-5 w-20 bg-[var(--surface2)] rounded-md" />
-                <div className="h-5 w-20 bg-[var(--surface2)] rounded-md" />
+        <div className="max-w-[900px] mx-auto animate-pulse">
+          {/* Cover Photo Skeleton */}
+          <div className="h-[180px] md:h-[240px] bg-[var(--surface2)] opacity-40 w-full" />
+          
+          <div className="px-4 pb-8 relative z-20 max-w-[860px] mx-auto">
+            {/* Main Card Skeleton Container */}
+            <div className="-mt-16 md:-mt-20 mb-6 bg-[var(--surface)] border border-[var(--border)] rounded-[32px] p-5 md:p-8 shadow-2xl">
+              {/* Header section (Avatar + details) */}
+              <div className="flex flex-col md:flex-row gap-6 md:items-end justify-between mb-6">
+                <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-end w-full">
+                  <div className="w-[100px] h-[100px] md:w-[130px] md:h-[130px] rounded-full bg-[var(--surface2)] shrink-0" />
+                  <div className="flex-1 flex flex-col gap-3.5 w-full">
+                    <div className="h-7 w-48 bg-[var(--surface2)] rounded-xl" />
+                    <div className="h-5 w-32 bg-[var(--surface2)] rounded-lg" />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-2 mt-2">
-                <div className="h-4 w-32 bg-[var(--surface2)] rounded-md" />
-                <div className="h-4 w-64 bg-[var(--surface2)] rounded-md" />
+              
+              <div className="h-[1px] bg-[var(--border)] my-6" />
+
+              {/* Bio & Details Skeleton */}
+              <div className="flex flex-col gap-2.5">
                 <div className="h-4 w-40 bg-[var(--surface2)] rounded-md" />
+                <div className="h-4 w-full max-w-[500px] bg-[var(--surface2)] rounded-md" />
+                <div className="h-4 w-32 bg-[var(--surface2)] rounded-md" />
               </div>
             </div>
-          </div>
 
-          <div className="border-t border-[var(--border)] my-6" />
-
-          {/* Grid Skeleton */}
-          <div className="grid grid-cols-3 gap-1 md:gap-2">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={`skeleton-grid-${i}`} className="aspect-square bg-[var(--surface2)] rounded-lg" />
-            ))}
+            {/* Grid Skeleton */}
+            <div className="grid grid-cols-3 gap-1 md:gap-2">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={`skeleton-grid-${i}`} className="aspect-square bg-[var(--surface2)] rounded-2xl" />
+              ))}
+            </div>
           </div>
         </div>
       </div>
