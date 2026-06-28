@@ -55,21 +55,29 @@ export default function Settings() {
     return forbiddenPatterns.some(pattern => pattern.test(text));
   };
 
-  // Emojis validation helper (blocks only standard/extended emojis, allowing native language symbols/punctuation)
-  const hasEmojis = (text: string): boolean => {
-    const emojiRegex = /[\uD800-\uDFFF\u2600-\u27BF\u1F300-\u1F9FF\u1F000-\u1F9FF\u2600-\u26FF\u2700-\u27BF]/;
-    return emojiRegex.test(text);
+  // Emoji & Unicode special symbol blocker for full name
+  // Blocks: emoji sequences (surrogate pairs), Emoticons, Misc Symbols, Dingbats, CJK symbols-as-icons, etc.
+  // Allows: actual language letters (Latin, Arabic, Bangla, Japanese, Russian, Korean, etc.)
+  const hasEmojiOrSpecialSymbol = (text: string): boolean => {
+    // Block surrogate-pair emojis (modern emoji range via high+low surrogates)
+    const surrogatePairRegex = /[\uD800-\uDBFF][\uDC00-\uDFFF]/;
+    if (surrogatePairRegex.test(text)) return true;
+    // Block BMP emoji / special symbol blocks
+    // U+2600–U+26FF Misc Symbols, U+2700–U+27BF Dingbats
+    // U+FE00–U+FE0F Variation selectors (emoji style), U+200D ZWJ
+    const bmpSymbolRegex = /[\u2600-\u27BF\uFE00-\uFE0F\u200D\u20D0-\u20FF\u2300-\u23FF\u2400-\u243F\u2440-\u245F\u2500-\u257F\u2580-\u259F\u25A0-\u25FF\u2B00-\u2BFF\u3000-\u303F]/;
+    return bmpSymbolRegex.test(text);
   };
 
-  // Username validation: only a-z (lowercase), "-", and "_" allowed.
+  // Username validation: ONLY lowercase a-z, dash (-), underscore (_)
   const validateUsernameText = (uname: string): { valid: boolean; error: string } => {
     if (!uname) return { valid: false, error: "Username cannot be empty" };
     if (uname.length < 3) return { valid: false, error: "Username must be at least 3 characters" };
-    
-    // Check characters: a-z, numbers, dash, underscore
-    const usernameRegex = /^[a-z0-9_-]+$/;
+
+    // Strictly only a-z (lowercase), dash, underscore — nothing else
+    const usernameRegex = /^[a-z_-]+$/;
     if (!usernameRegex.test(uname)) {
-      return { valid: false, error: "Only lowercase letters (a-z), numbers, dash (-), and underscore (_) are allowed" };
+      return { valid: false, error: "Only lowercase letters (a-z), dash (-), and underscore (_) are allowed" };
     }
 
     if (isForbiddenText(uname)) {
@@ -79,12 +87,14 @@ export default function Settings() {
     return { valid: true, error: "" };
   };
 
-  // Full Name validation: can use any alphabet (Bangla, Japanese, Russian, etc.) and keyboard symbols but no emojis
+  // Full Name validation:
+  // ✅ Allowed: a-z, A-Z, any language letters (Bangla, Japanese, Russian, Arabic, etc.), spaces, standard keyboard symbols
+  // ❌ Blocked: emojis, Unicode special/misc symbols (✓ ★ ☺ etc.)
   const validateFullNameText = (name: string): { valid: boolean; error: string } => {
-    if (!name) return { valid: false, error: "Full Name cannot be empty" };
-    
-    if (hasEmojis(name)) {
-      return { valid: false, error: "Full Name cannot contain emojis" };
+    if (!name || !name.trim()) return { valid: false, error: "Full Name cannot be empty" };
+
+    if (hasEmojiOrSpecialSymbol(name)) {
+      return { valid: false, error: "Full Name cannot contain emojis or special symbols" };
     }
 
     if (isForbiddenText(name)) {
