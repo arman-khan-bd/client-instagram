@@ -406,6 +406,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const isOwnProfile = pathname === "/me";
     const isPublicProfile = pathname.startsWith("/@");
     const isMessagesUser = pathname.startsWith("/messages/") || pathname.startsWith("/message/");
+    const isPostDialog = pathname.startsWith("/p/");
     const tab = pathname.startsWith("/reels/r/") 
       ? "reels" 
       : (isProfileUser || isOwnProfile || isPublicProfile)
@@ -420,6 +421,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const id = parts[parts.length - 1];
       if (id) {
         localStorage.setItem("activeReelId", id);
+      }
+    } else if (isPostDialog) {
+      const parts = pathname.split("/");
+      const idStr = parts[parts.length - 1];
+      if (idStr) {
+        const id = parseInt(idStr, 10);
+        if (!isNaN(id)) {
+          setActivePostIdState(id);
+        }
       }
     } else if (isProfileUser) {
       // Legacy URL redirect: /profile/username -> /@username
@@ -481,7 +491,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Helper to push history state when opening a modal
   const openModalHistory = (modalName: string, queryParam: string, additionalState = {}) => {
     if (typeof window === "undefined") return;
-    const newUrl = `${window.location.pathname}?${queryParam}`;
+    let newUrl = `${window.location.pathname}?${queryParam}`;
+    if (modalName === "post" && (additionalState as any).id) {
+      newUrl = `/p/${(additionalState as any).id}`;
+    }
     window.history.pushState({ modal: modalName, ...additionalState }, "", newUrl);
   };
 
@@ -494,7 +507,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     else if (modalName === "create-post") keyToRemove = "create-post";
     else if (modalName === "story-create") keyToRemove = "story-create";
     else if (modalName === "story") keyToRemove = "story";
-    else if (modalName === "post") keyToRemove = "post";
+    else if (modalName === "post") {
+      // If we are currently on a post detail path, reset path to / (home) or previous tab pathname
+      if (url.pathname.startsWith("/p/")) {
+        const targetPath = activeTab === "home" ? "/" : (TAB_TO_PATHNAME[activeTab] || "/");
+        window.history.replaceState(window.history.state, "", targetPath + url.search);
+        return;
+      }
+      keyToRemove = "post";
+    }
     else if (modalName === "share") keyToRemove = "share";
     else if (modalName === "report") keyToRemove = "report";
     else if (modalName === "followers") {
@@ -614,7 +635,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const state = event.state || {};
       
       const postParam = params.get("post");
-      setActivePostIdState(postParam ? parseInt(postParam, 10) : null);
+      if (postParam) {
+        setActivePostIdState(parseInt(postParam, 10));
+      } else if (window.location.pathname.startsWith("/p/")) {
+        const parts = window.location.pathname.split("/");
+        const idStr = parts[parts.length - 1];
+        if (idStr) {
+          const id = parseInt(idStr, 10);
+          setActivePostIdState(isNaN(id) ? null : id);
+        } else {
+          setActivePostIdState(null);
+        }
+      } else {
+        setActivePostIdState(null);
+      }
       
       const storyParam = params.get("story");
       setStoryViewerIndexState(storyParam ? parseInt(storyParam, 10) : null);
@@ -690,6 +724,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const postParam = params.get("post");
     if (postParam) {
       setActivePostIdState(parseInt(postParam, 10));
+    } else if (pathname.startsWith("/p/")) {
+      const parts = pathname.split("/");
+      const idStr = parts[parts.length - 1];
+      if (idStr) {
+        const id = parseInt(idStr, 10);
+        if (!isNaN(id)) {
+          setActivePostIdState(id);
+        }
+      }
     }
     
     const storyParam = params.get("story");
